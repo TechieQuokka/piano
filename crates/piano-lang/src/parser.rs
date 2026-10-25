@@ -383,6 +383,9 @@ impl Parser<'_> {
             }
             return None;
         }
+        if lower == "voices" && matches!(self.peek_tok(), Some(Tok::LBrace)) {
+            return Some(self.voices(span));
+        }
         if matches!(self.peek_tok(), Some(Tok::LParen)) {
             return self.func(w, span);
         }
@@ -499,6 +502,59 @@ impl Parser<'_> {
             span,
         })
     }
+
+    /// `voices{ ... }{ ... }`. A `{` right after a body starts another voice, unless
+    /// its `}` is followed by a length or `~`: then it is a chord.
+    fn voices(&mut self, span: SrcSpan) -> Node {
+        let mut voices = Vec::new();
+        while matches!(self.peek_tok(), Some(Tok::LBrace))
+            && (voices.is_empty() || !self.chord_ahead())
+        {
+            self.bump();
+            self.depth += 1;
+            let (body, end) = self.seq(Ctx::Func);
+            self.depth -= 1;
+            if end != End::RBrace {
+                self.error(span, "`voices{` has no matching `}`");
+            }
+            voices.push(body);
+        }
+        if self.depth >= MAX_DEPTH {
+            self.warning(
+                span,
+                format!("blocks nested deeper than {MAX_DEPTH}, `voices` ignored"),
+            );
+            return Node::Group(voices.into_iter().flatten().collect());
+        }
+        if voices.len() == 1 {
+            self.alerts.push(Alert::hint(
+                span,
+                "`voices` has one voice, add another `{ ... }`",
+            ));
+        }
+        Node::Voices { voices, span }
+    }
+
+    /// Whether the `{` at the cursor closes with a `}` followed by a length or `~`.
+    fn chord_ahead(&self) -> bool {
+        let mut depth = 0;
+        for (i, t) in self.tokens.iter().enumerate().skip(self.pos) {
+            match t.tok {
+                Tok::LBrace => depth += 1,
+                Tok::RBrace => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return matches!(
+                            self.tokens.get(i + 1).map(|t| &t.tok),
+                            Some(Tok::Len { .. } | Tok::Tie)
+                        );
+                    }
+                }
+                _ => {}
+            }
+        }
+        false
+    }
 }
 
 /// `x3` → 3.
@@ -576,6 +632,22 @@ mod tests {
     fn unmatched_repeat_start() {
         let (_, alerts) = parse_src("|: C D");
         assert_eq!(alerts.len(), 1);
+    }
+
+    #[test]
+    fn voices_bodies() {
+        let (nodes, alerts) = parse_src("voices{ C D }\n{ E/2 } {C E G}/2 F");
+        assert!(alerts.is_empty(), "{alerts:?}");
+        assert!(matches!(&nodes[0], Node::Voices { voices, .. } if voices.len() == 2));
+        assert!(matches!(&nodes[1], Node::Chord { .. }));
+        assert!(matches!(&nodes[2], Node::Note { .. }));
+    }
+
+    #[test]
+    fn voices_with_one_voice() {
+        let (nodes, alerts) = parse_src("voices{ C D }");
+        assert_eq!(alerts.len(), 1);
+        assert!(matches!(&nodes[0], Node::Voices { voices, .. } if voices.len() == 1));
     }
 
     #[test]

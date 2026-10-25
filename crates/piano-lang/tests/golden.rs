@@ -198,3 +198,53 @@ fn garbage_never_panics() {
         let _ = compile_piece(src);
     }
 }
+
+#[test]
+fn voices_sound_together() {
+    let c = clean("| voices{ r/2 G4/4 G } { C3/1 } | D4/4 E F G |");
+    assert_eq!(
+        notes(&c),
+        "C3@0+8 G4@4+2 G4@6+2 D4@8+2 E4@10+2 F4@12+2 G4@14+2"
+    );
+}
+
+#[test]
+fn voices_bars_continue_the_current_bar() {
+    let c = clean("| C4/2 voices{ D/2 | E/1 }{ F/2 | G/1 } |");
+    assert_eq!(notes(&c), "C4@0+4 D4@4+4 F4@4+4 E4@8+8 G4@8+8");
+    let c = compile_piece("| C4/2 voices{ D/4 | E/1 }{ F/2 | G/1 } |");
+    assert!(
+        c.alerts
+            .iter()
+            .any(|a| a.message.contains("bar has 3 beats")),
+        "{:?}",
+        c.alerts
+    );
+}
+
+#[test]
+fn voices_of_different_lengths() {
+    let c = compile_piece("voices{ C4/1 }{ E4/2 } D");
+    assert_eq!(c.alerts.len(), 1, "{:?}", c.alerts);
+    assert_eq!(c.alerts[0].severity, Severity::Warning);
+    assert_eq!(c.score.notes.last().unwrap().start, 4 * TICKS_PER_QUARTER);
+}
+
+#[test]
+fn voices_share_the_pedal() {
+    let c = clean("voices{ ped on C4/2 ped off }{ E4/4 F } ped on G ped off");
+    let on: Vec<bool> = c
+        .score
+        .pedals
+        .iter()
+        .filter(|p| p.kind == PedalKind::Damper)
+        .map(|p| p.on)
+        .collect();
+    assert_eq!(on, [true, false, true, false]);
+}
+
+#[test]
+fn bar_repeat_after_voices() {
+    let c = clean("| voices{ C4/2 D }{ E3/1 } | % |");
+    assert_eq!(notes(&c), "E3@0+8 C4@0+4 D4@4+4 E3@8+8 C4@8+4 D4@12+4");
+}

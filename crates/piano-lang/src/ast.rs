@@ -53,6 +53,11 @@ pub enum Node {
         body: Vec<Node>,
         span: SrcSpan,
     },
+    /// `voices{ ... }{ ... }`: sections that start together and sound at once.
+    Voices {
+        voices: Vec<Vec<Node>>,
+        span: SrcSpan,
+    },
     /// Nodes kept for their content only (e.g. the body of an unknown function).
     Group(Vec<Node>),
 }
@@ -73,7 +78,8 @@ impl Node {
             | Node::Bar(span)
             | Node::BarRepeat(span)
             | Node::Repeat { span, .. }
-            | Node::Func { span, .. } => Some(*span),
+            | Node::Func { span, .. }
+            | Node::Voices { span, .. } => Some(*span),
             Node::Group(nodes) => nodes.first().and_then(Node::span),
         }
     }

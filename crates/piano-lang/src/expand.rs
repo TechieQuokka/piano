@@ -53,6 +53,8 @@ struct Ctx {
     bar_prev: Tick,
     bar_cur: Tick,
     bars_seen: u32,
+    /// Part of the current bar played before this context started (inside `voices`).
+    lead: Tick,
     /// Notes waiting for a tie continuation: (note index, span of the tied sound).
     ties: Vec<(usize, SrcSpan)>,
 }
@@ -64,6 +66,7 @@ impl Ctx {
             bar_prev: 0,
             bar_cur: 0,
             bars_seen: 0,
+            lead: 0,
             ties: Vec::new(),
         }
     }
@@ -159,7 +162,7 @@ fn lay_item(
             track.time_sigs.push(TimeSigEvent { at: now, sig: *sig });
         }
         Item::Bar(span) => {
-            let len = now - ctx.bar_cur;
+            let len = now - ctx.bar_cur + std::mem::take(&mut ctx.lead);
             let expected = ctx.time.bar_ticks();
             let check = if ctx.bars_seen > 0 {
                 len != expected
@@ -251,8 +254,56 @@ fn lay_item(
             let out = builtin.apply(body_track, alerts);
             track.append(out, now);
         }
+        Item::Voices { voices, span } => {
+            ctx.flush_ties(alerts);
+            let (tracks, ctxs): (Vec<Track>, Vec<Ctx>) = voices
+                .iter()
+                .map(|v| voice_track(v, resolved, ctx, now, alerts))
+                .unzip();
+            // Bar lines continue from those of the first voice.
+            if let Some(v) = ctxs.first()
+                && v.bars_seen > ctx.bars_seen
+            {
+                let outer = |t: Tick| if t == 0 { ctx.bar_cur } else { now + t };
+                (ctx.bar_prev, ctx.bar_cur) = (outer(v.bar_prev), outer(v.bar_cur));
+                ctx.bars_seen = v.bars_seen;
+                ctx.lead = 0;
+            }
+            let lens: Vec<Tick> = tracks.iter().map(|t| t.len).collect();
+            if lens.iter().any(|&l| l != lens[0]) {
+                let beats: Vec<String> = lens.iter().map(|&l| beats(l, ctx.time)).collect();
+                alerts.push(
+                    Alert::warning(
+                        *span,
+                        format!("voices have different lengths ({} beats)", beats.join(", ")),
+                    )
+                    .with_fix("(the longest one is used)"),
+                );
+            }
+            for t in tracks {
+                track.append(t, now);
+            }
+        }
         Item::Group(items) => lay_seq(items, resolved, ctx, track, alerts),
     }
+}
+
+/// Lays out one voice starting at `now`; its bar lines continue the current bar.
+/// Returns the voice's context too, for the bar lines after the block.
+fn voice_track(
+    items: &[Item],
+    resolved: &Resolved,
+    outer: &Ctx,
+    now: Tick,
+    alerts: &mut Vec<Alert>,
+) -> (Track, Ctx) {
+    let mut ctx = Ctx::new(outer.time);
+    ctx.bars_seen = outer.bars_seen;
+    ctx.lead = now - outer.bar_cur + outer.lead;
+    let mut track = Track::default();
+    lay_seq(items, resolved, &mut ctx, &mut track, alerts);
+    ctx.flush_ties(alerts);
+    (track, ctx)
 }
 
 /// Bar length in beats of the time signature's unit, e.g. "3" or "3.5".

@@ -3,6 +3,11 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.24.0
+- New `voices{ ... }{ ... }`: sections that start together and sound at once, each
+  with its own octave, length, and dynamic (e.g. a melody over an accompaniment over
+  a long bass). Pedals are shared. `man voices`.
+
 ## 1.23.0
 - `ls`, `pwd`, `cat`, `history`, `project`, `project recent` show their result: they
   switch the Display to Output. Action commands (`play`, `save`, ...) keep the view.

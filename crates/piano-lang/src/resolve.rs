@@ -137,6 +137,11 @@ pub enum Item {
         builtin: Builtin,
         body: Vec<Item>,
     },
+    /// Sections that start together.
+    Voices {
+        voices: Vec<Vec<Item>>,
+        span: SrcSpan,
+    },
     Group(Vec<Item>),
 }
 
@@ -160,15 +165,11 @@ pub fn resolve(
         cresc: None,
         probe,
         probed: None,
+        in_voices: 0,
         alerts,
     };
     let items = r.seq(nodes);
-    if let Some(c) = r.cresc.take() {
-        r.alerts.push(Alert::warning(
-            c.span,
-            "cresc/dim has no target dynamic, e.g. `p cresc C D E f`",
-        ));
-    }
+    r.end_cresc();
     let state = r.probed.unwrap_or(r.state);
     (
         Resolved {
@@ -192,6 +193,8 @@ struct Resolver<'a> {
     cresc: Option<Cresc>,
     probe: Option<(u32, u32)>,
     probed: Option<State>,
+    /// Depth of `voices` blocks around the current node.
+    in_voices: u32,
     alerts: &'a mut Vec<Alert>,
 }
 
@@ -288,6 +291,13 @@ impl Resolver<'_> {
                     span: *span,
                 })
             }
+            Node::Tempo(_, span) | Node::Time(_, span) if self.in_voices > 0 => {
+                self.alerts.push(Alert::warning(
+                    *span,
+                    "`tempo` and `time` inside `voices` are ignored, write them before it",
+                ));
+                None
+            }
             Node::Tempo(bpm, _) => {
                 self.state.tempo = *bpm;
                 Some(Item::Tempo(*bpm))
@@ -332,7 +342,52 @@ impl Resolver<'_> {
                     None => Item::Group(body),
                 })
             }
+            Node::Voices { voices, span } => Some(self.voices(voices, *span)),
             Node::Group(nodes) => Some(Item::Group(self.seq(nodes))),
+        }
+    }
+
+    /// Each voice starts from the state before the block and keeps its own octave,
+    /// length, dynamic, and cresc. Pedals act on the whole piano: a pedal changed in
+    /// any voice stays changed after the block. Otherwise the first voice continues.
+    fn voices(&mut self, voices: &[Vec<Node>], span: SrcSpan) -> Item {
+        let before = self.state;
+        let outer = self.cresc.take();
+        let mut pedals = before.pedals;
+        let mut first_end = None;
+        self.in_voices += 1;
+        let voices = voices
+            .iter()
+            .map(|v| {
+                self.state = before;
+                let items = self.seq(v);
+                self.end_cresc();
+                for (p, (now, was)) in pedals
+                    .iter_mut()
+                    .zip(self.state.pedals.iter().zip(before.pedals))
+                {
+                    if *now != was {
+                        *p = *now;
+                    }
+                }
+                first_end.get_or_insert(self.state);
+                items
+            })
+            .collect();
+        self.in_voices -= 1;
+        self.state = first_end.unwrap_or(before);
+        self.state.pedals = pedals;
+        self.cresc = outer;
+        Item::Voices { voices, span }
+    }
+
+    /// Warns about a cresc/dim that never reached its target.
+    fn end_cresc(&mut self) {
+        if let Some(c) = self.cresc.take() {
+            self.alerts.push(Alert::warning(
+                c.span,
+                "cresc/dim has no target dynamic, e.g. `p cresc C D E f`",
+            ));
         }
     }
 
@@ -507,6 +562,25 @@ mod tests {
             alerts[0].to_string(),
             "⚠ line 1: C9 folded to C8 (outside A0-C8)"
         );
+    }
+
+    #[test]
+    fn voices_keep_their_own_state() {
+        let (r, alerts) = run("C4/8 voices{ G E mp A }{ p C3/2 E } D");
+        assert!(alerts.is_empty(), "{alerts:?}");
+        assert_eq!(names(&r), ["C4", "G3", "E3", "A3", "C3", "E3", "D4"]);
+        let lens: Vec<Tick> = r.sounds.iter().map(|s| s.len).collect();
+        let e = piano_core::TICKS_PER_QUARTER / 2;
+        assert_eq!(lens, [e, e, e, e, 4 * e, 4 * e, e]);
+        let v: Vec<u8> = r.sounds.iter().map(|s| s.velocity).collect();
+        assert_eq!(v, [80, 80, 80, 64, 49, 49, 64]);
+    }
+
+    #[test]
+    fn tempo_inside_voices_is_ignored() {
+        let (r, alerts) = run("voices{ tempo 90 C }{ E }");
+        assert_eq!(alerts.len(), 1);
+        assert!(matches!(&r.items[0], Item::Voices { voices, .. } if voices[0].len() == 1));
     }
 
     #[test]

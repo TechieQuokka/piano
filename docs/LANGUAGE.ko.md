@@ -114,7 +114,7 @@ only descriptions are Korean.
     Octave   화음 안의 각 음은 바로 앞 음 기준으로 해석됨.
              화음이 끝나면 첫 음이 기준이 됨.
     Example  {C4 E G}/2 {F A C}/2
-    See      octave, tie
+    See      octave, tie, voices
 
 ## INHERITANCE {#inheritance}
 
@@ -163,6 +163,24 @@ only descriptions are Korean.
     Where    어디든 쓸 수 있고, 그 지점부터 적용. 기본 100.
     Example  tempo 90 C D tempo 140 E F
     See      defaults
+
+### VOICES {#voices}
+
+    Syntax   voices{ ... }{ ... } ...       voices{ G4/2 A }{ C3/1 }
+    Meaning  { } 하나가 성부 하나. 모든 성부가 함께 시작해 동시에
+             울림: 화음 위의 멜로디, 그 아래의 긴 저음.
+    State    각 성부는 블록 직전 상태에서 시작해 옥타브, 길이,
+             셈여림, cresc를 따로 이어받음.
+    After    블록 뒤에는 첫 번째 성부의 상태가 이어짐.
+    Pedals   피아노 전체가 공유: 어느 성부의 페달이든 모든 성부에
+             적용되고, 블록 뒤에도 그대로 유지됨.
+    Bars     성부 안의 마디줄은 현재 마디에 이어서 셈.
+    Length   성부 길이가 다르면 Warning. 블록 길이는 가장 긴 성부.
+    Header   성부 안의 tempo, time -> Warning, 무시됨.
+    Chord    블록 바로 뒤의 { }는 성부로 읽음. 뒤에 길이가 있으면
+             화음: voices{ C }{ E } {C E G}/2
+    Example  voices{ p r/2 G4/8. G4/16 G4/4 }{ pp {C3 C4}/1 }
+    See      chord, pedal, bar
 
 ## DYNAMICS {#dynamics}
 
@@ -347,6 +365,7 @@ only descriptions are Korean.
     pedal    ped|sos|soft on|off
     repeat   |: ... :| [x n]   [1 ... :| [2 ...
     function up down accent louder softer tuplet seq  (name(args){ ... })
+    voices   voices{ ... }{ ... }
     song     piece > piece   fade   r/n   ped
     Example  tempo 90 | p C4/8 D E F G/4 A | ped on {C E G}/1 ped off |
     See      file

@@ -115,7 +115,7 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     Octave   Each note resolves against the previous one in the chord.
              After the chord, the reference is its first note.
     Example  {C4 E G}/2 {F A C}/2
-    See      octave, tie
+    See      octave, tie, voices
 
 ## INHERITANCE {#inheritance}
 
@@ -164,6 +164,25 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     Where    Anywhere; applies from that point. Default 100.
     Example  tempo 90 C D tempo 140 E F
     See      defaults
+
+### VOICES {#voices}
+
+    Syntax   voices{ ... }{ ... } ...       voices{ G4/2 A }{ C3/1 }
+    Meaning  Each { } is a voice. All voices start together and sound
+             at once: a melody over chords, a long bass under it.
+    State    Each voice starts from the state before the block and
+             keeps its own octave, length, dynamic, and cresc.
+    After    The first voice continues after the block.
+    Pedals   Shared by the whole piano: a pedal in any voice acts on
+             every voice, and stays as set after the block.
+    Bars     Bar lines inside a voice continue the current bar.
+    Length   Voices of different lengths -> Warning; the block lasts
+             as long as the longest voice.
+    Header   tempo and time inside a voice -> Warning, ignored.
+    Chord    A { } right after the block is another voice, unless a
+             length follows it: voices{ C }{ E } {C E G}/2
+    Example  voices{ p r/2 G4/8. G4/16 G4/4 }{ pp {C3 C4}/1 }
+    See      chord, pedal, bar
 
 ## DYNAMICS {#dynamics}
 
@@ -348,6 +367,7 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     pedal    ped|sos|soft on|off
     repeat   |: ... :| [x n]   [1 ... :| [2 ...
     function up down accent louder softer tuplet seq  (name(args){ ... })
+    voices   voices{ ... }{ ... }
     song     piece > piece   fade   r/n   ped
     Example  tempo 90 | p C4/8 D E F G/4 A | ped on {C E G}/1 ped off |
     See      file

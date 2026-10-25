@@ -353,7 +353,33 @@ Rules:
 - **Octave folding**: results outside A0–C8 are moved by octaves until in range
   (note name preserved) and reported as a Warning.
 
-### 5.8 Example
+### 5.8 Voices (1.24.0)
+
+`voices{ ... }{ ... } ...` plays several sections at once, starting together. Piano
+music needs this for a melody over an accompaniment over a long bass: a chord `{ }`
+gives all its notes one length and one velocity, voices give each its own.
+
+```
+voices{ p r/2. G#4/8. G#4/16 }                       // melody
+      { pp tuplet(3){ G#3/8 C#4 E4 G#3 C#4 E4 G#3 C#4 E4 G#3 C#4 E4 } }
+      { pp {C#2 C#3}/1 }                             // bass
+```
+
+| Topic | Rule |
+|---|---|
+| State | Each voice starts from the state before the block; octave, length, dynamic, cresc are its own |
+| After | The first voice's state continues after the block |
+| Pedals | Shared by the whole piano; a pedal changed in any voice stays changed after the block |
+| Bars | Bar lines inside a voice continue the current bar; bars after the block follow the first voice |
+| Length | Different voice lengths → Warning; the block lasts as long as the longest voice |
+| Header | `tempo` / `time` inside a voice → Warning, ignored |
+| Ties | A tie does not cross the block boundary (Warning) |
+| Chord after | A `{ }` right after the block is another voice, unless a length or `~` follows its `}` |
+
+The syntax extends the function form (`name{ ... }`) instead of adding symbols; line
+breaks between the bodies are free.
+
+### 5.9 Example
 
 ```
 tempo 90  time 4/4            // header
@@ -911,6 +937,9 @@ octave reference).
   pedals left down are released at the piece end.
 - `fade` scales velocities over the last bar (to 30%); `ped` holds the damper from a
   quarter before the join to a quarter after.
+- `voices` (1.24.0): each voice is laid out as its own track and merged at the block
+  start; a voice starting mid-bar carries the part of the bar already played, so its
+  bar lines are checked against the real bar.
 
 ### 13.9 `piano doctor`
 
