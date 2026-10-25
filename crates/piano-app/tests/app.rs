@@ -158,6 +158,10 @@ fn files_and_sandbox() {
 
     run(&mut a, "ls");
     assert!(a.output.lines.iter().any(|l| l.text.contains("p2.piano*")));
+    // All names in one output line, wrapped by the Display at its width.
+    let listed = a.output.lines.last().unwrap();
+    assert!(listed.list);
+    assert!(listed.text.contains("p1.piano") && listed.text.contains("song.piano"));
     run(&mut a, "cd ../out");
     assert!(last(&a).contains("read-only"));
 }

@@ -17,6 +17,8 @@ pub enum OutKind {
 pub struct OutLine {
     pub kind: OutKind,
     pub text: String,
+    /// A list of names (`ls`): wrapped to the Display width without hanging indent.
+    pub list: bool,
 }
 
 /// Maximum lines kept in the output log.
@@ -33,8 +35,23 @@ impl Output {
             self.lines.push(OutLine {
                 kind,
                 text: line.to_string(),
+                list: false,
             });
         }
+        self.trim();
+    }
+
+    /// Names on one line, wrapped by the Display at its width.
+    pub fn list(&mut self, names: &[String]) {
+        self.lines.push(OutLine {
+            kind: OutKind::Info,
+            text: names.join("  "),
+            list: true,
+        });
+        self.trim();
+    }
+
+    fn trim(&mut self) {
         if self.lines.len() > MAX_OUTPUT {
             let extra = self.lines.len() - MAX_OUTPUT;
             self.lines.drain(..extra);

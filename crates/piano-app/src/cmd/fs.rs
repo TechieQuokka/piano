@@ -56,8 +56,8 @@ impl App {
                 )
             })
             .collect();
-        for chunk in line.chunks(6) {
-            self.output.info(chunk.join("  "));
+        if !line.is_empty() {
+            self.output.list(&line);
         }
     }
 

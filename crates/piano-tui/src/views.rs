@@ -6,7 +6,7 @@ use piano_core::PedalKind;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
-use crate::grid::{truncate, wrap};
+use crate::grid::{truncate, wrap, wrap_flow};
 use crate::theme;
 
 fn dim() -> Style {
@@ -128,7 +128,12 @@ pub fn output(app: &App, height: usize, width: usize) -> Vec<Line<'static>> {
     let mut rows: Vec<Line<'static>> = Vec::new();
     for l in lines[..end].iter().rev() {
         let style = theme::out(l.kind);
-        for w in wrap(&l.text, width).into_iter().rev() {
+        let wrapped = if l.list {
+            wrap_flow(&l.text, width)
+        } else {
+            wrap(&l.text, width)
+        };
+        for w in wrapped.into_iter().rev() {
             rows.push(Line::styled(w, style));
         }
         if rows.len() >= height {

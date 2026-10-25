@@ -101,11 +101,21 @@ fn hanging_indent(text: &str) -> usize {
 /// Continuation lines keep the original indentation (so `Field  value` blocks stay
 /// aligned). Always returns at least one line.
 pub fn wrap(text: &str, width: usize) -> Vec<String> {
+    wrap_with(text, width, true)
+}
+
+/// Like [`wrap`], but continuation rows start at the left edge (lists of names).
+pub fn wrap_flow(text: &str, width: usize) -> Vec<String> {
+    wrap_with(text, width, false)
+}
+
+fn wrap_with(text: &str, width: usize, hanging: bool) -> Vec<String> {
     let width = width.max(4);
     if self::width(text) <= width {
         return vec![text.to_string()];
     }
-    let indent = " ".repeat(hanging_indent(text));
+    let indent = if hanging { hanging_indent(text) } else { 0 };
+    let indent = " ".repeat(indent);
     let indent = if indent.len() + 8 < width {
         indent
     } else {
@@ -141,9 +151,9 @@ pub fn wrap(text: &str, width: usize) -> Vec<String> {
         lines.push(format!(
             "{prefix}{}",
             if first {
-                piece.as_str()
+                piece.trim_end()
             } else {
-                piece.trim_start()
+                piece.trim()
             }
         ));
         rest.drain(..cut);
@@ -180,6 +190,16 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn lists_flow_from_the_left_edge() {
+        let names = "intro.piano  theme.piano  coda.piano  song.piano";
+        assert_eq!(
+            wrap_flow(names, 26),
+            ["intro.piano  theme.piano", "coda.piano  song.piano"]
+        );
+        assert_eq!(wrap_flow(names, 80), [names]);
+    }
 
     #[test]
     fn wide_chars_take_two_columns() {

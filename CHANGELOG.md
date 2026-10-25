@@ -3,6 +3,10 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.25.1
+- Fix: `ls` broke its list after every 6 names even when the Display had room; the
+  list is now wrapped to the Display width.
+
 ## 1.25.0
 - The dimmed keys around the playable two octaves show their note names (`C#`, `D`,
   ...) and solfege (`레`); only the PC key labels stay on the playable keys.
