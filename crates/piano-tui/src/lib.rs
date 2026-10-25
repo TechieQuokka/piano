@@ -137,12 +137,19 @@ mod tests {
         for c in ['z', 'x', 'c'] {
             key(&mut a, KeyCode::Char(c));
         }
+        a.lang = piano_project::Lang::Ko;
         let s = screen(&mut a, 120, 40);
         assert!(!s.contains("A0 "), "no 88-key map line: {s}");
         assert!(s.contains("C4"), "{s}");
         assert!(s.contains("도"), "{s}");
         assert!(s.contains("E4 미"), "played notes are listed: {s}");
         assert!(s.contains("[Keys]"), "{s}");
+        a.lang = piano_project::Lang::En;
+        let s = screen(&mut a, 120, 40);
+        assert!(
+            s.contains("E4 Mi") && !s.contains('도'),
+            "solfege follows lang: {s}"
+        );
         let _ = std::fs::remove_dir_all(dir);
     }
 

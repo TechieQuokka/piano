@@ -92,7 +92,7 @@ pub fn played(app: &App, height: usize, width: usize) -> Vec<Line<'static>> {
             phrases.push(Vec::new());
         }
         if let Some(p) = phrases.last_mut() {
-            p.push(format!("{pitch} {}", pitch.solfege()));
+            p.push(format!("{pitch} {}", app.solfege(*pitch)));
         }
         last = Some(*at);
     }

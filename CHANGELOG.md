@@ -3,6 +3,13 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.27.1
+- Fix: exporting the song wrote `song.mid` / `.wav` / `.flac` in every project. The
+  song is now named after the project folder (`la_campanella.flac`); pieces keep
+  their own name (`p1.flac`), and a file given to `export` / `-o` is used as is.
+- Fix: the keyboard and the Played view always showed Korean solfège. They now
+  follow `lang`: `Do Re Mi Fa Sol La Ti` in English, `도 레 미 파 솔 라 시` in Korean.
+
 ## 1.27.0
 - New FLAC export: `export flac` in the editor, `piano export --flac` on the command
   line. Lossless; the same samples as WAV at about 40 % of the size.

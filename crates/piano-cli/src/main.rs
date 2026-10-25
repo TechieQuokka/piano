@@ -49,7 +49,8 @@ enum Cmd {
         /// Bits per sample for WAV / FLAC: 16 or 24 (default 24)
         #[arg(long)]
         bits: Option<u16>,
-        /// Output file (default: <name>.mid / .wav / .flac in the current directory)
+        /// Output file (default: <name>.mid / .wav / .flac in the current directory;
+        /// the song is named after the project folder)
         #[arg(short, long)]
         out: Option<PathBuf>,
     },
@@ -312,7 +313,10 @@ fn export(
     let (app, name) = load(target)?;
     let score = compiled(&app, &name)?;
     let ext = audio.unwrap_or("mid");
-    let out = out.map_or_else(|| PathBuf::from(format!("{name}.{ext}")), Path::to_path_buf);
+    let out = out.map_or_else(
+        || PathBuf::from(format!("{}.{ext}", app.project.export_stem(&name))),
+        Path::to_path_buf,
+    );
     let mut detail = String::new();
     let bytes = match audio {
         Some(kind) => {

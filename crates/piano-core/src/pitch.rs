@@ -69,6 +69,9 @@ const NAMES: [&str; 12] = [
 const SOLFEGE: [&str; 12] = [
     "도", "도#", "레", "레#", "미", "파", "파#", "솔", "솔#", "라", "라#", "시",
 ];
+const SOLFEGE_EN: [&str; 12] = [
+    "Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Ti",
+];
 
 impl Pitch {
     pub const LOWEST: Pitch = Pitch(21);
@@ -129,6 +132,11 @@ impl Pitch {
         SOLFEGE[self.class()]
     }
 
+    /// English solfège name (`Do`, `Do#`, ..., `Ti`).
+    pub fn solfege_en(self) -> &'static str {
+        SOLFEGE_EN[self.class()]
+    }
+
     /// Zero-based index on the keyboard (A0 = 0 .. C8 = 87).
     pub fn key_index(self) -> usize {
         usize::from(self.0 - Self::LOWEST.0)
@@ -183,6 +191,8 @@ mod tests {
         let p = Pitch::new(61).unwrap();
         assert_eq!(p.to_string(), "C#4");
         assert_eq!(p.solfege(), "도#");
+        assert_eq!(p.solfege_en(), "Do#");
+        assert_eq!(Pitch::new(71).unwrap().solfege_en(), "Ti");
         assert!(p.is_black());
         assert_eq!(Pitch::LOWEST.key_index(), 0);
         assert_eq!(Pitch::HIGHEST.key_index(), 87);

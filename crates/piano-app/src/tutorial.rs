@@ -129,7 +129,14 @@ mod tests {
         assert!(en.len() > 5);
         let ids = |s: &[Step]| {
             s.iter()
-                .map(|x| (x.id.clone(), x.expect.clone(), x.piece.clone(), x.edits.clone()))
+                .map(|x| {
+                    (
+                        x.id.clone(),
+                        x.expect.clone(),
+                        x.piece.clone(),
+                        x.edits.clone(),
+                    )
+                })
                 .collect::<Vec<_>>()
         };
         assert_eq!(ids(&en), ids(&ko));

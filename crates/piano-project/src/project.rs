@@ -64,6 +64,15 @@ impl Project {
         &self.config.project.name
     }
 
+    /// Default export file name (without extension): the project folder's name for
+    /// the song, so exports of different projects don't all become `song.*`.
+    pub fn export_stem(&self, piece: &str) -> String {
+        match self.root.file_name() {
+            Some(dir) if piece == SONG => dir.to_string_lossy().into_owned(),
+            _ => piece.to_string(),
+        }
+    }
+
     pub fn save_config(&self) -> Result<(), ProjectError> {
         let text = toml::to_string(&self.config).map_err(std::io::Error::other)?;
         std::fs::write(self.root.join(CONFIG_FILE), text)?;
@@ -156,6 +165,8 @@ mod tests {
 
         let p = Project::create(&dir).unwrap();
         assert_eq!(p.name(), "song_dir");
+        assert_eq!(p.export_stem(SONG), "song_dir");
+        assert_eq!(p.export_stem("p1"), "p1");
         assert_eq!(p.load_piece("p1").unwrap(), "C D E");
         assert_eq!(
             std::fs::read_to_string(dir.join("notes.txt")).unwrap(),

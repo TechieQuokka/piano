@@ -8,7 +8,7 @@ use piano_core::Pitch;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::Line;
 
-use crate::grid::Grid;
+use crate::grid::{self, Grid};
 use crate::theme;
 
 /// Rows of the full keyboard (key rows).
@@ -119,7 +119,12 @@ fn zoomed(app: &App, width: usize) -> Vec<Line<'static>> {
             rows[2].put(x + 1, &center(&key), style.add_modifier(Modifier::BOLD));
         }
         // `도` is two columns wide: center by display width, not chars.
-        rows[3].put(x + 1 + inner.saturating_sub(2) / 2, p.solfege(), style);
+        let solfege = app.solfege(p);
+        rows[3].put(
+            x + 1 + inner.saturating_sub(grid::width(solfege)) / 2,
+            solfege,
+            style,
+        );
         let name = if p.class() == 0 {
             p.to_string()
         } else {
@@ -189,7 +194,8 @@ mod tests {
 
     #[test]
     fn dimmed_keys_show_names_but_no_pc_keys() {
-        let (a, dir) = app("dimmed");
+        let (mut a, dir) = app("dimmed");
+        a.lang = piano_project::Lang::En;
         // Input octave 4: C4-B5 playable; at this width C3-B3 is drawn dimmed.
         let rows: Vec<String> = zoomed(&a, 120)
             .iter()
@@ -207,12 +213,32 @@ mod tests {
             .collect();
         assert_eq!(d3.trim(), "D");
         let solfege: String = rows[3].chars().skip(left).take(3 * cell).collect();
-        assert!(solfege.contains('레'), "{solfege:?}");
+        assert!(solfege.contains("Re"), "{solfege:?}");
         let pc: String = rows[2].chars().skip(left).take(7 * cell).collect();
         assert!(pc.trim_matches(['│', ' ']).is_empty(), "{pc:?}");
         // C#3: name on the black key row.
         let blacks: String = rows[1].chars().skip(left).take(7 * cell).collect();
         assert!(blacks.contains("C#"), "{blacks:?}");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn solfege_follows_the_language() {
+        let (mut a, dir) = app("lang");
+        let row = |a: &App| -> String {
+            zoomed(a, 120)[3]
+                .spans
+                .iter()
+                .map(|s| s.content.as_ref())
+                .collect()
+        };
+        a.lang = piano_project::Lang::En;
+        let en = row(&a);
+        assert!(en.contains("Sol") && en.contains("Ti"), "{en:?}");
+        assert!(!en.contains('솔'), "{en:?}");
+        a.lang = piano_project::Lang::Ko;
+        let ko = row(&a);
+        assert!(ko.contains('솔') && !ko.contains("Sol"), "{ko:?}");
         let _ = std::fs::remove_dir_all(dir);
     }
 }

@@ -225,7 +225,10 @@ impl App {
             }
         };
         let name = self.buf().name.clone();
-        let file = file.map_or_else(|| format!("{name}.{ext}"), str::to_string);
+        let file = file.map_or_else(
+            || format!("{}.{ext}", self.project.export_stem(&name)),
+            str::to_string,
+        );
         let score = self.buf().compiled.score.clone();
         if score.notes.is_empty() {
             self.output.warn(format!("{name} has no notes to export"));

@@ -1510,7 +1510,7 @@ dependencies = [
 
 [[package]]
 name = "piano-app"
-version = "1.27.0"
+version = "1.27.1"
 dependencies = [
  "piano-audio",
  "piano-core",
@@ -1521,7 +1521,7 @@ dependencies = [
 
 [[package]]
 name = "piano-audio"
-version = "1.27.0"
+version = "1.27.1"
 dependencies = [
  "cpal",
  "dirs",
@@ -1532,7 +1532,7 @@ dependencies = [
 
 [[package]]
 name = "piano-cli"
-version = "1.27.0"
+version = "1.27.1"
 dependencies = [
  "clap",
  "piano-app",
@@ -1547,11 +1547,11 @@ dependencies = [
 
 [[package]]
 name = "piano-core"
-version = "1.27.0"
+version = "1.27.1"
 
 [[package]]
 name = "piano-export"
-version = "1.27.0"
+version = "1.27.1"
 dependencies = [
  "claxon",
  "flacenc",
@@ -1565,7 +1565,7 @@ dependencies = [
 
 [[package]]
 name = "piano-import"
-version = "1.27.0"
+version = "1.27.1"
 dependencies = [
  "piano-core",
  "piano-lang",
@@ -1576,14 +1576,14 @@ dependencies = [
 
 [[package]]
 name = "piano-lang"
-version = "1.27.0"
+version = "1.27.1"
 dependencies = [
  "piano-core",
 ]
 
 [[package]]
 name = "piano-project"
-version = "1.27.0"
+version = "1.27.1"
 dependencies = [
  "dirs",
  "serde",
@@ -1593,7 +1593,7 @@ dependencies = [
 
 [[package]]
 name = "piano-tui"
-version = "1.27.0"
+version = "1.27.1"
 dependencies = [
  "piano-app",
  "piano-core",

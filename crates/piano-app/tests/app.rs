@@ -319,7 +319,11 @@ fn display_keeps_its_view_until_a_command() {
     run(&mut a, "tutorial");
     for focus in [Focus::Code, Focus::Cmd, Focus::Keys, Focus::Code] {
         a.set_focus(focus);
-        assert_eq!(a.view, View::Tutorial, "focus changes never switch the Display");
+        assert_eq!(
+            a.view,
+            View::Tutorial,
+            "focus changes never switch the Display"
+        );
     }
     a.escape();
     assert_eq!(a.view, View::Tutorial, "Esc leaves the Display alone");
@@ -350,7 +354,10 @@ fn playback_holds_down_the_sounding_keys() {
     assert!(a.sounding_pitches().is_empty(), "nothing while stopped");
     run(&mut a, "play");
     let names = |a: &App| -> Vec<String> {
-        a.sounding_pitches().iter().map(ToString::to_string).collect()
+        a.sounding_pitches()
+            .iter()
+            .map(ToString::to_string)
+            .collect()
     };
     assert_eq!(names(&a), ["C4"]);
     // tempo 60: one quarter note per second.
@@ -396,9 +403,20 @@ fn show_commands_open_the_output_and_actions_do_not() {
     for action in ["play", "stop", "save", "dyn f", "undo"] {
         run(&mut a, "tutorial");
         run(&mut a, action);
-        assert_eq!(a.view, View::Tutorial, "`{action}` leaves the Display alone");
+        assert_eq!(
+            a.view,
+            View::Tutorial,
+            "`{action}` leaves the Display alone"
+        );
     }
-    for show in ["ls", "pwd", "cat p1.piano", "history", "project", "project recent"] {
+    for show in [
+        "ls",
+        "pwd",
+        "cat p1.piano",
+        "history",
+        "project",
+        "project recent",
+    ] {
         run(&mut a, "tutorial");
         run(&mut a, show);
         assert_eq!(a.view, View::Output, "`{show}` shows its result");

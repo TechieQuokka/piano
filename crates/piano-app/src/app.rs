@@ -545,6 +545,14 @@ impl App {
             .collect()
     }
 
+    /// Solfège name of `p` in the UI language (`도` / `Do`).
+    pub fn solfege(&self, p: Pitch) -> &'static str {
+        match self.lang {
+            Lang::Ko => p.solfege(),
+            Lang::En => p.solfege_en(),
+        }
+    }
+
     /// Octave whose two octaves the keyboard labels: follows the playback,
     /// otherwise the input octave.
     pub fn view_octave(&self) -> i32 {

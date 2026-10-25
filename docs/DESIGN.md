@@ -179,6 +179,8 @@ FILE
   export midi [file]      Export as MIDI (.mid)
   export wav [file]       Export as audio (.wav)
   export flac [file]      Export as lossless audio (.flac)
+                          (default file: <piece>.<ext>; the song is named after
+                          the project folder, e.g. la_campanella.flac)
 
 FILESYSTEM
   ls [path]               List files
@@ -536,6 +538,7 @@ STEP 3 · LENGTH
 |---|---|---|
 | Manual (`man`) | English | Titles and field names in English; descriptions in Korean |
 | Tutorial | English | Titles and step names in English; descriptions and hints in Korean |
+| Solfège (keyboard, Played view) | `Do Re Mi Fa Sol La Ti` | `도 레 미 파 솔 라 시` |
 | Command help | English | English |
 | Alerts | English | English |
 | Code, keywords, examples | English | English |
@@ -754,6 +757,7 @@ impl App {
 piano edit [dir]                              # open TUI (default: current dir)
 piano play <dir|file> [--lines 2-4]
 piano export <dir|file> --midi|--wav|--flac [--rate 48000] [--bits 24] [-o out]
+                                              # default out: <piece>.<ext>; a project dir → <folder>.<ext>
 piano new <dir>                               # create project
 piano import <score.mxl> <dir>                # MusicXML → new project (§13.13)
 piano doctor                                  # check SoundFont, audio device, terminal keys

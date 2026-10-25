@@ -238,7 +238,10 @@ mod tests {
         assert_eq!(a.held.len(), 1, "still within the repeat gap");
         a.tick_keys(t + ms(200));
         assert!(a.held.is_empty(), "let go once repeats stop");
-        assert!(a.buf().text().trim() == "// p1", "nothing written to the code");
+        assert!(
+            a.buf().text().trim() == "// p1",
+            "nothing written to the code"
+        );
         let _ = std::fs::remove_dir_all(dir);
     }
 
