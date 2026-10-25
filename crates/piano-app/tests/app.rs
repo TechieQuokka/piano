@@ -190,7 +190,7 @@ fn views_and_docs() {
     assert!(a.page.lines.iter().any(|l| l.contains("가운데 도")));
     let code_step = piano_app::tutorial::steps(piano_project::Lang::En)
         .iter()
-        .position(|s| s.id == "code")
+        .position(|s| s.id == "first")
         .unwrap();
     run(&mut a, &format!("tutorial {}", code_step + 1));
     assert_eq!(a.view, View::Tutorial);
@@ -200,7 +200,7 @@ fn views_and_docs() {
             .iter()
             .any(|l| l.contains("not yet"))
     );
-    type_line(&mut a, "C4/8 D E F G/4");
+    type_line(&mut a, "| C4 C G G | A A G/2 |");
     assert!(a.tutorial_page().lines.iter().any(|l| l.contains("✔")));
     run(&mut a, "song");
     assert_eq!(a.view, View::Song);

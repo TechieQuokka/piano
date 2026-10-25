@@ -266,6 +266,7 @@ const KEYS: &[&str] = &[
     "  F2 / F3 / F4      jump to Keys / Code / Cmd",
     "  F5 / F6           play from cursor / stop",
     "  Esc               cancel a question (y/n)",
+    "  Shift+PgUp/PgDn   scroll the Display from any focus (also Alt+PgUp/PgDn)",
     "  PgUp / PgDn       scroll the Display (Keys, Cmd focus)",
     "",
     "  The Display keeps its view; change it with a command:",

@@ -1,6 +1,6 @@
 # piano — Design Document
 
-> Status: implemented (version 1.19.0, 2026-10-25). This document was the baseline;
+> Status: implemented (version 1.20.0, 2026-10-25). This document was the baseline;
 > §13 lists where the implementation differs.
 
 ## Table of Contents
@@ -474,9 +474,17 @@ Fields: `Syntax`, rule lines, exactly one `Example`, `See` (related sections).
 
 - `tutorial` opens the Display `tutorial` view; it stays while the user moves focus to
   follow the steps.
-- Steps go from basics (screen, keys, entering notes) to length, chords, pedals,
-  repeats, and functions.
-- Each step: short explanation → example to follow → next.
+- Since 1.20.0 the reader builds one song, "Twinkle Twinkle Little Star", by typing
+  every line into Code: pieces `p1` (A part), `p2` (middle, repeated), `end` (rest and
+  chord with pedal), then `song` (`p1 > p2 > up(12){ p1 } > end`). Along the way it
+  covers notes, octaves, lengths, bars, playback, tempo, dynamics, repeats, chords,
+  pedals, songs, functions, save/export, and a list of more features to try.
+- Each step: explanation → the code to write (`Type` = a new line, `Line n` = change
+  line n, `Piece` = which piece) → what to listen for → Check ✔ → `tutorial next`.
+- A test replays the whole tutorial from a new project: every checked step passes
+  right after its edits, and every piece (and the song) compiles without alerts.
+- `Shift+PgUp` / `Shift+PgDn` scroll the Display from any focus, so a long step can be
+  read while typing in Code.
 - **Light checking**: the program checks the user's code and gives hints, but every
   step can be skipped.
 - Recommends writing one or two bars per line (partial playback is line-based).

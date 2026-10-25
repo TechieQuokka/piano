@@ -142,7 +142,10 @@ pub fn output(app: &App, height: usize, width: usize) -> Vec<Line<'static>> {
 
 fn page_style(l: &str) -> Style {
     let t = l.trim_start();
-    if t.starts_with("Try") || t.starts_with("Example") {
+    if ["Try", "Example", "Type ", "Line ", "Piece "]
+        .iter()
+        .any(|p| t.starts_with(p))
+    {
         Style::new().fg(theme::ACCENT)
     } else if t.starts_with("Check") {
         Style::new().fg(if t.contains('✔') {
@@ -181,7 +184,7 @@ pub fn page(app: &App, page: &Page, height: usize, width: usize) -> Vec<Line<'st
     let take = if more { body.saturating_sub(1) } else { body };
     out.extend(rows.into_iter().skip(scroll).take(take));
     if more {
-        out.push(Line::styled("… PgDn for more", dim()));
+        out.push(Line::styled("… Shift+PgDn for more", dim()));
     }
     out
 }

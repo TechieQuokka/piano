@@ -25,6 +25,9 @@ pub fn handle(app: &mut App, key: KeyEvent) {
     }
     let shift = key.modifiers.contains(KeyModifiers::SHIFT);
     let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+    let scroll_mod = key
+        .modifiers
+        .intersects(KeyModifiers::SHIFT | KeyModifiers::ALT);
     match key.code {
         // Some terminals report Shift+F12 as F24.
         KeyCode::F(12) if shift => app.set_focus(app.focus.prev()),
@@ -45,10 +48,11 @@ pub fn handle(app: &mut App, key: KeyEvent) {
             }
             app.escape();
         }
-        KeyCode::PageUp if app.focus != Focus::Code => {
+        // Shift (or Alt) + PgUp/PgDn scroll the Display from any focus.
+        KeyCode::PageUp if scroll_mod || app.focus != Focus::Code => {
             app.display_scroll = app.display_scroll.saturating_add(PAGE);
         }
-        KeyCode::PageDown if app.focus != Focus::Code => {
+        KeyCode::PageDown if scroll_mod || app.focus != Focus::Code => {
             app.display_scroll = app.display_scroll.saturating_sub(PAGE);
         }
         _ => match app.focus {

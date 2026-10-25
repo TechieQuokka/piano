@@ -16,6 +16,33 @@ pub struct Step {
     pub lines: Vec<String>,
     /// Code whose notes must appear in the piece.
     pub expect: Option<String>,
+    /// `Piece <name>`: the piece the step's code goes into (default: unchanged).
+    pub piece: Option<String>,
+    /// `Type <code>` / `Line <n> <code>`: what the reader writes, in order.
+    pub edits: Vec<Edit>,
+}
+
+/// A change the reader makes to the piece (shown, and replayed by the tests).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Edit {
+    /// `Type <code>`: the code on a new line at the end.
+    Append(String),
+    /// `Line <n> <code>`: line `n` (1-based) becomes the code.
+    Replace(usize, String),
+}
+
+fn field<'a>(content: &'a str, name: &str) -> Option<&'a str> {
+    let rest = content.strip_prefix(name)?;
+    rest.starts_with(' ').then(|| rest.trim())
+}
+
+fn edit(content: &str) -> Option<Edit> {
+    if let Some(code) = field(content, "Type") {
+        return Some(Edit::Append(code.to_string()));
+    }
+    let rest = field(content, "Line")?;
+    let (n, code) = rest.split_once(' ')?;
+    Some(Edit::Replace(n.parse().ok()?, code.trim().to_string()))
 }
 
 pub fn parse(text: &str) -> Vec<Step> {
@@ -28,15 +55,35 @@ pub fn parse(text: &str) -> Vec<Step> {
                     title,
                     lines: Vec::new(),
                     expect: None,
+                    piece: None,
+                    edits: Vec::new(),
                 });
+            }
+        } else if line.trim().is_empty() {
+            // A blank line separates paragraphs (kept once, never leading).
+            if let Some(step) = steps.last_mut()
+                && step.lines.last().is_some_and(|l| !l.is_empty())
+            {
+                step.lines.push(String::new());
             }
         } else if let Some(content) = line.strip_prefix("    ")
             && let Some(step) = steps.last_mut()
         {
-            match content.strip_prefix("Expect") {
-                Some(code) => step.expect = Some(code.trim().to_string()),
-                None => step.lines.push(content.to_string()),
+            if let Some(code) = field(content, "Expect") {
+                step.expect = Some(code.to_string());
+                continue;
             }
+            if let Some(name) = field(content, "Piece") {
+                step.piece = Some(name.to_string());
+            } else if let Some(e) = edit(content) {
+                step.edits.push(e);
+            }
+            step.lines.push(content.to_string());
+        }
+    }
+    for step in &mut steps {
+        while step.lines.last().is_some_and(String::is_empty) {
+            step.lines.pop();
         }
     }
     steps
@@ -82,7 +129,7 @@ mod tests {
         assert!(en.len() > 5);
         let ids = |s: &[Step]| {
             s.iter()
-                .map(|x| (x.id.clone(), x.expect.clone()))
+                .map(|x| (x.id.clone(), x.expect.clone(), x.piece.clone(), x.edits.clone()))
                 .collect::<Vec<_>>()
         };
         assert_eq!(ids(&en), ids(&ko));
@@ -99,22 +146,77 @@ mod tests {
         }
     }
 
+    /// Follows the whole tutorial as a reader would, from a new project
+    /// (`p1` = `// p1`, `song` = `p1`): every step with an `Expect` must be done
+    /// right after its edits, and every piece must end up without alerts.
     #[test]
-    fn the_try_text_satisfies_its_step() {
-        // Steps whose Try line is code to type must pass when typed as-is.
+    fn following_the_tutorial_completes_every_step() {
+        let mut pieces: Vec<(String, Vec<String>)> = vec![
+            ("p1".into(), vec!["// p1".into()]),
+            ("song".into(), vec!["p1".into()]),
+        ];
+        let mut current = "p1".to_string();
+        let mut checked = 0;
         for s in steps(Lang::En) {
-            let (Some(expect), Some(try_line)) = (
-                &s.expect,
-                s.lines.iter().find_map(|l| l.strip_prefix("Try")),
-            ) else {
-                continue;
+            if let Some(p) = &s.piece {
+                current = p.clone();
+                if !pieces.iter().any(|(n, _)| *n == current) {
+                    pieces.push((current.clone(), vec![String::new()]));
+                }
+            }
+            let lines = &mut pieces.iter_mut().find(|(n, _)| *n == current).unwrap().1;
+            for e in &s.edits {
+                match e {
+                    Edit::Append(code) if lines.len() == 1 && lines[0].is_empty() => {
+                        lines[0] = code.clone();
+                    }
+                    Edit::Append(code) => lines.push(code.clone()),
+                    Edit::Replace(n, code) => {
+                        assert!(*n >= 1 && *n <= lines.len(), "{}: no line {n}", s.id);
+                        lines[n - 1] = code.clone();
+                    }
+                }
+            }
+            if let Some(expect) = &s.expect {
+                let score = piano_lang::compile_piece(&lines.join("\n")).score;
+                assert!(satisfied(&score, expect), "{}: {lines:?}", s.id);
+                checked += 1;
+            }
+        }
+        assert!(checked >= 4, "most writing steps are checked");
+        let source = |name: &str| {
+            pieces
+                .iter()
+                .find(|(n, _)| n == name)
+                .map(|(_, l)| l.join("\n"))
+        };
+        for (name, lines) in &pieces {
+            let text = lines.join("\n");
+            let c = if name == "song" {
+                let load = |n: &str| source(n);
+                piano_lang::song::compile_song(&text, &load, &Default::default())
+            } else {
+                piano_lang::compile_piece(&text)
             };
-            let Some(code) = try_line.trim().strip_prefix("Type ") else {
-                continue;
-            };
-            let code = code.trim_end_matches('.');
-            let score = piano_lang::compile_piece(code).score;
-            assert!(satisfied(&score, expect), "{}: {code}", s.id);
+            assert!(c.alerts.is_empty(), "{name}: {:?} {lines:?}", c.alerts);
+            assert!(!c.score.notes.is_empty(), "{name} has notes");
+        }
+    }
+
+    #[test]
+    fn manual_sections_named_in_hints_exist() {
+        for lang in [Lang::En, Lang::Ko] {
+            let m = crate::manual::manual(lang);
+            for s in steps(lang) {
+                for l in s.lines.iter().filter(|l| l.starts_with("Hint")) {
+                    let words: Vec<&str> = l
+                        .split(|c: char| c == ',' || c == '.' || c == ';' || c.is_whitespace())
+                        .collect();
+                    for w in words.windows(2).filter(|w| w[0] == "man") {
+                        assert!(m.lookup(&[w[1]]).is_some(), "{}: man {}", s.id, w[1]);
+                    }
+                }
+            }
         }
     }
 
