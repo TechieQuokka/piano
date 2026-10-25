@@ -19,6 +19,7 @@ piano new my_song      # create a project (any folder; existing files are kept)
 piano edit my_song     # open the editor
 piano play my_song     # play song.piano without the editor
 piano export my_song --midi
+piano export my_song --flac            # lossless audio, 24-bit at the SoundFont's rate
 piano import score.mxl my_song   # a MusicXML score (MuseScore, ...) as a new project
 piano doctor           # check SoundFont, audio device, terminal keys
 ```

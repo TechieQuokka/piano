@@ -256,7 +256,7 @@ impl App {
         match cmd {
             "lang" => words(&["en", "ko"]),
             "ped" | "sos" | "soft" => words(&["on", "off"]),
-            "export" => words(&["midi", "wav"]),
+            "export" => words(&["midi", "wav", "flac"]),
             "dyn" => piano_core::Dynamic::ALL
                 .iter()
                 .map(|d| d.name().to_string())

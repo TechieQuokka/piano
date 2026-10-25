@@ -33,14 +33,23 @@ enum Cmd {
         #[arg(long)]
         lines: Option<String>,
     },
-    /// Export a project's song, or a .piano file, to MIDI or WAV
+    /// Export a project's song, or a .piano file, to MIDI, WAV, or FLAC
     Export {
         target: PathBuf,
-        #[arg(long, conflicts_with = "wav")]
+        #[arg(long, conflicts_with_all = ["wav", "flac"])]
         midi: bool,
-        #[arg(long)]
+        #[arg(long, conflicts_with = "flac")]
         wav: bool,
-        /// Output file (default: <name>.mid / <name>.wav in the current directory)
+        /// Lossless FLAC (same sound as WAV, about half the size)
+        #[arg(long)]
+        flac: bool,
+        /// Sample rate in Hz for WAV / FLAC (default: the SoundFont's, e.g. 48000)
+        #[arg(long)]
+        rate: Option<u32>,
+        /// Bits per sample for WAV / FLAC: 16 or 24 (default 24)
+        #[arg(long)]
+        bits: Option<u16>,
+        /// Output file (default: <name>.mid / .wav / .flac in the current directory)
         #[arg(short, long)]
         out: Option<PathBuf>,
     },
@@ -61,8 +70,20 @@ fn main() -> ExitCode {
             target,
             midi: _,
             wav,
+            flac,
+            rate,
+            bits,
             out,
-        } => export(&target, wav, out.as_deref()),
+        } => {
+            let audio = if flac {
+                Some("flac")
+            } else if wav {
+                Some("wav")
+            } else {
+                None
+            };
+            export(&target, audio, rate, bits, out.as_deref())
+        }
         Cmd::New { dir } => new(&dir),
         Cmd::Import { file, dir } => import(&file, &dir),
         Cmd::Doctor => doctor(),
@@ -281,19 +302,37 @@ fn play(target: &Path, lines: Option<&str>) -> Result<(), String> {
     Ok(())
 }
 
-fn export(target: &Path, wav: bool, out: Option<&Path>) -> Result<(), String> {
+fn export(
+    target: &Path,
+    audio: Option<&str>,
+    rate: Option<u32>,
+    bits: Option<u16>,
+    out: Option<&Path>,
+) -> Result<(), String> {
     let (app, name) = load(target)?;
     let score = compiled(&app, &name)?;
-    let ext = if wav { "wav" } else { "mid" };
+    let ext = audio.unwrap_or("mid");
     let out = out.map_or_else(|| PathBuf::from(format!("{name}.{ext}")), Path::to_path_buf);
-    let bytes = if wav {
-        let sf = app
-            .player
-            .sound_font()
-            .ok_or("export --wav needs a SoundFont (piano.toml [sound] soundfont)")?;
-        piano_export::wav_bytes(&score, sf).map_err(|e| e.to_string())?
-    } else {
-        piano_export::midi_bytes(&score)
+    let mut detail = String::new();
+    let bytes = match audio {
+        Some(kind) => {
+            let sf = app.player.sound_font().ok_or(
+                "audio export needs a SoundFont (piano.toml or ~/.config/piano/config.toml [sound])",
+            )?;
+            let native = piano_export::AudioFormat::native(sf);
+            let format = piano_export::AudioFormat {
+                rate: rate.unwrap_or(native.rate),
+                bits: bits.unwrap_or(native.bits),
+            };
+            detail = format!(", {} Hz / {}-bit", format.rate, format.bits);
+            let bytes = if kind == "flac" {
+                piano_export::flac_bytes(&score, sf, format)
+            } else {
+                piano_export::wav_bytes(&score, sf, format)
+            };
+            bytes.map_err(|e| e.to_string())?
+        }
+        None => piano_export::midi_bytes(&score),
     };
     // Never overwrite: the same rule as outside the project in the editor.
     let mut f = std::fs::OpenOptions::new()
@@ -303,7 +342,7 @@ fn export(target: &Path, wav: bool, out: Option<&Path>) -> Result<(), String> {
         .map_err(|e| format!("{}: {e}", out.display()))?;
     f.write_all(&bytes).map_err(|e| e.to_string())?;
     println!(
-        "exported {} ({} KB)",
+        "exported {} ({} KB{detail})",
         out.display(),
         bytes.len().div_ceil(1024)
     );

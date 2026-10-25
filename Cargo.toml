@@ -3,7 +3,7 @@ members = ["crates/*"]
 resolver = "3"
 
 [workspace.package]
-version = "1.26.0"
+version = "1.27.0"
 edition = "2024"
 rust-version = "1.99"
 license = "PolyForm-Noncommercial-1.0.0"
@@ -20,8 +20,10 @@ piano-app = { path = "crates/piano-app" }
 piano-tui = { path = "crates/piano-tui" }
 
 clap = { version = "4.6.7", features = ["derive"] }
+claxon = "0.4.3"
 cpal = "0.18.2"
 dirs = "7.0.0"
+flacenc = "0.5.1"
 hound = "3.5.1"
 midly = "0.5.3"
 ratatui = "0.30.2"

@@ -178,6 +178,7 @@ FILE
   recover                 Restore piece from its recovery copy
   export midi [file]      Export as MIDI (.mid)
   export wav [file]       Export as audio (.wav)
+  export flac [file]      Export as lossless audio (.flac)
 
 FILESYSTEM
   ls [path]               List files
@@ -590,7 +591,7 @@ piano/
     │   └── tests/ cases/*.piano golden.rs
     ├── piano-audio/              # Score → sound
     │   └── src/ synth.rs player.rs scheduler.rs render.rs
-    ├── piano-export/             # Score → MIDI / WAV
+    ├── piano-export/             # Score → MIDI / WAV / FLAC
     │   └── src/ midi.rs wav.rs
     ├── piano-import/             # MusicXML → pieces (1.26.0)
     │   └── src/ musicxml.rs write.rs check.rs rational.rs
@@ -622,7 +623,7 @@ piano/
                 └───────── piano-core ──────────┘
 ```
 
-`piano-export` depends on `piano-audio` for offline rendering (WAV).
+`piano-export` depends on `piano-audio` for offline rendering (WAV, FLAC).
 `piano-import` (1.26.0) only produces text; it compiles its result with `piano-lang`
 to check it.
 Headless CLI subcommands (`play`, `export`) use `piano-app` without `piano-tui`.
@@ -752,8 +753,9 @@ impl App {
 ```
 piano edit [dir]                              # open TUI (default: current dir)
 piano play <dir|file> [--lines 2-4]
-piano export <dir|file> --midi|--wav [-o out]
+piano export <dir|file> --midi|--wav|--flac [--rate 48000] [--bits 24] [-o out]
 piano new <dir>                               # create project
+piano import <score.mxl> <dir>                # MusicXML → new project (§13.13)
 piano doctor                                  # check SoundFont, audio device, terminal keys
 ```
 
@@ -789,7 +791,7 @@ piano doctor                                  # check SoundFont, audio device, t
 | Text width | `unicode-width` |
 | SoundFont synthesis | `rustysynth` |
 | Audio output | `cpal` (optional feature, see §13) |
-| MIDI / WAV writing | `midly` / `hound` |
+| MIDI / WAV / FLAC writing | `midly` / `hound` / `flacenc` (tests decode with `claxon`) |
 | MusicXML reading | `roxmltree`, `zip` (`.mxl`, deflate only) |
 | CLI arguments | `clap` |
 | Config | `serde`, `toml`, `dirs` |
@@ -1025,3 +1027,14 @@ overwritten.
 - **Check** (`check.rs`): the song is compiled and its notes (start, pitch, length)
   compared with the model; mismatches and alerts are reported and make the command
   fail (the files are still written for inspection).
+
+### 13.14 Audio files (1.27.0)
+
+`export wav` / `export flac` (and `piano export --wav|--flac`) render at the
+SoundFont's own sample rate (the rate most of its samples use, e.g. 48 kHz for
+Salamander), so its samples are not resampled, and write 24-bit samples. Before
+1.27.0 WAV was always 44.1 kHz / 16-bit; `--rate 44100 --bits 16` still gives that.
+The mix is normalized only if it would clip, then rounded to the bit depth. FLAC is
+lossless: it decodes to exactly the samples of the WAV (tested), at about 40 % of
+its size.
+

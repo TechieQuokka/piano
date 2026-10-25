@@ -1,11 +1,11 @@
-//! Exports a `Score` to MIDI and WAV. Functions return bytes; the caller writes
+//! Exports a `Score` to MIDI, WAV, and FLAC. Functions return bytes; the caller writes
 //! files (so the project sandbox decides where writing is allowed).
 
 pub mod midi;
 pub mod wav;
 
 pub use midi::midi_bytes;
-pub use wav::wav_bytes;
+pub use wav::{AudioFormat, flac_bytes, native_rate, wav_bytes};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ExportError {
@@ -13,4 +13,6 @@ pub enum ExportError {
     Audio(#[from] piano_audio::AudioError),
     #[error("wav: {0}")]
     Wav(#[from] hound::Error),
+    #[error("{0}")]
+    Format(String),
 }

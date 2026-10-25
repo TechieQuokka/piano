@@ -211,15 +211,16 @@ impl App {
             [f] => (*f, None),
             [f, file] => (*f, Some(*file)),
             _ => {
-                self.output.error("usage: export midi|wav [file]");
+                self.output.error("usage: export midi|wav|flac [file]");
                 return;
             }
         };
         let ext = match format {
             "midi" | "mid" => "mid",
             "wav" => "wav",
+            "flac" => "flac",
             _ => {
-                self.output.error("export: format is midi or wav");
+                self.output.error("export: format is midi, wav, or flac");
                 return;
             }
         };
@@ -235,10 +236,16 @@ impl App {
         } else {
             let Some(sf) = self.player.sound_font().cloned() else {
                 self.output
-                    .error("export wav needs a SoundFont — `font <path>`");
+                    .error(format!("export {ext} needs a SoundFont — `font <path>`"));
                 return;
             };
-            match piano_export::wav_bytes(&score, &sf) {
+            let format = piano_export::AudioFormat::native(&sf);
+            let bytes = if ext == "flac" {
+                piano_export::flac_bytes(&score, &sf, format)
+            } else {
+                piano_export::wav_bytes(&score, &sf, format)
+            };
+            match bytes {
                 Ok(b) => b,
                 Err(e) => {
                     self.output.error(format!("export: {e}"));

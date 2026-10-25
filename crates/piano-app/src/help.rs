@@ -88,7 +88,7 @@ pub const COMMANDS: &[CmdSpec] = &[
     spec!(
         "FILE",
         "export",
-        "export midi|wav [file]",
+        "export midi|wav|flac [file]",
         "Export current piece or song"
     ),
     spec!(
@@ -105,7 +105,15 @@ pub const COMMANDS: &[CmdSpec] = &[
         "export wav [file]",
         "Export as audio (.wav)",
         "file   output path (default: <piece>.wav)",
-        "Needs a SoundFont (see font)."
+        "Needs a SoundFont (see font). 24-bit at the SoundFont's rate (e.g. 48 kHz)."
+    ),
+    spec!(
+        "FILE",
+        "export flac",
+        "export flac [file]",
+        "Export as lossless audio (.flac)",
+        "file   output path (default: <piece>.flac)",
+        "Same sound as wav, about half the size. Needs a SoundFont."
     ),
     spec!("FILESYSTEM", "ls", "ls [path]", "List files"),
     spec!("FILESYSTEM", "cd", "cd <path>", "Change directory"),

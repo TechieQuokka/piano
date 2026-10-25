@@ -3,6 +3,13 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.27.0
+- New FLAC export: `export flac` in the editor, `piano export --flac` on the command
+  line. Lossless; the same samples as WAV at about 40 % of the size.
+- WAV and FLAC are rendered at the SoundFont's own sample rate (48 kHz for
+  Salamander) with 24-bit samples. `piano export --rate --bits` choose others, e.g.
+  `--rate 44100 --bits 16` for the previous CD format.
+
 ## 1.26.0
 - New `piano import <score.mxl|.musicxml|.xml> <dir>`: a MusicXML score becomes a
   project of pieces with voices, pedals, tempo, and dynamics; repeats are unrolled.
