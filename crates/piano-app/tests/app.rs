@@ -355,3 +355,32 @@ fn playback_holds_down_the_sounding_keys() {
     run(&mut a, "stop");
     assert!(a.sounding_pitches().is_empty());
 }
+
+#[test]
+fn keyboard_follows_the_playback() {
+    let tmp = Tmp::new("follow");
+    let project = Project::create(&tmp.0.join("song")).unwrap();
+    let mut player = piano_audio::Player::silent();
+    player
+        .set_soundfont(piano_audio::testing::tiny_soundfont())
+        .unwrap();
+    let mut a = App::headless_with(project, player);
+    type_line(&mut a, "tempo 60 C4 C6 E6 C3");
+    let start = a.input.octave;
+    run(&mut a, "play");
+    a.tick();
+    assert_eq!(a.view_octave(), start, "C4 is already labeled");
+    a.player.pull_peak(1.2);
+    a.tick();
+    assert_eq!(a.view_octave(), 6, "follows up to C6");
+    a.player.pull_peak(1.0);
+    a.tick();
+    assert_eq!(a.view_octave(), 6, "E6 still fits: no move");
+    a.player.pull_peak(1.0);
+    a.tick();
+    assert_eq!(a.view_octave(), 3, "follows down to C3");
+    run(&mut a, "stop");
+    a.tick();
+    assert_eq!(a.view_octave(), start, "back to the input octave");
+    assert_eq!(a.input.octave, start, "the input octave never moves");
+}

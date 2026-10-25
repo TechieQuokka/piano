@@ -9,8 +9,8 @@ use crate::theme;
 
 pub fn line(app: &App) -> Line<'static> {
     let state = app.state_at_cursor();
-    let lo = Pitch::fold((app.input.octave + 1) * 12).0;
-    let hi = Pitch::fold((app.input.octave + 1) * 12 + 23).0;
+    let lo = Pitch::fold((app.view_octave() + 1) * 12).0;
+    let hi = Pitch::fold((app.view_octave() + 1) * 12 + 23).0;
     let pedals: Vec<&str> = PedalKind::ALL
         .iter()
         .filter(|k| state.pedal(**k))

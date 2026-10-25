@@ -24,9 +24,10 @@ fn pressed_keys(app: &App) -> Vec<Pitch> {
     down
 }
 
-/// MIDI range playable with the PC keys (two octaves from C of the input octave).
+/// MIDI range labeled with the PC keys: two octaves from C of the view octave
+/// (the input octave, or the one following the playback).
 fn playable(app: &App) -> (i32, i32) {
-    let lo = (app.input.octave + 1) * 12;
+    let lo = (app.view_octave() + 1) * 12;
     (lo, lo + 23)
 }
 
@@ -94,7 +95,7 @@ fn zoomed(app: &App, width: usize) -> Vec<Line<'static>> {
     let mut rows: Vec<Grid> = (0..5)
         .map(|_| Grid::new(width.max(left + total), Style::new()))
         .collect();
-    let octave = app.input.octave;
+    let octave = app.view_octave();
     let border = Style::new().fg(theme::DIM);
     let center = |s: &str| format!("{s:^inner$}");
 

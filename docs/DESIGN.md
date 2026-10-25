@@ -1,6 +1,6 @@
 # piano — Design Document
 
-> Status: implemented (version 1.21.0, 2026-10-25). This document was the baseline;
+> Status: implemented (version 1.22.0, 2026-10-25). This document was the baseline;
 > §13 lists where the implementation differs.
 
 ## Table of Contents
@@ -927,6 +927,10 @@ Since 1.19.0 this is the whole Keys area (the 88-key map line above it was remov
 the dimmed octaves and the status bar (`keys C4-B5`) show where the range is.
 Since 1.21.0 the keys of the notes being played (`play`, `loop`, `F5`, `play song`)
 are drawn pressed while each note lasts, like the keys pressed by the user.
+Since 1.22.0 the labeled two octaves follow the playback: when sounding notes leave
+the range, it moves by octaves to the lowest of them (within A0-C8), and returns to
+the input octave when playback ends. The status bar range follows too; the input
+octave (`←` `→`, `oct`) is unchanged.
 
 ### 13.11 Audio level and diagnostics (1.8.2)
 

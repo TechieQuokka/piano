@@ -118,6 +118,9 @@ pub struct App {
     pub page: Page,
     /// Scroll offset of the Display area.
     pub display_scroll: usize,
+    /// While playing: the octave the keyboard shows so the sounding notes are
+    /// labeled (`None` = the input octave).
+    pub follow_octave: Option<i32>,
     pub player: Player,
     pub playing: Option<Playing>,
     pub lang: Lang,
@@ -198,6 +201,7 @@ impl App {
             output: Output::default(),
             page: Page::default(),
             display_scroll: 0,
+            follow_octave: None,
             player,
             playing: None,
             tutorial_step: 0,
@@ -516,6 +520,7 @@ impl App {
     pub fn stop(&mut self) {
         self.player.stop();
         self.playing = None;
+        self.follow_octave = None;
     }
 
     /// Writes the active buffer's alerts to the output.
@@ -550,6 +555,35 @@ impl App {
             .collect()
     }
 
+    /// Octave whose two octaves the keyboard labels: follows the playback,
+    /// otherwise the input octave.
+    pub fn view_octave(&self) -> i32 {
+        self.follow_octave.unwrap_or(self.input.octave)
+    }
+
+    /// Moves the labeled range by octaves when sounding notes leave it, so the
+    /// keyboard follows the playback; back to the input octave when it ends.
+    fn follow_playback(&mut self) {
+        if self.playing.is_none() {
+            self.follow_octave = None;
+            return;
+        }
+        let midis: Vec<i32> = self
+            .sounding_pitches()
+            .iter()
+            .map(|p| i32::from(p.midi()))
+            .collect();
+        let Some(&low) = midis.iter().min() else {
+            return;
+        };
+        let lo = (self.view_octave() + 1) * 12;
+        if midis.iter().all(|m| (lo..lo + 24).contains(m)) {
+            return;
+        }
+        let octave = (low / 12 - 1).clamp(MIN_OCTAVE, MAX_OCTAVE);
+        self.follow_octave = (octave != self.input.octave).then_some(octave);
+    }
+
     // ---- periodic -----------------------------------------------------------
 
     /// Call regularly (e.g. every 100 ms): playback state, autosave, file watching.
@@ -560,6 +594,7 @@ impl App {
         if self.playing.is_some() && !self.player.is_playing() {
             self.playing = None;
         }
+        self.follow_playback();
         for e in self.player.take_errors() {
             self.output.warn(format!("audio: {e}"));
         }
