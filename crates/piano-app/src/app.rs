@@ -536,6 +536,20 @@ impl App {
         piano_lang::line_at(&p.score, tick)
     }
 
+    /// Pitches whose notes are sounding at the playback position (keys held down
+    /// in the score; the pedal may keep them ringing longer).
+    pub fn sounding_pitches(&self) -> Vec<Pitch> {
+        let (Some(p), Some(tick)) = (self.playing.as_ref(), self.player.position()) else {
+            return Vec::new();
+        };
+        p.score
+            .notes
+            .iter()
+            .filter(|n| n.start <= tick && tick < n.end())
+            .map(|n| n.pitch)
+            .collect()
+    }
+
     // ---- periodic -----------------------------------------------------------
 
     /// Call regularly (e.g. every 100 ms): playback state, autosave, file watching.

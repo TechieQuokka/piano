@@ -332,3 +332,26 @@ fn display_keeps_its_view_until_a_command() {
         assert_eq!(a.view, view, "{cmd}");
     }
 }
+
+#[test]
+fn playback_holds_down_the_sounding_keys() {
+    let tmp = Tmp::new("sounding");
+    let project = Project::create(&tmp.0.join("song")).unwrap();
+    let mut player = piano_audio::Player::silent();
+    player
+        .set_soundfont(piano_audio::testing::tiny_soundfont())
+        .unwrap();
+    let mut a = App::headless_with(project, player);
+    type_line(&mut a, "tempo 60 C4 {E G}");
+    assert!(a.sounding_pitches().is_empty(), "nothing while stopped");
+    run(&mut a, "play");
+    let names = |a: &App| -> Vec<String> {
+        a.sounding_pitches().iter().map(ToString::to_string).collect()
+    };
+    assert_eq!(names(&a), ["C4"]);
+    // tempo 60: one quarter note per second.
+    a.player.pull_peak(1.2);
+    assert_eq!(names(&a), ["E4", "G4"]);
+    run(&mut a, "stop");
+    assert!(a.sounding_pitches().is_empty());
+}

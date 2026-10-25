@@ -16,9 +16,12 @@ pub const FULL_ROWS: u16 = 5;
 const MIN_CELL: usize = 4;
 const MAX_CELL: usize = 6;
 
-fn is_pressed(app: &App, p: Pitch) -> bool {
-    app.pressed.iter().any(|(q, _)| *q == p)
-        || app.held_pitches().contains(&p)
+/// Keys pressed by the user, or held by the score being played.
+fn pressed_keys(app: &App) -> Vec<Pitch> {
+    let mut down: Vec<Pitch> = app.pressed.iter().map(|(p, _)| *p).collect();
+    down.extend(app.held_pitches());
+    down.extend(app.sounding_pitches());
+    down
 }
 
 /// MIDI range playable with the PC keys (two octaves from C of the input octave).
@@ -81,6 +84,8 @@ fn visible_whites(app: &App, width: usize) -> Vec<i32> {
 
 fn zoomed(app: &App, width: usize) -> Vec<Line<'static>> {
     let (lo, hi) = playable(app);
+    let down = pressed_keys(app);
+    let is_pressed = |p: Pitch| down.contains(&p);
     let whites = visible_whites(app, width);
     let cell = (width.saturating_sub(1) / whites.len().max(1)).clamp(MIN_CELL, MAX_CELL);
     let inner = cell - 1;
@@ -97,7 +102,7 @@ fn zoomed(app: &App, width: usize) -> Vec<Line<'static>> {
         let x = left + i * cell;
         let p = Pitch::new(w).expect("white key in range");
         let live = (lo..=hi).contains(&w);
-        let style = if is_pressed(app, p) {
+        let style = if is_pressed(p) {
             theme::pressed()
         } else if live {
             theme::white_key()
@@ -129,7 +134,7 @@ fn zoomed(app: &App, width: usize) -> Vec<Line<'static>> {
             let bx = x + cell - 1;
             let bp = Pitch::new(black).expect("black key in range");
             let blive = (lo..=hi).contains(&black);
-            let bstyle = if is_pressed(app, bp) {
+            let bstyle = if is_pressed(bp) {
                 theme::pressed()
             } else if blive {
                 theme::black_key()

@@ -1,6 +1,6 @@
 # piano — Design Document
 
-> Status: implemented (version 1.20.0, 2026-10-25). This document was the baseline;
+> Status: implemented (version 1.21.0, 2026-10-25). This document was the baseline;
 > §13 lists where the implementation differs.
 
 ## Table of Contents
@@ -925,6 +925,8 @@ on both sides while they fit (key cells 4–6 columns, never beyond A0–C8). Ke
 outside the playable range are dimmed and unlabeled except C with its octave number.
 Since 1.19.0 this is the whole Keys area (the 88-key map line above it was removed);
 the dimmed octaves and the status bar (`keys C4-B5`) show where the range is.
+Since 1.21.0 the keys of the notes being played (`play`, `loop`, `F5`, `play song`)
+are drawn pressed while each note lasts, like the keys pressed by the user.
 
 ### 13.11 Audio level and diagnostics (1.8.2)
 
