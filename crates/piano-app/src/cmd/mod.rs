@@ -119,22 +119,40 @@ impl App {
             "reload" => self.cmd_reload(),
             "recover" => self.cmd_recover(),
             "export" => self.cmd_export(&args),
-            "ls" => self.cmd_ls(&args),
+            "ls" => {
+                self.cmd_ls(&args);
+                self.set_view(View::Output);
+            }
             "cd" => self.cmd_cd(&args),
-            "pwd" => self.cmd_pwd(),
-            "cat" => self.cmd_cat(&args),
+            "pwd" => {
+                self.cmd_pwd();
+                self.set_view(View::Output);
+            }
+            "cat" => {
+                self.cmd_cat(&args);
+                self.set_view(View::Output);
+            }
             "cp" => self.cmd_cp(&args),
             "mv" => self.cmd_mv(&args),
             "rm" => self.cmd_rm(&args),
             "mkdir" => self.cmd_mkdir(&args),
             "undo" => self.cmd_undo(),
             "redo" => self.cmd_redo(),
-            "history" => self.cmd_history(),
+            "history" => {
+                self.cmd_history();
+                self.set_view(View::Output);
+            }
             "goto" => self.cmd_goto(&args),
             "dyn" => self.cmd_dyn(&args),
             "oct" => self.cmd_oct(&args),
             "ped" | "sos" | "soft" => self.cmd_pedal(&cmd, &args),
-            "project" => self.cmd_project(&args),
+            "project" => {
+                self.cmd_project(&args);
+                // `project` and `project recent` show information; new / open act.
+                if matches!(args.as_slice(), [] | ["recent"]) {
+                    self.set_view(View::Output);
+                }
+            }
             "played" => self.cmd_show(View::Played, &args),
             "ref" => self.cmd_show(View::Ref, &args),
             "output" => self.cmd_show(View::Output, &args),

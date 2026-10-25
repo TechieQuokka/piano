@@ -384,3 +384,19 @@ fn keyboard_follows_the_playback() {
     assert_eq!(a.view_octave(), start, "back to the input octave");
     assert_eq!(a.input.octave, start, "the input octave never moves");
 }
+
+#[test]
+fn show_commands_open_the_output_and_actions_do_not() {
+    let tmp = Tmp::new("showcmds");
+    let mut a = app(&tmp);
+    for action in ["play", "stop", "save", "dyn f", "undo"] {
+        run(&mut a, "tutorial");
+        run(&mut a, action);
+        assert_eq!(a.view, View::Tutorial, "`{action}` leaves the Display alone");
+    }
+    for show in ["ls", "pwd", "cat p1.piano", "history", "project", "project recent"] {
+        run(&mut a, "tutorial");
+        run(&mut a, show);
+        assert_eq!(a.view, View::Output, "`{show}` shows its result");
+    }
+}

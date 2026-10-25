@@ -1,6 +1,6 @@
 # piano — Design Document
 
-> Status: implemented (version 1.22.0, 2026-10-25). This document was the baseline;
+> Status: implemented (version 1.23.0, 2026-10-25). This document was the baseline;
 > §13 lists where the implementation differs.
 
 ## Table of Contents
@@ -95,7 +95,12 @@ Display rules (1.18.0):
 2. It does not depend on the focus: moving focus (`F2`–`F4`, `F12`) and `Esc` never
    change the view.
 3. It keeps the last view until another view is opened, and a view is opened only by
-   its command: `played`, `ref`, `output`, `song`, `help`, `man`, `tutorial`.
+   a command:
+   - view commands: `played`, `ref`, `output`, `song`, `help`, `man`, `tutorial`;
+   - show commands, whose purpose is their result, open `output` (1.23.0): `ls`,
+     `pwd`, `cat`, `history`, `project`, `project recent`;
+   - action commands (`play`, `save`, `new`, `open`, `undo`, ...) leave the Display
+     as it is; their last result is shown on the Cmd border, the full log in `output`.
 
 At startup the Display shows `output`, so startup messages are visible.
 

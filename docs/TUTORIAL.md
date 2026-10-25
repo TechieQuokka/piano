@@ -23,7 +23,10 @@ the same IDs, `Expect`, `Piece`, `Type` and `Line` lines.
     F2 Keys, F3 Code, F4 Cmd. The status bar shows where you are.
 
     The Display stays as it is while you move. Only a command
-    changes it: played, ref, output, song, help, man, tutorial.
+    changes it: played, ref, output, song, help, man, tutorial,
+    and ls, pwd, cat, history, project (they show their result).
+    Other commands (play, save ...) keep the Display; their result
+    appears on the bottom border of Cmd, the full log in output.
     Shift+PgUp / Shift+PgDn scroll it from any area.
 
     Moving through the tutorial (in Cmd, F4):

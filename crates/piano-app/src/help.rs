@@ -271,6 +271,8 @@ const KEYS: &[&str] = &[
     "",
     "  The Display keeps its view; change it with a command:",
     "    played ref output song help man tutorial",
+    "    ls pwd cat history project   (show their result in output)",
+    "  Other commands keep the view; their result is on the Cmd border.",
     "",
     "  Keys focus        listen only (nothing is written)",
     "    Z X C V B N M   white keys (lower octave)   S D G H J  black",

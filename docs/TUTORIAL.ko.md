@@ -18,7 +18,10 @@ field names stay in English; descriptions and hints are Korean.
     F2 Keys, F3 Code, F4 Cmd. 지금 위치는 맨 아래 상태줄에 보임.
 
     영역을 옮겨도 Display는 그대로임. 명령으로만 바뀜:
-    played, ref, output, song, help, man, tutorial.
+    played, ref, output, song, help, man, tutorial,
+    그리고 ls, pwd, cat, history, project (결과를 보여줌).
+    다른 명령(play, save ...)은 Display를 그대로 두고, 결과는 Cmd
+    아래 테두리에 나옴. 전체 기록은 output.
     Shift+PgUp / Shift+PgDn으로 어느 영역에서든 스크롤함.
 
     튜토리얼 이동 (Cmd, F4에서):
