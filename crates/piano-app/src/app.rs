@@ -264,18 +264,8 @@ impl App {
     }
 
     fn setup_sound(&mut self) {
-        let path = self
-            .project
-            .config
-            .sound
-            .soundfont
-            .clone()
-            .or_else(|| self.global.sound.soundfont.clone())
-            .or_else(|| {
-                (self.user_files != UserFiles::Ignore)
-                    .then(piano_audio::find_soundfont)
-                    .flatten()
-            });
+        let search = self.user_files != UserFiles::Ignore;
+        let path = choose_soundfont(&self.project.config, &self.global, search).map(|(p, _)| p);
         match path {
             Some(p) => match self.player.load_soundfont(&p) {
                 Ok(()) => {
@@ -750,6 +740,46 @@ pub fn short_path(root: &Path, path: &Path) -> String {
     }
 }
 
+/// Where the SoundFont comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SoundFontSource {
+    /// `[sound]` in the project's `piano.toml`.
+    Project,
+    /// `[sound]` in `~/.config/piano/config.toml`.
+    Global,
+    /// The first piano `.sf2` in the usual folders.
+    Search,
+}
+
+impl SoundFontSource {
+    pub fn label(self) -> &'static str {
+        match self {
+            SoundFontSource::Project => "piano.toml",
+            SoundFontSource::Global => "global config",
+            SoundFontSource::Search => "found by search",
+        }
+    }
+}
+
+/// The SoundFont a project plays with: `piano.toml`, then the global config, then
+/// (if `search`) the usual folders. Used by the editor and by `piano doctor`.
+pub fn choose_soundfont(
+    project: &piano_project::ProjectConfig,
+    global: &GlobalConfig,
+    search: bool,
+) -> Option<(PathBuf, SoundFontSource)> {
+    if let Some(p) = &project.sound.soundfont {
+        return Some((p.clone(), SoundFontSource::Project));
+    }
+    if let Some(p) = &global.sound.soundfont {
+        return Some((p.clone(), SoundFontSource::Global));
+    }
+    search
+        .then(piano_audio::find_soundfont)
+        .flatten()
+        .map(|p| (p, SoundFontSource::Search))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -761,6 +791,23 @@ mod tests {
         assert_eq!(parse_len("8"), Duration::new(8, 0));
         assert_eq!(parse_len("1/4."), Duration::new(4, 1));
         assert_eq!(parse_len("3"), None);
+    }
+
+    #[test]
+    fn soundfont_order() {
+        let mut project = piano_project::ProjectConfig::default();
+        let mut global = GlobalConfig::default();
+        assert_eq!(choose_soundfont(&project, &global, false), None);
+        global.sound.soundfont = Some("/g.sf2".into());
+        assert_eq!(
+            choose_soundfont(&project, &global, false),
+            Some(("/g.sf2".into(), SoundFontSource::Global))
+        );
+        project.sound.soundfont = Some("/p.sf2".into());
+        assert_eq!(
+            choose_soundfont(&project, &global, false),
+            Some(("/p.sf2".into(), SoundFontSource::Project))
+        );
     }
 
     #[test]

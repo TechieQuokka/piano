@@ -3,6 +3,11 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.25.2
+- Fix: `piano doctor` reported (and sound-checked) the first SoundFont found in the
+  usual folders, ignoring `piano.toml` and the global config. It now uses the same
+  choice as the editor and shows where it comes from.
+
 ## 1.25.1
 - Fix: `ls` broke its list after every 6 names even when the Display had room; the
   list is now wrapped to the Display width.

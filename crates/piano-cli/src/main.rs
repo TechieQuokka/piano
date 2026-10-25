@@ -207,8 +207,20 @@ fn doctor() -> Result<(), String> {
     println!("piano {}\n", env!("CARGO_PKG_VERSION"));
 
     println!("SoundFont");
-    match piano_audio::find_soundfont() {
-        Some(p) => println!("  found {}", p.display()),
+    // The same order as the editor: piano.toml here, the global config, a search.
+    let project = Project::open(Path::new("."))
+        .map(|p| p.config)
+        .unwrap_or_default();
+    let (global, err) = piano_project::recent::load_global();
+    if let Some(e) = err {
+        println!("  global config: {e}");
+    }
+    let chosen = piano_app::app::choose_soundfont(&project, &global, true);
+    match &chosen {
+        Some((p, source)) => {
+            let state = if p.is_file() { "" } else { "  (missing!)" };
+            println!("  using {} ({}){state}", p.display(), source.label());
+        }
         None => {
             println!("  none in:");
             for d in piano_audio::search_dirs() {
@@ -233,10 +245,10 @@ fn doctor() -> Result<(), String> {
 
     let interactive = std::io::stdin().is_terminal();
     if player.device_error().is_none()
-        && let Some(sf) = piano_audio::find_soundfont()
+        && let Some((sf, _)) = &chosen
     {
         println!("\nSound check");
-        match player.load_soundfont(&sf) {
+        match player.load_soundfont(sf) {
             Ok(()) => sound_check(&player, interactive),
             Err(e) => println!("  {e}"),
         }

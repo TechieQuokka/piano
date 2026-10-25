@@ -943,7 +943,9 @@ octave reference).
 
 ### 13.9 `piano doctor`
 
-Reports the SoundFont search, the opened audio device (name, rate, channels,
+Reports the SoundFont the editor would use and where it comes from (`piano.toml` in
+the current folder, the global config, or the folder search; since 1.25.2, before
+that only the search), the opened audio device (name, rate, channels,
 format), keyboard-enhancement support, and runs an interactive key test (F2–F6, F12,
 Shift+F12; Shift+F12 may arrive as F24).
 
