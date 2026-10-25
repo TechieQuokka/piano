@@ -16,6 +16,7 @@ piano-app.workspace = true
 piano-audio.workspace = true
 piano-core.workspace = true
 piano-export.workspace = true
+piano-import.workspace = true
 piano-lang.workspace = true
 piano-project.workspace = true
 piano-tui.workspace = true

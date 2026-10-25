@@ -159,10 +159,11 @@ fn zoomed(app: &App, width: usize) -> Vec<Line<'static>> {
 mod tests {
     use super::*;
 
-    fn app() -> (App, std::path::PathBuf) {
+    /// A headless app in its own folder (tests run in parallel).
+    fn app(name: &str) -> (App, std::path::PathBuf) {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../target/test-tmp")
-            .join(format!("kbd-{}", std::process::id()));
+            .join(format!("kbd-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let project = piano_project::Project::create(&dir).unwrap();
         (App::headless(project), dir)
@@ -170,7 +171,7 @@ mod tests {
 
     #[test]
     fn more_octaves_when_wider() {
-        let (mut a, dir) = app();
+        let (mut a, dir) = app("octaves");
         let narrow = visible_whites(&a, 60);
         let wide = visible_whites(&a, 200);
         let full = visible_whites(&a, 1000);
@@ -188,7 +189,7 @@ mod tests {
 
     #[test]
     fn dimmed_keys_show_names_but_no_pc_keys() {
-        let (a, dir) = app();
+        let (a, dir) = app("dimmed");
         // Input octave 4: C4-B5 playable; at this width C3-B3 is drawn dimmed.
         let rows: Vec<String> = zoomed(&a, 120)
             .iter()

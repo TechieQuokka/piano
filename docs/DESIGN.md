@@ -592,6 +592,8 @@ piano/
     │   └── src/ synth.rs player.rs scheduler.rs render.rs
     ├── piano-export/             # Score → MIDI / WAV
     │   └── src/ midi.rs wav.rs
+    ├── piano-import/             # MusicXML → pieces (1.26.0)
+    │   └── src/ musicxml.rs write.rs check.rs rational.rs
     ├── piano-project/            # project, config, sandbox, recent, watch
     │   └── src/ project.rs config.rs sandbox.rs recent.rs watch.rs
     ├── piano-app/                # state, buffers, history, commands, help, tutorial
@@ -609,7 +611,7 @@ piano/
 ### 9.3 Dependency graph
 
 ```
-            piano-cli (bin: piano)
+            piano-cli (bin: piano) ──── piano-import ── piano-lang
                 │
             piano-tui
                 │
@@ -621,6 +623,8 @@ piano/
 ```
 
 `piano-export` depends on `piano-audio` for offline rendering (WAV).
+`piano-import` (1.26.0) only produces text; it compiles its result with `piano-lang`
+to check it.
 Headless CLI subcommands (`play`, `export`) use `piano-app` without `piano-tui`.
 
 ### 9.4 Core types (`piano-core`)
@@ -786,6 +790,7 @@ piano doctor                                  # check SoundFont, audio device, t
 | SoundFont synthesis | `rustysynth` |
 | Audio output | `cpal` (optional feature, see §13) |
 | MIDI / WAV writing | `midly` / `hound` |
+| MusicXML reading | `roxmltree`, `zip` (`.mxl`, deflate only) |
 | CLI arguments | `clap` |
 | Config | `serde`, `toml`, `dirs` |
 | Errors | `thiserror` |
@@ -992,3 +997,31 @@ octave (`←` `→`, `oct`) is unchanged.
   Holding is inferred from auto-repeats; a tap is only known after the OS repeat
   delay (~0.5 s), so the shortest note rings about a second.
 - `piano doctor` reports which mode the terminal supports.
+
+### 13.13 Importing MusicXML (1.26.0)
+
+`piano import <score.mxl|.musicxml|.xml> <dir>` writes a new project: pieces,
+`song.piano`, and `piano.toml` (time signature). Existing files are never
+overwritten.
+
+- **Model** (`musicxml.rs`): every part, voice, and staff; times are exact
+  fractions of a quarter (`rational.rs`). Repeats and endings are unrolled; chords,
+  backup / forward, ties, grace notes, trills, dynamics, wedges, pedals, tempo
+  (`<sound tempo>` or the metronome mark), and irregular bars are read. Cue and
+  unpitched notes are skipped.
+- **Pieces** (`write.rs`): a new piece at double bars, rehearsal marks, and repeat
+  jumps; pieces longer than 32 bars are cut every 16. One block per bar, split at
+  the half bar when the tempo changes there, merged across bar lines a tie crosses.
+  Each MusicXML voice is a voice (overlaps go to an extra voice); pedals and grace
+  notes have voices of their own.
+- **Lengths**: written lengths are `/1`-`/64` with up to two dots; other lengths go
+  into `tuplet(3|5|7)` (e.g. 5 in the time of 6 = dotted 32nds in `tuplet(5)`).
+  Rests are split into plain and tuplet parts.
+- **Approximations**: grace notes are 64ths just before their note; trills
+  alternate with the upper neighbor (key or marked accidental) in 32nds; arpeggios
+  are struck together; wedges step through the dynamic levels toward the next mark;
+  rubato becomes one tempo per block (harmonic mean, so durations are kept). Before
+  the first mark the level is mf, like the language and MuseScore.
+- **Check** (`check.rs`): the song is compiled and its notes (start, pitch, length)
+  compared with the model; mismatches and alerts are reported and make the command
+  fail (the files are still written for inspection).

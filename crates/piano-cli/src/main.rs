@@ -46,6 +46,8 @@ enum Cmd {
     },
     /// Create a project in any folder (existing files are kept)
     New { dir: PathBuf },
+    /// Import a MusicXML score (.mxl, .musicxml, .xml) as a new project in DIR
+    Import { file: PathBuf, dir: PathBuf },
     /// Check SoundFont, audio device, and terminal keys
     Doctor,
 }
@@ -62,6 +64,7 @@ fn main() -> ExitCode {
             out,
         } => export(&target, wav, out.as_deref()),
         Cmd::New { dir } => new(&dir),
+        Cmd::Import { file, dir } => import(&file, &dir),
         Cmd::Doctor => doctor(),
     };
     match result {
@@ -90,6 +93,110 @@ fn new(dir: &Path) -> Result<(), String> {
     let p = Project::create(dir).map_err(|e| e.to_string())?;
     println!("created project {}", p.root.display());
     println!("open it with: piano edit {}", dir.display());
+    Ok(())
+}
+
+/// Imports a score into a new project; files that exist are never overwritten.
+fn import(file: &Path, dir: &Path) -> Result<(), String> {
+    if dir.join(CONFIG_FILE).exists() {
+        return Err(format!("{} is already a project", dir.display()));
+    }
+    let xml = piano_import::read_file(file).map_err(|e| format!("{}: {e}", file.display()))?;
+    let source = file.file_name().map_or_else(
+        || file.display().to_string(),
+        |n| n.to_string_lossy().into_owned(),
+    );
+    let imp = piano_import::import(&xml, &source).map_err(|e| format!("{source}: {e}"))?;
+    let names = imp.pieces.iter().map(|(n, _)| n.as_str()).chain([SONG]);
+    if let Some(p) = names
+        .map(|n| dir.join(format!("{n}.piano")))
+        .find(|p| p.exists())
+    {
+        return Err(format!(
+            "{} exists; import into an empty folder",
+            p.display()
+        ));
+    }
+    let had_p1 = dir.join("p1.piano").exists();
+    let mut project = Project::create(dir).map_err(|e| e.to_string())?;
+    if !had_p1 {
+        // `Project::create` adds an empty p1; the import has its own pieces.
+        let _ = std::fs::remove_file(project.piece_path("p1"));
+    }
+    let (beats, unit) = imp.time;
+    project.config.defaults.time = Some(format!("{beats}/{unit}"));
+    project.save_config().map_err(|e| e.to_string())?;
+    let write = |name: &str, text: &str| {
+        std::fs::write(project.piece_path(name), text).map_err(|e| format!("{name}: {e}"))
+    };
+    for (name, text) in &imp.pieces {
+        write(name, text)?;
+    }
+    write(SONG, &imp.song)?;
+
+    let s = &imp.stats;
+    let c = &imp.check;
+    println!(
+        "imported {} → {}",
+        imp.title.as_deref().unwrap_or("score"),
+        project.root.display()
+    );
+    println!(
+        "  {} bars · {} voices · {} pieces · {} blocks · {} tempo marks",
+        s.measures,
+        s.voices,
+        imp.pieces.len(),
+        s.blocks,
+        s.tempos
+    );
+    let mut approx = Vec::new();
+    if s.graces > 0 {
+        approx.push(format!("{} grace notes (64ths)", s.graces));
+    }
+    if s.trills > 0 {
+        approx.push(format!("{} trills (32nds)", s.trills));
+    }
+    if s.notices.arpeggios > 0 {
+        approx.push(format!(
+            "{} arpeggios (struck together)",
+            s.notices.arpeggios
+        ));
+    }
+    if !approx.is_empty() {
+        println!("  approximated: {}", approx.join(", "));
+    }
+    let skipped: Vec<String> = [
+        (s.notices.cue, "cue notes"),
+        (s.notices.unpitched, "unpitched notes"),
+    ]
+    .into_iter()
+    .filter(|(n, _)| *n > 0)
+    .map(|(n, what)| format!("{n} {what}"))
+    .collect();
+    if !skipped.is_empty() {
+        println!("  skipped: {}", skipped.join(", "));
+    }
+    if s.notices.runaway_repeats > 0 {
+        println!("  repeats did not end; unrolling stopped");
+    }
+    println!(
+        "  check: {}/{} notes match, {} extra, {} alerts {}",
+        c.matched,
+        c.expected,
+        c.extra,
+        c.alerts.len(),
+        if c.ok() { "✔" } else { "✖" }
+    );
+    if !c.ok() {
+        for a in c.alerts.iter().take(10) {
+            println!("    {a}");
+        }
+        for (at, midi) in c.missing.iter().take(10) {
+            println!("    missing: MIDI {midi} at quarter {at}");
+        }
+        return Err("the imported song does not match the score (files were written)".into());
+    }
+    println!("  play it with: piano play {}", dir.display());
     Ok(())
 }
 

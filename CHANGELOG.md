@@ -3,6 +3,13 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.26.0
+- New `piano import <score.mxl|.musicxml|.xml> <dir>`: a MusicXML score becomes a
+  project of pieces with voices, pedals, tempo, and dynamics; repeats are unrolled.
+  The result is compiled and checked note by note against the score.
+- Fix: the two keyboard tests shared a temporary folder and could fail when run in
+  parallel.
+
 ## 1.25.2
 - Fix: `piano doctor` reported (and sound-checked) the first SoundFont found in the
   usual folders, ignoring `piano.toml` and the global config. It now uses the same
