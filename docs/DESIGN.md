@@ -944,3 +944,18 @@ octave (`←` `→`, `oct`) is unchanged.
   ±1 above), so chords never hard-clip.
 - The editor prints the opened device at startup and shows audio stream errors in
   the output (they were silently dropped before).
+
+### 13.12 Key input in terminals (1.18.1)
+
+- **Exact mode**: terminals with the kitty keyboard protocol (Ghostty, kitty, WezTerm,
+  foot) report releases. The app pushes `DISAMBIGUATE_ESCAPE_CODES |
+  REPORT_EVENT_TYPES`; a key sounds from press to release (+0.25 s tail, at least
+  0.4 s in all).
+- Without `REPORT_ALL_KEYS_AS_ESCAPE_CODES`, repeats of a held text key (Z, X, ...)
+  still arrive as plain presses. Since 1.18.1 a press of a key that is still held
+  (no release yet) is treated as a repeat; before, it re-struck the note ~30 times
+  a second.
+- **Inferred mode**: other terminals (e.g. GNOME Terminal / VTE) send no releases.
+  Holding is inferred from auto-repeats; a tap is only known after the OS repeat
+  delay (~0.5 s), so the shortest note rings about a second.
+- `piano doctor` reports which mode the terminal supports.

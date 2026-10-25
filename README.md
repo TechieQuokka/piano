@@ -27,11 +27,41 @@ language, `lang ko` switches the manual and tutorial to Korean.
 
 A piano `.sf2` SoundFont is needed for sound; set it with `font <path>`.
 
+## How it works
+
+- **Keys** (top): your keyboard is a piano for listening — `Z X C V B N M` /
+  `S D G H J` and `Q W E R T Y U` / `2 3 5 6 7`, `←` `→` change the octave.
+  Keys only sound; nothing is written.
+- **Code** (left): write the piece in the piano language, e.g. `| C4 C G G | A A G/2 |`.
+- **Display** (right): shows one view and keeps it until a command changes it
+  (`played`, `ref`, `output`, `song`, `help`, `man`, `tutorial`; `ls`, `pwd`, `cat`,
+  `history`, `project` show their result in `output`).
+- **Cmd** (bottom): commands such as `play`, `save`, `new p2`, `open song`.
+- While playing, the keys of the sounding notes are pressed on the keyboard, which
+  follows the melody across octaves.
+
+| Key | Action |
+|---|---|
+| `F2` `F3` `F4` | Keys / Code / Cmd (`F12`, `Shift+F12` cycle) |
+| `F5` `F6` | play from the cursor / stop |
+| `Shift+PgUp` `Shift+PgDn` | scroll the Display from any area |
+| `Esc` | cancel a question |
+
+## Terminal
+
+For exact note lengths when you press and release keys, use a terminal with the kitty
+keyboard protocol, which reports key releases: **Ghostty**, kitty, WezTerm, foot.
+`piano doctor` shows `keyboard enhancement: yes` there.
+
+Other terminals (e.g. GNOME Terminal) only send key repeats, so a release is guessed
+from the repeat stream: holding works, but even a short tap rings for about a second.
+
 ## Docs
 
 - `docs/DESIGN.md` — design and implementation notes
 - `docs/LANGUAGE.md`, `docs/LANGUAGE.ko.md` — language manual (`man`)
 - `docs/TUTORIAL.md`, `docs/TUTORIAL.ko.md` — tutorial
+- `CHANGELOG.md` — changes by version
 
 ## License
 
