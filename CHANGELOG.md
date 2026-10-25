@@ -3,6 +3,10 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.25.0
+- The dimmed keys around the playable two octaves show their note names (`C#`, `D`,
+  ...) and solfege (`레`); only the PC key labels stay on the playable keys.
+
 ## 1.24.0
 - New `voices{ ... }{ ... }`: sections that start together and sound at once, each
   with its own octave, length, and dynamic (e.g. a melody over an accompaniment over

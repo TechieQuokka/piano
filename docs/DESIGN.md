@@ -956,7 +956,9 @@ volume.
 
 The zoomed keyboard always contains the playable two octaves and adds whole octaves
 on both sides while they fit (key cells 4–6 columns, never beyond A0–C8). Keys
-outside the playable range are dimmed and unlabeled except C with its octave number.
+outside the playable range are dimmed and unlabeled except C with its octave number
+(since 1.25.0 they show their note names and solfege too; only the PC key labels
+are left out).
 Since 1.19.0 this is the whole Keys area (the 88-key map line above it was removed);
 the dimmed octaves and the status bar (`keys C4-B5`) show where the range is.
 Since 1.21.0 the keys of the notes being played (`play`, `loop`, `F5`, `play song`)

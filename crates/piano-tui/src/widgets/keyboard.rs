@@ -1,6 +1,6 @@
 //! The always-visible keyboard: a zoomed keyboard that grows with the terminal
 //! width (one line of text in small terminals). Only the playable two octaves carry PC key labels;
-//! the octaves around them are drawn dimmed for orientation.
+//! the octaves around them are drawn dimmed, with their note names, for orientation.
 
 use piano_app::App;
 use piano_app::input::key_label;
@@ -117,15 +117,13 @@ fn zoomed(app: &App, width: usize) -> Vec<Line<'static>> {
         if live {
             let key = key_label(p, octave).map_or(String::new(), |c| c.to_string());
             rows[2].put(x + 1, &center(&key), style.add_modifier(Modifier::BOLD));
-            // `도` is two columns wide: center by display width, not chars.
-            rows[3].put(x + 1 + inner.saturating_sub(2) / 2, p.solfege(), style);
         }
+        // `도` is two columns wide: center by display width, not chars.
+        rows[3].put(x + 1 + inner.saturating_sub(2) / 2, p.solfege(), style);
         let name = if p.class() == 0 {
             p.to_string()
-        } else if live {
-            p.letter_name().to_string()
         } else {
-            String::new()
+            p.letter_name().to_string()
         };
         rows[4].put(x + 1, &center(&name), style);
 
@@ -148,8 +146,7 @@ fn zoomed(app: &App, width: usize) -> Vec<Line<'static>> {
                 ' '
             };
             rows[0].put(bx, &format!(" {key} "), bstyle.add_modifier(Modifier::BOLD));
-            let label = if blive { bp.letter_name() } else { "" };
-            rows[1].put(bx, &format!("{label:<3}"), bstyle);
+            rows[1].put(bx, &format!("{:<3}", bp.letter_name()), bstyle);
         }
     }
     for row in rows.iter_mut().skip(2) {
@@ -186,6 +183,35 @@ mod tests {
         a.shift_octave(3);
         let w = visible_whites(&a, 120);
         assert!(w.contains(&((a.input.octave + 1) * 12)));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn dimmed_keys_show_names_but_no_pc_keys() {
+        let (a, dir) = app();
+        // Input octave 4: C4-B5 playable; at this width C3-B3 is drawn dimmed.
+        let rows: Vec<String> = zoomed(&a, 120)
+            .iter()
+            .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect())
+            .collect();
+        let whites = visible_whites(&a, 120);
+        assert_eq!(whites[0], 48, "starts at C3");
+        let cell = (119 / whites.len()).clamp(MIN_CELL, MAX_CELL);
+        let left = 120usize.saturating_sub(whites.len() * cell + 1) / 2;
+        // D3, the second white key: name and solfege, but no PC key.
+        let d3: String = rows[4]
+            .chars()
+            .skip(left + cell + 1)
+            .take(cell - 1)
+            .collect();
+        assert_eq!(d3.trim(), "D");
+        let solfege: String = rows[3].chars().skip(left).take(3 * cell).collect();
+        assert!(solfege.contains('레'), "{solfege:?}");
+        let pc: String = rows[2].chars().skip(left).take(7 * cell).collect();
+        assert!(pc.trim_matches(['│', ' ']).is_empty(), "{pc:?}");
+        // C#3: name on the black key row.
+        let blacks: String = rows[1].chars().skip(left).take(7 * cell).collect();
+        assert!(blacks.contains("C#"), "{blacks:?}");
         let _ = std::fs::remove_dir_all(dir);
     }
 }
