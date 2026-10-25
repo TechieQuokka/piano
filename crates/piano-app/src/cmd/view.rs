@@ -1,4 +1,4 @@
-//! Display commands (played, ref, output, song, help, man, tutorial), lang, font.
+//! Display commands (played, ref, output, song, help, man, guide, tutorial), lang, font.
 
 use std::path::Path;
 
@@ -36,7 +36,14 @@ impl App {
 
     pub(crate) fn cmd_man(&mut self, args: &[&str]) {
         match crate::manual::manual(self.lang).lookup(args) {
-            Some((title, lines)) => {
+            Some((title, mut lines)) => {
+                let key = args.join(".").to_ascii_lowercase();
+                if let Some(crate::guide::GuidePos::Section(..)) =
+                    crate::guide::guide(self.lang).find(&[key.as_str()])
+                {
+                    lines.push(String::new());
+                    lines.push(format!("More     guide {key}"));
+                }
                 self.page = Page {
                     title: format!("MAN · {title}"),
                     lines,
@@ -50,6 +57,32 @@ impl App {
         }
     }
 
+    pub(crate) fn cmd_guide(&mut self, args: &[&str]) {
+        let guide = crate::guide::guide(self.lang);
+        let pos = match args {
+            ["next"] => guide.next(self.guide_pos),
+            ["prev"] => guide.prev(self.guide_pos),
+            _ => match guide.find(args) {
+                Some(pos) => pos,
+                None => {
+                    self.output.error(format!(
+                        "no guide chapter or section `{}` — type `guide`",
+                        args.join(" ")
+                    ));
+                    return;
+                }
+            },
+        };
+        self.show_guide(pos);
+    }
+
+    fn show_guide(&mut self, pos: crate::guide::GuidePos) {
+        let (title, lines) = crate::guide::guide(self.lang).page(pos);
+        self.guide_pos = pos;
+        self.page = Page { title, lines };
+        self.set_view(View::Guide);
+    }
+
     pub(crate) fn cmd_lang(&mut self, args: &[&str]) {
         match args.first().and_then(|a| Lang::parse(a)) {
             Some(lang) => {
@@ -60,8 +93,15 @@ impl App {
                 {
                     self.output.warn(format!("lang: not saved ({e})"));
                 }
-                self.output
-                    .info(format!("manual / tutorial language: {}", lang.code()));
+                self.output.info(format!(
+                    "manual / guide / tutorial language: {}",
+                    lang.code()
+                ));
+                if self.view == View::Guide {
+                    let scroll = self.display_scroll;
+                    self.show_guide(self.guide_pos);
+                    self.display_scroll = scroll;
+                }
                 if self.view == View::Man {
                     let title = self
                         .page

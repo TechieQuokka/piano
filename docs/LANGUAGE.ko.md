@@ -49,7 +49,7 @@ only descriptions are Korean.
     Same     C#과 Db는 같은 건반.
     Parse    첫 글자는 음 이름, 바로 뒤의 b는 플랫.
              bb = B플랫 (한 음). b b = B 두 개.
-    Written  건반으로 입력한 음은 #으로 적힘.
+    Spell    어느 쪽으로 써도 됨. piano import는 악보의 표기를 따름.
     Example  C C# D Eb E
     See      name
 
@@ -63,7 +63,7 @@ only descriptions are Korean.
     Rests    쉼표는 기준을 바꾸지 않음.
     Chords   화음의 첫 음이 기준이 됨.
     Folding  A0-C8 밖이면 범위 안으로 옥타브를 옮기고 Warning.
-    Example  C4 D E F G A B C   → last C = C5
+    Example  C4 D E F G A B C   → 마지막 C는 C5
     See      inheritance, fn.up, fn.down
 
 ### LENGTH {#length}
@@ -73,7 +73,7 @@ only descriptions are Korean.
              n이 클수록 짧음.
     Omitted  앞 음이나 쉼표의 길이를 이어받음. 시작은 /4.
     Invalid  다른 숫자(예: /3)는 Error, 길이는 그대로.
-    Example  C4/8 D E F G/4   → D E F are eighths
+    Example  C4/8 D E F G/4   → D E F는 8분음표
     See      dot, tuplet, inheritance
 
 ### DOT {#dot}
@@ -83,7 +83,7 @@ only descriptions are Korean.
              /4. = 1.5박, /4.. = 1.75박.
     Limit    /n 바로 뒤에만. 점은 2개까지 (더 많으면 Warning).
     Inherit  점도 길이와 함께 이어받음.
-    Example  C/4. D E F/8 G   → D E are dotted quarters
+    Example  C/4. D E F/8 G   → D E는 점4분음표
     See      length
 
 ### TIE {#tie}
@@ -126,7 +126,7 @@ only descriptions are Korean.
     Dynamic  앞 세기 기호 (시작: mf)
     Pedals   켜고 끌 때까지 유지 (시작: 꺼짐)
     View     Cmd `ref`로 커서 위치의 상태를 봄.
-    Example  C4/8 D E f F G   → D E are C4-near eighths; F G are forte
+    Example  C4/8 D E f F G   → D E는 C4 근처의 8분음표, F G는 포르테
     See      octave, length, dynamic, pedal
 
 ### DEFAULTS {#defaults}
@@ -153,6 +153,7 @@ only descriptions are Korean.
     Syntax   time <beats>/<unit>            time 3/4  time 6/8
     Meaning  박자표. 마디 검사와 %에 쓰임.
     Where    어디든 쓸 수 있고, 그 지점부터 적용. 기본 4/4.
+    Range    박 수 1-32, 단위 1 2 4 8 16 32 64. 그 밖은 Error.
     Example  time 3/4 | C4 D E | F G A |
     See      bar
 
@@ -161,6 +162,7 @@ only descriptions are Korean.
     Syntax   tempo <bpm>                    tempo 90
     Meaning  1분에 4분음표 몇 개 (20-400).
     Where    어디든 쓸 수 있고, 그 지점부터 적용. 기본 100.
+    Range    20-400 밖은 Error, 템포는 그대로.
     Example  tempo 90 C D tempo 140 E F
     See      defaults
 
@@ -264,6 +266,7 @@ only descriptions are Korean.
 
     Syntax   up(<n>){ ... }                 up(12){ C E G }
     Meaning  모든 음을 n반음 올림 (12 = 한 옥타브).
+    Range    n은 0-88. 더 크면 Error, 안의 음은 그대로 재생됨.
     Example  up(12){ C4 E G }
     See      fn.down, fn.seq
 
@@ -271,6 +274,7 @@ only descriptions are Korean.
 
     Syntax   down(<n>){ ... }               down(2){ G A B }
     Meaning  모든 음을 n반음 내림.
+    Range    n은 0-88. 더 크면 Error, 안의 음은 그대로 재생됨.
     Example  down(2){ G4 A B }
     See      fn.up
 
@@ -278,7 +282,8 @@ only descriptions are Korean.
 
     Syntax   accent(1/<n>){ ... }   accent(<note>){ ... }
     Meaning  규칙에 맞는 음을 세게 함 (velocity +20).
-    1/n      첫 음부터 n번째 박마다.
+    1/n      첫 음부터 n번째 타건(음이 시작되는 순간)마다. 화음은
+             한 번으로 세고, 쉼표는 세지 않음. n은 1-64.
              accent(1/3){ C D E F G A } -> C와 F.
     note     그 이름의 모든 음: accent(G){ ... }.
     Example  accent(1/3){ C4 D E F G A }
@@ -295,7 +300,7 @@ only descriptions are Korean.
 
     Syntax   tuplet(<n>){ ... }             tuplet(3){ C/8 D E }
     Meaning  구간을 바로 아래 2의 거듭제곱 개수의 시간에 연주:
-             3은 2개 시간에, 5는 4개, 7은 4개. n >= 3.
+             3은 2개 시간에, 5는 4개, 7은 4개. n은 3-64.
     Example  tuplet(3){ C4/8 D E } F/4
     See      length
 
@@ -305,6 +310,7 @@ only descriptions are Korean.
     Meaning  구간을 times번 연주하면서 매번 step반음씩 더 옮김
              (음악의 반복진행).
              seq(3, 1){ C D E } -> C D E, C# D# F, D E F#.
+    Range    times는 1-64, step은 무엇이든 (음수면 내려감).
     Example  seq(3, 2){ C4 D E }
     See      fn.up, repeat
 
@@ -348,7 +354,7 @@ only descriptions are Korean.
     · Hint     참고 정보 (예: |: 없는 :|, 이미 켜진 페달).
     Where      Output 화면에 줄 번호와 함께 표시. Code 줄 번호 옆에는
                그 줄에서 가장 심각한 알림 기호가 표시됨.
-    Example  C4 F#   → Warning: ambiguous octave
+    Example  C4 F#   → Warning: 애매한 옥타브
     See      octave
 
 ## SUMMARY {#summary}
@@ -356,7 +362,7 @@ only descriptions are Korean.
 ### GRAMMAR {#grammar}
 
     note     C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [~]
-    rest     r [/n]
+    rest     r [/n [. ..]]
     chord    { notes } [/n] [~]
     comment  // ...
     header   tempo <bpm>   time <a>/<b>

@@ -23,7 +23,7 @@ the same IDs, `Expect`, `Piece`, `Type` and `Line` lines.
     F2 Keys, F3 Code, F4 Cmd. The status bar shows where you are.
 
     The Display stays as it is while you move. Only a command
-    changes it: played, ref, output, song, help, man, tutorial,
+    changes it: played, ref, output, song, help, man, guide, tutorial,
     and ls, pwd, cat, history, project (they show their result).
     Other commands (play, save ...) keep the Display; their result
     appears on the bottom border of Cmd, the full log in output.
@@ -206,7 +206,8 @@ the same IDs, `Expect`, `Piece`, `Type` and `Line` lines.
       |: C D [1 E :| [2 G |     different endings
       | C D E F | % |           % repeats the previous bar
       time 3/4 | C D E |        three beats per bar
-    The manual explains every rule:
+    The manual explains every rule; the guide explains it in depth:
       man            chapters          man octave     one section
+      guide          contents          guide octave   with examples
       lang ko        Korean            tutorial 1     start again
     Try      F4, new try, then type the lines above.

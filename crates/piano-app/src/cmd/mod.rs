@@ -167,6 +167,7 @@ impl App {
             },
             "help" => self.cmd_help(&args),
             "man" => self.cmd_man(&args),
+            "guide" => self.cmd_guide(&args),
             "lang" => self.cmd_lang(&args),
             "tutorial" => self.cmd_tutorial(&args),
             "font" => self.cmd_font(&args),
@@ -263,6 +264,13 @@ impl App {
                 .chain(["off".to_string()])
                 .collect(),
             "tutorial" => words(&["next", "prev"]),
+            "guide" => {
+                let g = crate::guide::guide(self.lang);
+                let mut v = words(&["next", "prev"]);
+                v.extend(g.chapters.iter().map(|c| c.id.clone()));
+                v.extend(g.sections().map(|(_, s)| s.id.clone()));
+                v
+            }
             "clear" => words(&["played"]),
             "help" => crate::help::command_names()
                 .into_iter()

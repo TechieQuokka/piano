@@ -18,7 +18,7 @@ field names stay in English; descriptions and hints are Korean.
     F2 Keys, F3 Code, F4 Cmd. 지금 위치는 맨 아래 상태줄에 보임.
 
     영역을 옮겨도 Display는 그대로임. 명령으로만 바뀜:
-    played, ref, output, song, help, man, tutorial,
+    played, ref, output, song, help, man, guide, tutorial,
     그리고 ls, pwd, cat, history, project (결과를 보여줌).
     다른 명령(play, save ...)은 Display를 그대로 두고, 결과는 Cmd
     아래 테두리에 나옴. 전체 기록은 output.
@@ -200,7 +200,8 @@ field names stay in English; descriptions and hints are Korean.
       |: C D [1 E :| [2 G |     반복할 때 끝을 다르게
       | C D E F | % |           %는 바로 앞 마디를 반복
       time 3/4 | C D E |        한 마디 3박
-    설명서에 모든 규칙이 있음:
+    man에 모든 규칙이 있고, guide는 더 자세히 설명함:
       man            장 목록           man octave     한 항목
+      guide          목차              guide octave   예시와 함께
       lang en        영어              tutorial 1     처음부터
     Try      F4, new try, 그다음 위의 줄을 입력해 보기.

@@ -87,6 +87,7 @@ fn draw_display(frame: &mut Frame, app: &App, area: Rect) {
         View::Ref => ("Ref", views::reference(app, width)),
         View::Output => ("Output", views::output(app, height, width)),
         View::Help | View::Man => ("Help / Man", views::page(app, &app.page, height, width)),
+        View::Guide => ("Guide", views::page(app, &app.page, height, width)),
         View::Tutorial => (
             "Tutorial",
             views::page(app, &app.tutorial_page(), height, width),

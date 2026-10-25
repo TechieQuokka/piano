@@ -86,6 +86,7 @@ the right, and the piano roll was removed (little value in real time).
 | `output` | Command results and alerts (with line numbers), scrollable. |
 | `help` | Hierarchical help (commands, keys). |
 | `man` | Language manual, one section at a time (§8.2). |
+| `guide` | Detailed language guide: contents, a chapter, or one topic (§8.6). |
 | `song` | Pieces in the project and the song arrangement. |
 | `tutorial` | Step-by-step tutorial. |
 
@@ -96,7 +97,8 @@ Display rules (1.18.0):
    change the view.
 3. It keeps the last view until another view is opened, and a view is opened only by
    a command:
-   - view commands: `played`, `ref`, `output`, `song`, `help`, `man`, `tutorial`;
+   - view commands: `played`, `ref`, `output`, `song`, `help`, `man`, `guide`,
+     `tutorial`;
    - show commands, whose purpose is their result, open `output` (1.23.0): `ls`,
      `pwd`, `cat`, `history`, `project`, `project recent`;
    - action commands (`play`, `save`, `new`, `open`, `undo`, ...) leave the Display
@@ -219,14 +221,16 @@ VIEW & SYSTEM
   clear [played]          Clear the output log (or the played notes)
   help [topic] [sub]      Show help
   man [chapter] [section] Show language manual
-  lang en|ko              Switch manual / tutorial language
+  guide [n|id|next|prev]  Show the detailed language guide
+  lang en|ko              Switch manual / guide / tutorial language
   tutorial                Start tutorial
   font <path>             Load SoundFont (.sf2)
   quit                    Quit (warns if unsaved)
 ```
 
-7 groups, 46 commands (`clear` added in 1.10.0; `len` removed after 1.13.0;
-`view <name>` replaced by `played` / `ref` / `output` / `song` in 1.18.0).
+7 groups, 47 commands (`clear` added in 1.10.0; `len` removed after 1.13.0;
+`view <name>` replaced by `played` / `ref` / `output` / `song` in 1.18.0; `guide`
+added in 1.28.0).
 
 ### 4.1 Filesystem commands
 
@@ -457,7 +461,8 @@ Hierarchical, compact English, shown in the Display `help` view.
 > help export midi        usage, arguments, example
 ```
 
-Topics cover commands and keys (`help keys`). `help lang` points to `man`.
+Topics cover commands and keys (`help keys`). `help lang` points to `man` and
+`guide`.
 Help text is English only.
 
 ### 8.2 Language manual (`man`)
@@ -537,6 +542,7 @@ STEP 3 · LENGTH
 | Target | `lang en` | `lang ko` |
 |---|---|---|
 | Manual (`man`) | English | Titles and field names in English; descriptions in Korean |
+| Guide (`guide`) | English | Titles and subheadings in English; text and code comments in Korean |
 | Tutorial | English | Titles and step names in English; descriptions and hints in Korean |
 | Solfège (keyboard, Played view) | `Do Re Mi Fa Sol La Ti` | `도 레 미 파 솔 라 시` |
 | Command help | English | English |
@@ -553,17 +559,46 @@ docs/
 ├── DESIGN.md
 ├── LANGUAGE.md        # manual, English (source of truth)
 ├── LANGUAGE.ko.md     # manual, Korean descriptions
+├── GUIDE.md           # detailed guide, English
+├── GUIDE.ko.md        # detailed guide, Korean
 ├── TUTORIAL.md        # tutorial, English
 └── TUTORIAL.ko.md     # tutorial, Korean descriptions
 ```
 
-- All four are embedded in the binary (e.g. `include_str!`).
+- All six are embedded in the binary (e.g. `include_str!`).
 - English and Korean files share the same section / step IDs; a test fails if the ID
   sets differ.
 - Bodies are written **during implementation**, matching actual behavior: each
   language feature adds its manual section in both languages.
 - Every `Example` is also run as a test, so the manual cannot drift from behavior.
 - The tutorial is written once enough language features exist.
+
+### 8.6 Language guide (`guide`, 1.28.0)
+
+`man` is a reference card that fits the Display; `guide` is the in-depth version of
+the same language, written to be read while composing (the Display keeps it while
+the user works in Code).
+
+```
+guide               contents: chapters and their section IDs
+guide 3             chapter 3 (also by ID: guide rhythm)
+guide octave        one section (also guide fn up = fn.up)
+guide next | prev   the next / previous section from the last guide page
+```
+
+- Source: `docs/GUIDE.md` / `GUIDE.ko.md`, plain Markdown readable on GitHub.
+  `## N. Title {#id}` = chapter, `### Title {#id}` = section, `#### Name` = part of a
+  section (Concept, Syntax, Rules, Examples, Common mistakes, See also).
+- In the Display: paragraphs are joined and wrapped, `- ` items become bullets,
+  code blocks are shown with a `│` bar, inline `**` and backticks are dropped.
+- Chapters: Getting started, Pitch, Rhythm, Chords and voices, Dynamics and
+  expression, Pedals, Repeats, Functions, Song, Alerts, Reference (grammar,
+  defaults, music terms). Every `man` section ID is also a guide section ID, and a
+  `man` section ends with `More guide <id>`.
+- Tests: same IDs and the same piano / song code in both languages (comments may
+  differ); every ` ```piano ` / ` ```song ` block compiles without errors or
+  warnings, and a block marked `error`, `warning`, or `hint` must raise that alert;
+  every `` `guide x` `` and `` `man x` `` reference resolves.
 
 ---
 

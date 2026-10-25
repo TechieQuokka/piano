@@ -3,6 +3,21 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.28.0
+- New `guide`: a detailed language guide in the Display, to read while composing.
+  11 chapters (pitch, rhythm, chords and voices, dynamics, pedals, repeats,
+  functions, song, alerts, reference) explain each topic with its musical meaning,
+  syntax, exact rules, examples to copy, and common mistakes. `guide` shows the
+  contents, `guide 3` a chapter, `guide octave` one topic, `guide next` / `prev` read
+  on. English and Korean (`lang ko`); source `docs/GUIDE.md`, `docs/GUIDE.ko.md`.
+  Every example is compiled by the tests, including the ones that must raise an
+  alert.
+- `man <section>` ends with `More guide <section>`.
+- Manual: ranges of `tempo`, `time`, `up`, `down`, `accent`, `tuplet`, and `seq`;
+  dots on rests in the summary; `accent(1/n)` counts a chord once. Removed a stale
+  line about notes written from the keyboard. Korean manual: `accent` counts
+  onsets (타건), not beats; example notes in Korean.
+
 ## 1.27.1
 - Fix: exporting the song wrote `song.mid` / `.wav` / `.flac` in every project. The
   song is now named after the project folder (`la_campanella.flac`); pieces keep

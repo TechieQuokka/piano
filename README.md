@@ -24,8 +24,9 @@ piano import score.mxl my_song   # a MusicXML score (MuseScore, ...) as a new pr
 piano doctor           # check SoundFont, audio device, terminal keys
 ```
 
-In the editor: `F4` → type `tutorial`. `help` lists commands, `man` explains the
-language, `lang ko` switches the manual and tutorial to Korean.
+In the editor: `F4` → type `tutorial`. `help` lists commands, `man` is the short
+language reference, `guide` explains the language in depth with examples, and
+`lang ko` switches the manual, guide, and tutorial to Korean.
 
 A piano `.sf2` SoundFont is needed for sound; set it with `font <path>`.
 
@@ -36,7 +37,7 @@ A piano `.sf2` SoundFont is needed for sound; set it with `font <path>`.
   Keys only sound; nothing is written.
 - **Code** (left): write the piece in the piano language, e.g. `| C4 C G G | A A G/2 |`.
 - **Display** (right): shows one view and keeps it until a command changes it
-  (`played`, `ref`, `output`, `song`, `help`, `man`, `tutorial`; `ls`, `pwd`, `cat`,
+  (`played`, `ref`, `output`, `song`, `help`, `man`, `guide`, `tutorial`; `ls`, `pwd`, `cat`,
   `history`, `project` show their result in `output`).
 - **Cmd** (bottom): commands such as `play`, `save`, `new p2`, `open song`.
 - While playing, the keys of the sounding notes are pressed on the keyboard, which
@@ -62,6 +63,7 @@ from the repeat stream: holding works, but even a short tap rings for about a se
 
 - `docs/DESIGN.md` — design and implementation notes
 - `docs/LANGUAGE.md`, `docs/LANGUAGE.ko.md` — language manual (`man`)
+- `docs/GUIDE.md`, `docs/GUIDE.ko.md` — detailed language guide (`guide`)
 - `docs/TUTORIAL.md`, `docs/TUTORIAL.ko.md` — tutorial
 - `CHANGELOG.md` — changes by version
 

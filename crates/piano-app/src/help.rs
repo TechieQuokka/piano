@@ -249,9 +249,20 @@ pub const COMMANDS: &[CmdSpec] = &[
     ),
     spec!(
         "VIEW & SYSTEM",
+        "guide",
+        "guide [n|chapter|section|next|prev]",
+        "Show the detailed language guide",
+        "guide          contents",
+        "guide 3        chapter 3 (also by name: guide rhythm)",
+        "guide octave   one topic, with examples (also guide fn up)",
+        "guide next     read on (prev: back); the last page is kept",
+        "man is the short reference; guide explains the same topics in depth."
+    ),
+    spec!(
+        "VIEW & SYSTEM",
         "lang",
         "lang en|ko",
-        "Switch manual / tutorial language"
+        "Switch manual / guide / tutorial language"
     ),
     spec!(
         "VIEW & SYSTEM",
@@ -278,7 +289,7 @@ const KEYS: &[&str] = &[
     "  PgUp / PgDn       scroll the Display (Keys, Cmd focus)",
     "",
     "  The Display keeps its view; change it with a command:",
-    "    played ref output song help man tutorial",
+    "    played ref output song help man guide tutorial",
     "    ls pwd cat history project   (show their result in output)",
     "  Other commands keep the view; their result is on the Cmd border.",
     "",
@@ -310,7 +321,8 @@ pub fn help(args: &[&str]) -> Option<Vec<String>> {
         }
         out.push(String::new());
         out.push(
-            "Type 'help <topic>' for details, 'help keys' for keys, 'man' for the language.".into(),
+            "Type 'help <topic>' for details, 'help keys' for keys, 'man' / 'guide' for the language."
+                .into(),
         );
         return Some(out);
     }
@@ -322,6 +334,8 @@ pub fn help(args: &[&str]) -> Option<Vec<String>> {
             "The piano language is described in the manual.".into(),
             "  man              chapters".into(),
             "  man octave       one section".into(),
+            "  guide            the detailed guide, chapter by chapter".into(),
+            "  guide octave     one topic in depth, with examples".into(),
             "  lang ko          Korean descriptions".into(),
         ]);
     }

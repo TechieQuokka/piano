@@ -119,7 +119,9 @@ mod tests {
         for c in ['z', 'x', 'c'] {
             key(&mut a, KeyCode::Char(c));
         }
-        for view in ["played", "ref", "output", "help", "man", "song", "tutorial"] {
+        for view in [
+            "played", "ref", "output", "help", "man", "guide", "song", "tutorial",
+        ] {
             a.execute(view);
             for (w, h) in [(120, 40), (80, 24), (40, 12), (20, 6)] {
                 let s = screen(&mut a, w, h);
@@ -195,6 +197,10 @@ mod tests {
         println!("{}", screen(&mut a, 110, 34));
         a.execute("man octave");
         println!("{}", screen(&mut a, 110, 34));
+        a.execute("guide octave");
+        println!("{}", screen(&mut a, 160, 45));
+        a.execute("lang ko");
+        println!("{}", screen(&mut a, 160, 45));
         let _ = std::fs::remove_dir_all(dir);
     }
 

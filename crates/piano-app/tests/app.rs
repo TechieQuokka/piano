@@ -334,11 +334,41 @@ fn display_keeps_its_view_until_a_command() {
         ("song", View::Song),
         ("help", View::Help),
         ("man", View::Man),
+        ("guide", View::Guide),
         ("tutorial", View::Tutorial),
     ] {
         run(&mut a, cmd);
         assert_eq!(a.view, view, "{cmd}");
     }
+}
+
+#[test]
+fn guide_pages_and_language() {
+    let tmp = Tmp::new("guide");
+    let mut a = app(&tmp);
+    run(&mut a, "man octave");
+    assert_eq!(a.page.lines.last().unwrap(), "More     guide octave");
+    run(&mut a, "guide octave");
+    assert_eq!(a.view, View::Guide);
+    assert_eq!(a.page.title, "GUIDE · octave");
+    assert!(a.page.lines[0].ends_with("› OCTAVES"));
+    run(&mut a, "guide next");
+    assert_eq!(a.page.title, "GUIDE · length");
+    run(&mut a, "guide prev");
+    run(&mut a, "output");
+    // `guide next` goes on from the last guide page, whatever the Display shows.
+    run(&mut a, "guide next");
+    assert_eq!(a.page.title, "GUIDE · length");
+    run(&mut a, "lang ko");
+    assert_eq!(a.view, View::Guide);
+    assert!(a.page.lines.iter().any(|l| l.contains("4분음표")));
+    run(&mut a, "guide 3");
+    assert_eq!(a.page.title, "GUIDE · rhythm");
+    run(&mut a, "guide");
+    assert_eq!(a.page.title, "GUIDE");
+    run(&mut a, "guide nope");
+    assert_eq!(a.view, View::Guide, "an unknown topic keeps the page");
+    run(&mut a, "lang en");
 }
 
 #[test]

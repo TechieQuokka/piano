@@ -4,6 +4,7 @@ pub mod app;
 pub mod buffer;
 pub mod cmd;
 pub mod focus;
+pub mod guide;
 pub mod help;
 pub mod history;
 pub mod input;

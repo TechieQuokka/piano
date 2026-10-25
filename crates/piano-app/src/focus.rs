@@ -40,6 +40,7 @@ pub enum View {
     Output,
     Help,
     Man,
+    Guide,
     Song,
     Tutorial,
 }
@@ -52,6 +53,7 @@ impl View {
             View::Output => "output",
             View::Help => "help",
             View::Man => "man",
+            View::Guide => "guide",
             View::Song => "song",
             View::Tutorial => "tutorial",
         }

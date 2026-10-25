@@ -1,4 +1,4 @@
-//! Display views: Ref, Output, Help / Man / Tutorial pages, Song.
+//! Display views: Ref, Output, Help / Man / Guide / Tutorial pages, Song.
 //! The Display is a tall, narrow column, so long lines are wrapped.
 
 use piano_app::{App, Page};
@@ -147,7 +147,11 @@ pub fn output(app: &App, height: usize, width: usize) -> Vec<Line<'static>> {
 
 fn page_style(l: &str) -> Style {
     let t = l.trim_start();
-    if ["Try", "Example", "Type ", "Line ", "Piece "]
+    if t.starts_with('▸') {
+        theme::heading()
+    } else if t.starts_with('←') {
+        dim()
+    } else if ["Try", "Example", "Type ", "Line ", "Piece ", "│", "More "]
         .iter()
         .any(|p| t.starts_with(p))
     {
@@ -169,7 +173,7 @@ fn page_style(l: &str) -> Style {
     }
 }
 
-/// A text page (Help, Man, Tutorial), wrapped and scrolled by `display_scroll` rows.
+/// A text page (Help, Man, Guide, Tutorial), wrapped and scrolled by `display_scroll` rows.
 pub fn page(app: &App, page: &Page, height: usize, width: usize) -> Vec<Line<'static>> {
     let rows: Vec<Line<'static>> = page
         .lines

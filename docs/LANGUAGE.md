@@ -50,7 +50,7 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     Same     C# and Db are the same key.
     Parse    First letter = note name; a b right after it = flat.
              bb = B flat (one note). b b = two B notes.
-    Written  Notes entered from the keyboard use #.
+    Spell    Either spelling works; piano import keeps the score's.
     Example  C C# D Eb E
     See      name
 
@@ -154,6 +154,7 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     Syntax   time <beats>/<unit>            time 3/4  time 6/8
     Meaning  Time signature, used for the bar check and %.
     Where    Anywhere; applies from that point. Default 4/4.
+    Range    beats 1-32, unit 1 2 4 8 16 32 64. Others -> Error.
     Example  time 3/4 | C4 D E | F G A |
     See      bar
 
@@ -162,6 +163,7 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     Syntax   tempo <bpm>                    tempo 90
     Meaning  Quarter notes per minute (20-400).
     Where    Anywhere; applies from that point. Default 100.
+    Range    Outside 20-400 -> Error, tempo unchanged.
     Example  tempo 90 C D tempo 140 E F
     See      defaults
 
@@ -266,6 +268,7 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
 
     Syntax   up(<n>){ ... }                 up(12){ C E G }
     Meaning  Raises every note by n semitones (12 = one octave).
+    Range    n 0-88; more -> Error, the body plays unchanged.
     Example  up(12){ C4 E G }
     See      fn.down, fn.seq
 
@@ -273,6 +276,7 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
 
     Syntax   down(<n>){ ... }               down(2){ G A B }
     Meaning  Lowers every note by n semitones.
+    Range    n 0-88; more -> Error, the body plays unchanged.
     Example  down(2){ G4 A B }
     See      fn.up
 
@@ -280,7 +284,8 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
 
     Syntax   accent(1/<n>){ ... }   accent(<note>){ ... }
     Meaning  Matching notes get louder (+20 velocity).
-    1/n      Every n-th onset, starting with the first.
+    1/n      Every n-th onset, starting with the first; a chord counts
+             once, rests do not. n 1-64.
              accent(1/3){ C D E F G A } -> C and F.
     note     Every note with that name: accent(G){ ... }.
     Example  accent(1/3){ C4 D E F G A }
@@ -297,7 +302,7 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
 
     Syntax   tuplet(<n>){ ... }             tuplet(3){ C/8 D E }
     Meaning  Plays the section in the time of the nearest lower
-             power of two: 3 in 2, 5 in 4, 7 in 4. n >= 3.
+             power of two: 3 in 2, 5 in 4, 7 in 4. n 3-64.
     Example  tuplet(3){ C4/8 D E } F/4
     See      length
 
@@ -307,6 +312,7 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     Meaning  Plays the section `times` times, each shifted by
              `step` more semitones (a musical sequence).
              seq(3, 1){ C D E } -> C D E, C# D# F, D E F#.
+    Range    times 1-64; step any (negative goes down).
     Example  seq(3, 2){ C4 D E }
     See      fn.up, repeat
 
@@ -358,7 +364,7 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
 ### GRAMMAR {#grammar}
 
     note     C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [~]
-    rest     r [/n]
+    rest     r [/n [. ..]]
     chord    { notes } [/n] [~]
     comment  // ...
     header   tempo <bpm>   time <a>/<b>

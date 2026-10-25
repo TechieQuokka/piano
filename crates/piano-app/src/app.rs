@@ -21,7 +21,7 @@ const WATCH_EVERY: StdDuration = StdDuration::from_secs(1);
 /// How long a pressed key stays highlighted.
 const PRESS_GLOW: StdDuration = StdDuration::from_millis(350);
 
-/// Content of the Help / Man views.
+/// Content of the Help / Man / Guide views.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Page {
     pub title: String,
@@ -125,6 +125,8 @@ pub struct App {
     pub playing: Option<Playing>,
     pub lang: Lang,
     pub tutorial_step: usize,
+    /// The guide page last shown (kept for `guide next` and `lang`).
+    pub guide_pos: crate::guide::GuidePos,
     pub pending: Option<Pending>,
     pub quit: bool,
     /// Recently pressed keys with the time they were pressed (Keys view glow).
@@ -205,6 +207,7 @@ impl App {
             player,
             playing: None,
             tutorial_step: 0,
+            guide_pos: Default::default(),
             pending: None,
             quit: false,
             pressed: Vec::new(),
