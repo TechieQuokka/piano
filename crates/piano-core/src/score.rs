@@ -1,0 +1,257 @@
+//! The compiled, playable form of a piece: time-ordered note and pedal events.
+
+use crate::alert::SrcSpan;
+use crate::pitch::Pitch;
+use crate::time::{TICKS_PER_QUARTER, Tick, TimeSig};
+
+/// Default tempo in quarter notes per minute.
+pub const DEFAULT_TEMPO: u16 = 100;
+
+/// Dynamic marks from `ppp` to `fff`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub enum Dynamic {
+    Ppp,
+    Pp,
+    P,
+    Mp,
+    #[default]
+    Mf,
+    F,
+    Ff,
+    Fff,
+}
+
+impl Dynamic {
+    pub const ALL: [Dynamic; 8] = [
+        Dynamic::Ppp,
+        Dynamic::Pp,
+        Dynamic::P,
+        Dynamic::Mp,
+        Dynamic::Mf,
+        Dynamic::F,
+        Dynamic::Ff,
+        Dynamic::Fff,
+    ];
+
+    /// MIDI velocity for this mark.
+    pub fn velocity(self) -> u8 {
+        match self {
+            Dynamic::Ppp => 16,
+            Dynamic::Pp => 33,
+            Dynamic::P => 49,
+            Dynamic::Mp => 64,
+            Dynamic::Mf => 80,
+            Dynamic::F => 96,
+            Dynamic::Ff => 112,
+            Dynamic::Fff => 127,
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Dynamic::Ppp => "ppp",
+            Dynamic::Pp => "pp",
+            Dynamic::P => "p",
+            Dynamic::Mp => "mp",
+            Dynamic::Mf => "mf",
+            Dynamic::F => "f",
+            Dynamic::Ff => "ff",
+            Dynamic::Fff => "fff",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Dynamic> {
+        Dynamic::ALL
+            .into_iter()
+            .find(|d| d.name().eq_ignore_ascii_case(s))
+    }
+}
+
+impl std::fmt::Display for Dynamic {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.name())
+    }
+}
+
+/// The three piano pedals.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PedalKind {
+    /// Right pedal: sustains every note.
+    Damper,
+    /// Middle pedal: sustains only notes sounding when engaged.
+    Sostenuto,
+    /// Left pedal (una corda): softer sound.
+    Soft,
+}
+
+impl PedalKind {
+    pub const ALL: [PedalKind; 3] = [PedalKind::Damper, PedalKind::Sostenuto, PedalKind::Soft];
+
+    /// Keyword used in the language and in Cmd.
+    pub fn keyword(self) -> &'static str {
+        match self {
+            PedalKind::Damper => "ped",
+            PedalKind::Sostenuto => "sos",
+            PedalKind::Soft => "soft",
+        }
+    }
+
+    pub fn index(self) -> usize {
+        match self {
+            PedalKind::Damper => 0,
+            PedalKind::Sostenuto => 1,
+            PedalKind::Soft => 2,
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<PedalKind> {
+        PedalKind::ALL
+            .into_iter()
+            .find(|k| k.keyword().eq_ignore_ascii_case(s))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NoteEvent {
+    pub pitch: Pitch,
+    pub start: Tick,
+    pub len: Tick,
+    pub velocity: u8,
+    pub src: SrcSpan,
+}
+
+impl NoteEvent {
+    pub fn end(&self) -> Tick {
+        self.start + self.len
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PedalEvent {
+    pub kind: PedalKind,
+    pub on: bool,
+    pub at: Tick,
+    pub src: SrcSpan,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TempoEvent {
+    pub at: Tick,
+    pub bpm: u16,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TimeSigEvent {
+    pub at: Tick,
+    pub sig: TimeSig,
+}
+
+/// A fully expanded piece, ready to play or export.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Score {
+    pub notes: Vec<NoteEvent>,
+    pub pedals: Vec<PedalEvent>,
+    pub tempos: Vec<TempoEvent>,
+    pub time_sigs: Vec<TimeSigEvent>,
+    pub end: Tick,
+}
+
+impl Score {
+    /// Sorts events by time and recomputes `end`.
+    pub fn finish(&mut self) {
+        self.notes.sort_by_key(|n| (n.start, n.pitch));
+        self.pedals.sort_by_key(|p| p.at);
+        self.tempos.sort_by_key(|t| t.at);
+        self.time_sigs.sort_by_key(|t| t.at);
+        let notes_end = self.notes.iter().map(NoteEvent::end).max().unwrap_or(0);
+        let pedals_end = self.pedals.iter().map(|p| p.at).max().unwrap_or(0);
+        self.end = self.end.max(notes_end).max(pedals_end);
+    }
+
+    /// Tempo in effect at `tick`.
+    pub fn tempo_at(&self, tick: Tick) -> u16 {
+        self.tempos
+            .iter()
+            .take_while(|t| t.at <= tick)
+            .last()
+            .map_or(DEFAULT_TEMPO, |t| t.bpm)
+    }
+
+    /// Wall-clock seconds from tick 0 to `tick`, honoring tempo changes.
+    pub fn seconds_at(&self, tick: Tick) -> f64 {
+        let mut secs = 0.0;
+        let mut pos = 0;
+        let mut bpm = DEFAULT_TEMPO;
+        for t in self.tempos.iter().take_while(|t| t.at <= tick) {
+            secs += ticks_to_secs(t.at - pos, bpm);
+            pos = t.at;
+            bpm = t.bpm;
+        }
+        secs + ticks_to_secs(tick - pos, bpm)
+    }
+
+    /// Inverse of [`Score::seconds_at`].
+    pub fn tick_at_seconds(&self, secs: f64) -> Tick {
+        let mut elapsed = 0.0;
+        let mut pos = 0;
+        let mut bpm = DEFAULT_TEMPO;
+        for t in &self.tempos {
+            let seg = ticks_to_secs(t.at - pos, bpm);
+            if elapsed + seg > secs {
+                break;
+            }
+            elapsed += seg;
+            pos = t.at;
+            bpm = t.bpm;
+        }
+        pos + secs_to_ticks(secs - elapsed, bpm)
+    }
+
+    /// Total length in seconds.
+    pub fn duration_secs(&self) -> f64 {
+        self.seconds_at(self.end)
+    }
+}
+
+fn ticks_to_secs(ticks: Tick, bpm: u16) -> f64 {
+    ticks as f64 / TICKS_PER_QUARTER as f64 * 60.0 / f64::from(bpm.max(1))
+}
+
+fn secs_to_ticks(secs: f64, bpm: u16) -> Tick {
+    (secs.max(0.0) * f64::from(bpm.max(1)) / 60.0 * TICKS_PER_QUARTER as f64).round() as Tick
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn velocity_table() {
+        let v: Vec<u8> = Dynamic::ALL.iter().map(|d| d.velocity()).collect();
+        assert_eq!(v, [16, 33, 49, 64, 80, 96, 112, 127]);
+        assert_eq!(Dynamic::parse("MF"), Some(Dynamic::Mf));
+        assert_eq!(Dynamic::parse("x"), None);
+    }
+
+    #[test]
+    fn timing_with_tempo_change() {
+        let mut s = Score::default();
+        s.tempos.push(TempoEvent { at: 0, bpm: 60 });
+        s.tempos.push(TempoEvent {
+            at: TICKS_PER_QUARTER * 2,
+            bpm: 120,
+        });
+        // 2 quarters at 60 bpm = 2 s, then 2 quarters at 120 bpm = 1 s.
+        let t = TICKS_PER_QUARTER * 4;
+        assert!((s.seconds_at(t) - 3.0).abs() < 1e-9);
+        assert_eq!(s.tick_at_seconds(3.0), t);
+        assert_eq!(s.tick_at_seconds(1.0), TICKS_PER_QUARTER);
+        assert_eq!(s.tempo_at(t), 120);
+    }
+
+    #[test]
+    fn pedal_keywords() {
+        assert_eq!(PedalKind::parse("sos"), Some(PedalKind::Sostenuto));
+        assert_eq!(PedalKind::Soft.keyword(), "soft");
+    }
+}

@@ -1,0 +1,80 @@
+//! Syntax tree as written, before inheritance is resolved.
+
+use piano_core::{Duration, Dynamic, PedalKind, SrcSpan, TimeSig};
+
+use crate::token::NoteName;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Arg {
+    Int(i64),
+    Fraction(i64, i64),
+    Note(NoteName),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Node {
+    Note {
+        name: NoteName,
+        len: Option<Duration>,
+        tie: bool,
+        span: SrcSpan,
+    },
+    Rest {
+        len: Option<Duration>,
+        span: SrcSpan,
+    },
+    Chord {
+        notes: Vec<(NoteName, SrcSpan)>,
+        len: Option<Duration>,
+        tie: bool,
+        span: SrcSpan,
+    },
+    Dynamic(Dynamic, SrcSpan),
+    Cresc(SrcSpan),
+    Dim(SrcSpan),
+    Pedal {
+        kind: PedalKind,
+        on: bool,
+        span: SrcSpan,
+    },
+    Tempo(u16, SrcSpan),
+    Time(TimeSig, SrcSpan),
+    Bar(SrcSpan),
+    BarRepeat(SrcSpan),
+    Repeat {
+        body: Vec<Node>,
+        endings: Vec<Vec<Node>>,
+        times: u32,
+        span: SrcSpan,
+    },
+    Func {
+        name: String,
+        args: Vec<Arg>,
+        body: Vec<Node>,
+        span: SrcSpan,
+    },
+    /// Nodes kept for their content only (e.g. the body of an unknown function).
+    Group(Vec<Node>),
+}
+
+impl Node {
+    /// Position of the node in the source, if it has one.
+    pub fn span(&self) -> Option<SrcSpan> {
+        match self {
+            Node::Note { span, .. }
+            | Node::Rest { span, .. }
+            | Node::Chord { span, .. }
+            | Node::Dynamic(_, span)
+            | Node::Cresc(span)
+            | Node::Dim(span)
+            | Node::Pedal { span, .. }
+            | Node::Tempo(_, span)
+            | Node::Time(_, span)
+            | Node::Bar(span)
+            | Node::BarRepeat(span)
+            | Node::Repeat { span, .. }
+            | Node::Func { span, .. } => Some(*span),
+            Node::Group(nodes) => nodes.first().and_then(Node::span),
+        }
+    }
+}

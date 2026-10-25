@@ -1,0 +1,21 @@
+[package]
+name = "piano-audio"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+cpal = { workspace = true, optional = true }
+dirs.workspace = true
+rustysynth.workspace = true
+thiserror.workspace = true
+piano-core.workspace = true
+
+[features]
+# Real-time output through the system audio device (needs libasound2-dev on Linux).
+device = ["dep:cpal"]
+
+[lints]
+workspace = true

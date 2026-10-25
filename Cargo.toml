@@ -1,0 +1,37 @@
+[workspace]
+members = ["crates/*"]
+resolver = "3"
+
+[workspace.package]
+version = "1.18.1"
+edition = "2024"
+rust-version = "1.99"
+license = "PolyForm-Noncommercial-1.0.0"
+publish = false
+
+[workspace.dependencies]
+piano-core = { path = "crates/piano-core" }
+piano-lang = { path = "crates/piano-lang" }
+piano-audio = { path = "crates/piano-audio" }
+piano-export = { path = "crates/piano-export" }
+piano-project = { path = "crates/piano-project" }
+piano-app = { path = "crates/piano-app" }
+piano-tui = { path = "crates/piano-tui" }
+
+clap = { version = "4.6.7", features = ["derive"] }
+cpal = "0.18.2"
+dirs = "7.0.0"
+hound = "3.5.1"
+midly = "0.5.3"
+ratatui = "0.30.2"
+rustysynth = "1.3.8"
+serde = { version = "1.0.229", features = ["derive"] }
+thiserror = "2.0.21"
+toml = "1.1.8"
+unicode-width = "0.2.2"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
