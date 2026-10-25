@@ -3,6 +3,12 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.28.1
+- Fix: `soft on` did not soften the note written right after it (`soft on C4`): at
+  the same instant the note was struck before the pedal went down. The soft pedal now
+  goes down first, in playback, WAV / FLAC, and MIDI export; damper and sostenuto
+  still go down after the notes so they catch them.
+
 ## 1.28.0
 - New `guide`: a detailed language guide in the Display, to read while composing.
   11 chapters (pitch, rhythm, chords and voices, dynamics, pedals, repeats,

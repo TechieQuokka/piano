@@ -202,4 +202,37 @@ mod tests {
         assert_eq!(l.len(), (SR as f64 * 2.6).round() as usize);
         assert!(l.iter().any(|s| s.abs() > 0.01));
     }
+
+    #[test]
+    fn soft_pedal_softens_the_note_struck_with_it() {
+        // `C4` vs `soft on C4`: the pedal and the note start at the same instant.
+        let first_note = |soft: bool| {
+            let score = piano_core::Score {
+                notes: vec![piano_core::NoteEvent {
+                    pitch: piano_core::Pitch::MIDDLE_C,
+                    start: 0,
+                    len: piano_core::TICKS_PER_QUARTER,
+                    velocity: 100,
+                    src: Default::default(),
+                }],
+                pedals: if soft {
+                    vec![piano_core::PedalEvent {
+                        kind: PedalKind::Soft,
+                        on: true,
+                        at: 0,
+                        src: Default::default(),
+                    }]
+                } else {
+                    Vec::new()
+                },
+                end: piano_core::TICKS_PER_QUARTER,
+                ..Default::default()
+            };
+            let (l, _) = crate::render(&score, &tiny_soundfont(), SR).unwrap();
+            let w = &l[..(SR / 10) as usize];
+            (w.iter().map(|s| s * s).sum::<f32>() / w.len() as f32).sqrt()
+        };
+        let (loud, soft) = (first_note(false), first_note(true));
+        assert!(soft < loud * 0.95, "{soft} < {loud}");
+    }
 }

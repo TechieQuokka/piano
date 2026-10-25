@@ -943,8 +943,10 @@ down when pressed, defers their release) and soft (velocity × 0.8) are implemen
 
 ### 13.3 Scheduling order
 
-At the same instant: note-offs, pedal releases, note-ons, pedal presses. So
-`sos on C2` catches C2. Starting in the middle strikes notes still sounding and
+At the same instant: note-offs, pedal releases, soft pedal press, note-ons, damper /
+sostenuto presses. So `sos on C2` catches C2, and `soft on C4` softens C4 (the soft
+pedal acts when a key is struck; fixed in 1.28.1). MIDI export uses the same order.
+Starting in the middle strikes notes still sounding and
 presses pedals that are down at that point.
 
 ### 13.4 File watching

@@ -16,7 +16,8 @@ fn controller(kind: PedalKind) -> u8 {
 
 /// Encodes `score` as a `.mid` file. Ticks map 1:1 (PPQ = `TICKS_PER_QUARTER`).
 pub fn midi_bytes(score: &Score) -> Vec<u8> {
-    // (tick, order, kind): order mirrors playback: releases, then presses.
+    // (tick, order, kind): order mirrors playback: releases, then presses; the soft
+    // pedal goes down before the notes it softens, damper and sostenuto after them.
     let mut events: Vec<(Tick, u8, TrackEventKind<'static>)> = Vec::new();
     let midi = |message| TrackEventKind::Midi {
         channel: u4::new(CHANNEL),
@@ -50,7 +51,7 @@ pub fn midi_bytes(score: &Score) -> Vec<u8> {
         let key = u7::new(n.pitch.midi());
         events.push((
             n.start,
-            3,
+            4,
             midi(MidiMessage::NoteOn {
                 key,
                 vel: u7::new(n.velocity.min(127)),
@@ -68,7 +69,11 @@ pub fn midi_bytes(score: &Score) -> Vec<u8> {
     for p in &score.pedals {
         events.push((
             p.at,
-            if p.on { 4 } else { 2 },
+            match (p.on, p.kind) {
+                (false, _) => 2,
+                (true, PedalKind::Soft) => 3,
+                (true, _) => 5,
+            },
             midi(MidiMessage::Controller {
                 controller: u7::new(controller(p.kind)),
                 value: u7::new(if p.on { 127 } else { 0 }),
@@ -137,5 +142,27 @@ mod tests {
         )));
         let total: u64 = track.iter().map(|e| u64::from(e.delta.as_int())).sum();
         assert_eq!(total, score.end);
+    }
+
+    #[test]
+    fn soft_pedal_before_the_notes_damper_after() {
+        let score = compile_piece("soft on ped on C4").score;
+        let bytes = midi_bytes(&score);
+        let smf = Smf::parse(&bytes).unwrap();
+        let order: Vec<String> = smf.tracks[0]
+            .iter()
+            .filter_map(|e| match e.kind {
+                TrackEventKind::Midi {
+                    message: MidiMessage::NoteOn { .. },
+                    ..
+                } => Some("on".to_string()),
+                TrackEventKind::Midi {
+                    message: MidiMessage::Controller { controller, value },
+                    ..
+                } if value.as_int() > 0 => Some(format!("cc{controller}")),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(order, ["cc67", "on", "cc64"]);
     }
 }

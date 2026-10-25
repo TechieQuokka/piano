@@ -17,14 +17,19 @@ pub struct Msg {
 }
 
 impl MsgKind {
-    /// Order at the same instant: releases first, then presses; a pedal pressed
-    /// together with notes catches them (e.g. `sos on C2`).
+    /// Order at the same instant: releases first, then presses; a damper or
+    /// sostenuto pressed together with notes catches them (e.g. `sos on C2`). The soft
+    /// pedal changes how keys are struck, so it goes down before them (`soft on C4`).
     fn order(self) -> u8 {
         match self {
             MsgKind::Off { .. } => 0,
             MsgKind::Pedal { on: false, .. } => 1,
-            MsgKind::On { .. } => 2,
-            MsgKind::Pedal { on: true, .. } => 3,
+            MsgKind::Pedal {
+                kind: PedalKind::Soft,
+                on: true,
+            } => 2,
+            MsgKind::On { .. } => 3,
+            MsgKind::Pedal { on: true, .. } => 4,
         }
     }
 }
@@ -155,6 +160,37 @@ mod tests {
                 key: 60,
                 velocity: 80
             }));
+    }
+
+    #[test]
+    fn soft_pedal_goes_down_before_the_notes_damper_after() {
+        let mut s = score();
+        s.pedals.push(PedalEvent {
+            kind: PedalKind::Soft,
+            on: true,
+            at: 0,
+            src: SrcSpan::default(),
+        });
+        s.finish();
+        let (msgs, _) = schedule(&s, 0, None, 100);
+        let firsts: Vec<_> = msgs.iter().take(3).map(|m| m.kind).collect();
+        assert_eq!(
+            firsts,
+            [
+                MsgKind::Pedal {
+                    kind: PedalKind::Soft,
+                    on: true
+                },
+                MsgKind::On {
+                    key: 48,
+                    velocity: 80
+                },
+                MsgKind::Pedal {
+                    kind: PedalKind::Damper,
+                    on: true
+                },
+            ]
+        );
     }
 
     #[test]
