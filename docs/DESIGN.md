@@ -1,6 +1,6 @@
 # piano — Design Document
 
-> Status: implemented (version 1.18.1, 2026-10-25). This document was the baseline;
+> Status: implemented (version 1.19.0, 2026-10-25). This document was the baseline;
 > §13 lists where the implementation differs.
 
 ## Table of Contents
@@ -53,7 +53,6 @@ the right, and the piano roll was removed (little value in real time).
 
 ```
 ┌─ Keys (always) ──────────────────────────────────────────────────┐
-│ A0 █▄██▄█▄██ … playable range highlighted … ██▄█ C8               │
 │        S   D       G   H   J       2   3       5   6   7          │
 │ │C3│ … │ Z │ X │ C │ V │ B │ N │ M │ Q │ W │ … │ U │ … │C6│        │
 └──────────────────────────────────────────────────────────────────┘
@@ -72,7 +71,7 @@ the right, and the piano roll was removed (little value in real time).
 
 | Area | Role |
 |---|---|
-| Keys | Top, always visible. 88-key map plus a zoomed keyboard that shows more octaves as the terminal widens (§13.10). Below 26 rows only the map line is shown. |
+| Keys | Top, always visible. A zoomed keyboard that shows more octaves as the terminal widens (§13.10). Below 24 rows it shrinks to one line, `keys C4 - B5  (← → octave)`. The 88-key map line was removed in 1.19.0. |
 | Code | Left (55%). Piano language text with line numbers and an alert gutter; long lines wrap on screen only (`↪`), line numbers are unchanged. In-app editing is the default; changes from an external editor are auto-reloaded. |
 | Display | Right (45%). One view at a time; long lines are wrapped. |
 | Cmd | Single input line; the last result is shown on its bottom border. Results go to the Display `output` view. |
@@ -103,8 +102,6 @@ At startup the Display shows `output`, so startup messages are visible.
 ### 2.3 Keys sketch
 
 ```
- A0                          88 keys                                  C8
- ▌▐▌▐▐▌▐▌▐▌▐▐▌▐▌▐▐▌▐▌▐▌▐▐▌▐▌[▐▐▌▐▌▐▌▐▐▌▐▌▐▌▐▐▌▐▌]▐▐▌▐▌▐▌▐▐▌▐▌▐▐▌▐▌▐▌▐▐▌▐▌▐
 ┌─ Playable: C4 ~ B5 ────────────────────────────────────────┐
 │  ┃ S ┃ D ┃   ┃ G ┃ H ┃ J ┃   ┃ 2 ┃ 3 ┃   ┃ 5 ┃ 6 ┃ 7 ┃      │
 │ │ Z │ X │ C │ V │ B │ N │ M │ Q │ W │ E │ R │ T │ Y │ U │    │
@@ -918,6 +915,8 @@ volume.
 The zoomed keyboard always contains the playable two octaves and adds whole octaves
 on both sides while they fit (key cells 4–6 columns, never beyond A0–C8). Keys
 outside the playable range are dimmed and unlabeled except C with its octave number.
+Since 1.19.0 this is the whole Keys area (the 88-key map line above it was removed);
+the dimmed octaves and the status bar (`keys C4-B5`) show where the range is.
 
 ### 13.11 Audio level and diagnostics (1.8.2)
 

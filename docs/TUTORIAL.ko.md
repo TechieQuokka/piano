@@ -29,7 +29,7 @@ English; descriptions and hints are Korean.
 
     윗줄 Q W E R T Y U는 한 옥타브 높음.
     ← →는 건반 범위 전체를 한 옥타브씩 옮김.
-    88건반 지도와 범위 양옆의 흐린 건반으로 지금 위치를 알 수 있음.
+    범위 양옆의 흐린 건반과 상태줄로 지금 위치를 알 수 있음.
     Try      Q를 누르고, →를 누른 뒤 Z 누르기.
     Hint     → 뒤에는 Z가 C5를 냄 (`played`에 C5 C5가 보임).
 

@@ -1,22 +1,20 @@
-//! The always-visible keyboard: the 88-key map and a zoomed keyboard that grows
-//! with the terminal width. Only the playable two octaves carry PC key labels;
+//! The always-visible keyboard: a zoomed keyboard that grows with the terminal
+//! width (one line of text in small terminals). Only the playable two octaves carry PC key labels;
 //! the octaves around them are drawn dimmed for orientation.
 
 use piano_app::App;
 use piano_app::input::key_label;
 use piano_core::Pitch;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::Line;
 
 use crate::grid::Grid;
 use crate::theme;
 
-/// Rows of the full keyboard: map, gap, and 5 key rows.
-pub const FULL_ROWS: u16 = 7;
+/// Rows of the full keyboard (key rows).
+pub const FULL_ROWS: u16 = 5;
 const MIN_CELL: usize = 4;
 const MAX_CELL: usize = 6;
-/// Width of the map line: `A0 ` + 88 keys + ` C8`.
-const MAP_WIDTH: usize = 88 + 6;
 
 fn is_pressed(app: &App, p: Pitch) -> bool {
     app.pressed.iter().any(|(q, _)| *q == p)
@@ -34,54 +32,21 @@ fn is_black(midi: i32) -> bool {
 }
 
 pub fn lines(app: &App, width: usize, compact: bool) -> Vec<Line<'static>> {
-    let mut out = vec![map_line(app, width)];
-    if !compact {
-        out.push(Line::default());
-        out.extend(zoomed(app, width));
+    if compact {
+        vec![range_line(app)]
+    } else {
+        zoomed(app, width)
     }
-    out
 }
 
-/// `A0 ████▄█▄██ … C8` with the playable range highlighted.
-fn map_line(app: &App, width: usize) -> Line<'static> {
+/// Compact keyboard (small terminals): the playable range in one line.
+fn range_line(app: &App) -> Line<'static> {
     let (lo, hi) = playable(app);
     let label = |p: i32| Pitch::new(p).map_or_else(|| "--".to_string(), |p| p.to_string());
-    if width < MAP_WIDTH {
-        return Line::styled(
-            format!("keys {} - {}  (of A0 - C8)", label(lo), label(hi)),
-            Style::new().fg(theme::ACCENT),
-        );
-    }
-    let mut g = Grid::new(MAP_WIDTH, Style::new());
-    g.put(0, "A0 ", Style::new().fg(theme::DIM));
-    for midi in 21..=108 {
-        let p = Pitch::new(midi).expect("piano range");
-        let in_range = (lo..=hi).contains(&midi);
-        let (ch, mut style) = if p.is_black() {
-            (
-                '▄',
-                Style::new().fg(if in_range {
-                    Color::Cyan
-                } else {
-                    Color::DarkGray
-                }),
-            )
-        } else {
-            (
-                '█',
-                Style::new().fg(if in_range { Color::White } else { Color::Gray }),
-            )
-        };
-        if in_range {
-            style = style.add_modifier(Modifier::BOLD);
-        }
-        if is_pressed(app, p) {
-            style = Style::new().fg(Color::Yellow);
-        }
-        g.put(3 + p.key_index(), &ch.to_string(), style);
-    }
-    g.put(3 + 88, " C8", Style::new().fg(theme::DIM));
-    g.into_line()
+    Line::styled(
+        format!("keys {} - {}  (← → octave)", label(lo), label(hi)),
+        Style::new().fg(theme::ACCENT),
+    )
 }
 
 /// White keys (MIDI numbers) to draw: the playable ones, widened by whole octaves

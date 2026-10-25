@@ -138,10 +138,22 @@ mod tests {
             key(&mut a, KeyCode::Char(c));
         }
         let s = screen(&mut a, 120, 40);
-        assert!(s.contains("A0"), "{s}");
+        assert!(!s.contains("A0 "), "no 88-key map line: {s}");
+        assert!(s.contains("C4"), "{s}");
         assert!(s.contains("도"), "{s}");
         assert!(s.contains("E4 미"), "played notes are listed: {s}");
         assert!(s.contains("[Keys]"), "{s}");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn small_terminal_shows_the_range_line() {
+        let (mut a, dir) = app("compact");
+        let s = screen(&mut a, 100, 20);
+        assert!(s.contains("keys C4 - B5"), "{s}");
+        assert!(!s.contains("│ Z │"), "no zoomed keyboard when short: {s}");
+        let s = screen(&mut a, 100, 30);
+        assert!(s.contains(" Z "), "{s}");
         let _ = std::fs::remove_dir_all(dir);
     }
 

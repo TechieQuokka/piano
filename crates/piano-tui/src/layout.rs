@@ -12,12 +12,12 @@ use crate::theme;
 use crate::views;
 use crate::widgets::{code, keyboard, status};
 
-/// Rows of the full keyboard (map, gap, 5 key rows) plus its border.
+/// Rows of the full keyboard (5 key rows) plus its border.
 const KEYS_FULL: u16 = keyboard::FULL_ROWS + 2;
-/// Rows of the compact keyboard (map only) plus its border.
+/// Rows of the compact keyboard (one line of text) plus its border.
 const KEYS_COMPACT: u16 = 3;
-/// Below this terminal height the keyboard shrinks to the map line.
-const COMPACT_BELOW: u16 = 26;
+/// Below this terminal height the keyboard shrinks to one line.
+const COMPACT_BELOW: u16 = 24;
 
 pub struct Areas {
     pub keys: Rect,

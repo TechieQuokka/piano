@@ -30,7 +30,7 @@ marked done. `docs/TUTORIAL.ko.md` must have the same IDs and `Expect` lines.
 
     The upper row Q W E R T Y U is one octave higher.
     ← → move the whole range by an octave.
-    The 88-key map and the dimmed keys around the range show where you are.
+    The dimmed keys around the range and the status bar show where you are.
     Try      Press Q, then → and Z.
     Hint     After →, Z plays C5 (`played` shows C5 C5).
 
