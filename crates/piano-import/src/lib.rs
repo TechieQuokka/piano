@@ -213,6 +213,25 @@ mod tests {
     }
 
     #[test]
+    fn upbeat_short_end_and_partly_tied_chords() {
+        // An upbeat of a quarter in 2/4; a chord whose F ends its tie while D and
+        // A go on; a short last bar with a tie to nothing.
+        let k = "!!!OTL: T\n**kern\t**kern\n*staff2\t*staff1\n*M2/4\t*M2/4\n*MM60\t*MM60\n\
+                 4C\t4c\n=1\t=1\n[2D [2F [2A\t2d\n=2\t=2\n4D_ 4F] 4A_\t4e\n\
+                 4D] 4F 4A]\t4f\n=3\t=3\n4C\t[4c\n==\t==\n*-\t*-\n";
+        let i = import(k, "t.krn").unwrap();
+        let text: String = i.pieces.iter().map(|p| p.1.as_str()).collect();
+        assert!(i.check.ok(), "{:?}\n{text}", i.check);
+        // the upbeat: the piece's signature, no bar line before it
+        assert!(text.contains("\ntime 2/4 tempo 60 voices{"), "{text}");
+        // the tie to nothing is not written
+        assert!(text.ends_with("{ mf C3/4 }\n"), "{text}");
+        assert!(text.contains("{ mf F3/2~ | F3/4 r }"), "{text}");
+        // C C | D F A d | e (F) f | C c: D and A held over the bar, F struck again
+        assert_eq!(i.check.expected, 2 + 4 + 3 + 2);
+    }
+
+    #[test]
     fn long_scores_are_cut_into_pieces() {
         let bars: String = (1..=40)
             .map(|n| {

@@ -67,6 +67,23 @@ fn chord_tie() {
 }
 
 #[test]
+fn ties_cross_function_bodies() {
+    // into a tuplet and on inside it: G held 1 + 3 x 2/3 quarters
+    let c = clean("C4/4 G4~ tuplet(3){ G~ G~ G } A");
+    let q = TICKS_PER_QUARTER;
+    let g = c.score.notes.iter().find(|n| n.pitch.midi() == 67).unwrap();
+    assert_eq!((g.start, g.len), (q, q + q * 2 / 3 * 3));
+    assert_eq!(c.score.notes.len(), 3);
+    // out of a tuplet
+    let c = clean("tuplet(3){ C4/8 E G4~ } G/4");
+    let g = c.score.notes.iter().find(|n| n.pitch.midi() == 67).unwrap();
+    assert_eq!((g.start, g.len), (q * 2 / 3, q / 3 + q));
+    // ties match the pitch after the function: C up 2 is D
+    let c = clean("up(2){ C4/4~ } D");
+    assert_eq!(notes(&c), "D4@0+4");
+}
+
+#[test]
 fn tie_to_other_pitch_warns() {
     let c = compile_piece("C4~ D");
     assert_eq!(notes(&c), "C4@0+2 D4@2+2");

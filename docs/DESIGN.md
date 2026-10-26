@@ -267,7 +267,7 @@ A score-like, left-to-right language. Whitespace and case are lenient.
 | `0`–`8` | Octave (scientific pitch; `C4` = middle C; range A0–C8) | `C4` |
 | `/n` | Length: `1 2 4 8 16 32 64` (others = Error) | `C/8` |
 | `.` / `..` | Dotted / double-dotted (max 2; more = Warning) | `C/4.` |
-| `~` | Tie (same pitch only; may cross bars; works on chords) | `G/2~ G/4` |
+| `~` | Tie (same pitch only; may cross bars and function bodies; works on chords) | `G/2~ G/4` |
 | `r` | Rest | `r/4` |
 | `{ }` | Chord; length after the brace | `{C E G}/2` |
 | `//` | Line comment | `C D // intro` |
@@ -795,6 +795,7 @@ piano export <dir|file> --midi|--wav|--flac [--rate 48000] [--bits 24] [-o out]
                                               # default out: <piece>.<ext>; a project dir → <folder>.<ext>
 piano new <dir>                               # create project
 piano import <score.mxl|.krn> <dir>           # MusicXML / **kern → new project (§13.13, §13.15)
+piano import <folder> <dir>                    # every score in folder → dir/<file name> (§13.16)
 piano doctor                                  # check SoundFont, audio device, terminal keys
 ```
 
@@ -1105,4 +1106,25 @@ told by the content: MusicXML starts with `<`, kern has a `**kern` spine.
 - Writer fixes found with these scores (they apply to MusicXML too): a tied note
   continues in the voice of the note it is tied from, also when only part of a chord
   is tied; a rest that starts a bar inside a multi-bar block gets its bar line.
+
+### 13.16 Importing a folder (1.30.0)
+
+`piano import <folder> <dir>` imports each score directly in the folder (`.mxl`,
+`.musicxml`, `.xml`, `.krn`; not subfolders), by file name, into `dir/<file name
+without extension>`, which is also the project's name. A folder that is not empty
+is skipped, never overwritten. A score that fails or does not match keeps the rest
+going; each prints one line (`ok`, `check`, `fail`, `skip`), then a total. The
+command fails if any score failed or did not match. For the full report of one
+score, import that file alone.
+
+Tried on the 103 movements of Beethoven's sonatas (kern). Fixes found with them:
+ties go on through function bodies (language, `expand.rs`: the body's leftover ties
+and the ties waiting before it are joined after the function is applied); tied notes
+take their lane before notes struck with them; a note tied from a chord into a
+differently shaped chord moves to the lane it goes on in; ties to nothing are
+dropped; an upbeat takes the piece's signature without a bar line before it, and a
+short last bar has none after it. Result: 90 match; 4 import with warnings only (a
+time signature change or unmetered bars inside a block that ties hold together, a
+few ties across lanes); 9 fail on lengths the language cannot write exactly (9 or 11
+in a tuplet: 6720 ticks per quarter have no factor 9 or 11; 128th notes).
 

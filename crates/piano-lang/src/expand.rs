@@ -249,10 +249,56 @@ fn lay_item(
             ctx.bar_cur = track.len;
         }
         Item::Func { builtin, body } => {
-            ctx.flush_ties(alerts);
-            let body_track = sub_track(body, resolved, ctx.time, alerts);
+            // Ties go on into the body and out of it, as across a bar line.
+            let mut sub = Ctx::new(ctx.time);
+            let mut body_track = Track::default();
+            lay_seq(body, resolved, &mut sub, &mut body_track, alerts);
+            let count = body_track.notes.len();
             let out = builtin.apply(body_track, alerts);
+            // A function that repeats its body (`seq`) ties out of its last pass.
+            let offset = out.notes.len().saturating_sub(count);
+            if offset + count > out.notes.len() {
+                sub.flush_ties(alerts);
+            }
+            let base = track.notes.len();
             track.append(out, now);
+            let mut leaving: Vec<(usize, SrcSpan)> = sub
+                .ties
+                .into_iter()
+                .map(|(i, span)| (base + offset + i, span))
+                .collect();
+            // Ties into the body continue on its first notes.
+            let mut removed = Vec::new();
+            for (p, span) in std::mem::take(&mut ctx.ties) {
+                let pitch = track.notes[p].pitch;
+                let q = (base..track.notes.len()).find(|&q| {
+                    let n = &track.notes[q];
+                    n.start == now && n.pitch == pitch && !removed.contains(&q)
+                });
+                let Some(q) = q else {
+                    alerts.push(Alert::warning(
+                        span,
+                        "tie `~` is not followed by the same note, ignored",
+                    ));
+                    continue;
+                };
+                let end = track.notes[q].start + track.notes[q].len;
+                track.notes[p].len = end - track.notes[p].start;
+                for l in &mut leaving {
+                    if l.0 == q {
+                        l.0 = p;
+                    }
+                }
+                removed.push(q);
+            }
+            removed.sort_unstable();
+            for &q in removed.iter().rev() {
+                track.notes.remove(q);
+            }
+            for l in &mut leaving {
+                l.0 -= removed.iter().filter(|&&q| q < l.0).count();
+            }
+            ctx.ties = leaving;
         }
         Item::Voices { voices, span } => {
             ctx.flush_ties(alerts);

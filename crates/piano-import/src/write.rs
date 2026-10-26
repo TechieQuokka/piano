@@ -240,6 +240,49 @@ fn curves(model: &Model) -> BTreeMap<StaffId, Vec<Seg>> {
     out
 }
 
+/// A note tied from a chord in lane `o` went on in `lane` (its chord there is
+/// shaped differently): it leaves the chord and is struck in `lane` too, if
+/// that lane is free then, since a tie holds every note of a chord.
+fn move_tied(
+    out: &mut BTreeMap<Lane, Vec<Ev>>,
+    (part, voice): VoiceId,
+    (o, i): (u32, usize),
+    lane: u32,
+    note: &(i32, String),
+) {
+    let origin = &out[&(part, voice, o)][i];
+    if origin.notes.len() < 2 {
+        return;
+    }
+    let (start, len, staff) = (origin.start, origin.len, origin.staff);
+    let list = &out[&(part, voice, lane)];
+    let at = list.len() - 1;
+    if at > 0 && list[at - 1].end() > start {
+        return;
+    }
+    if let Some(origin) = out.get_mut(&(part, voice, o)).and_then(|l| l.get_mut(i)) {
+        origin.notes.retain(|n| n != note);
+    }
+    if let Some(list) = out.get_mut(&(part, voice, lane)) {
+        list.insert(
+            at,
+            Ev {
+                start,
+                len,
+                notes: vec![note.clone()],
+                tie: true,
+                staff,
+            },
+        );
+    }
+}
+
+/// A bar shorter than its time signature (an upbeat, or the bar that ends it).
+fn short(m: &crate::musicxml::Measure) -> bool {
+    let (beats, unit) = m.sig;
+    m.len < Q::new(4 * i64::from(beats), i64::from(unit))
+}
+
 /// A voice of the output: a MusicXML voice, an extra lane of it, or the grace voice.
 type Lane = (usize, u32, u32);
 const GRACE_LANE: Lane = (usize::MAX, 0, 0);
@@ -247,7 +290,24 @@ const GRACE_LANE: Lane = (usize::MAX, 0, 0);
 /// Spreads the notes of each voice over lanes so that nothing overlaps.
 fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
     let mut out: BTreeMap<Lane, Vec<Ev>> = BTreeMap::new();
-    for n in &model.notes {
+    // Notes that continue a tie take their lane first, before notes struck with
+    // them can take it (a held note under moving ones).
+    let tied: std::collections::HashSet<(VoiceId, i32, Q)> = model
+        .notes
+        .iter()
+        .filter(|n| n.tie)
+        .map(|n| (n.voice, n.midi, n.start + n.len))
+        .collect();
+    // A tie with no note after it in its voice (in the score) is dropped.
+    let starts: std::collections::HashSet<(VoiceId, i32, Q)> = model
+        .notes
+        .iter()
+        .map(|n| (n.voice, n.midi, n.start))
+        .collect();
+    let mut notes: Vec<_> = model.notes.iter().collect();
+    notes.sort_by_key(|n| (n.start, !tied.contains(&(n.voice, n.midi, n.start))));
+    for n in notes {
+        let tie = n.tie && starts.contains(&(n.voice, n.midi, n.start + n.len));
         let (part, voice): VoiceId = n.voice;
         let expanded = n.trill.as_ref().and_then(|(upper, umidi)| {
             let step = [trill_len(), grace_len()]
@@ -275,21 +335,29 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
                 start: n.start,
                 len: n.len,
                 notes: vec![(n.midi, n.name.clone())],
-                tie: n.tie,
+                tie,
                 staff: n.staff,
             }]
         });
         let single = evs.len() == 1;
         for ev in evs {
-            // A tied note goes on in the lane of the note it is tied from.
-            let mut lane = (0..)
+            // A tied note goes on in the lane of the note it is tied from (the
+            // last event there, or just before notes tied on with it).
+            let from = (0..)
                 .map_while(|l| out.get(&(part, voice, l)).map(|list| (l, list)))
-                .find(|(_, list)| {
-                    list.last().is_some_and(|last| {
-                        last.tie && last.end() == ev.start && last.notes.contains(&ev.notes[0])
-                    })
-                })
-                .map_or(0, |(l, _)| l);
+                .find_map(|(l, list)| {
+                    let k = list.len().checked_sub(1)?;
+                    let k = if list[k].start == ev.start {
+                        k.checked_sub(1)?
+                    } else {
+                        k
+                    };
+                    let e = &list[k];
+                    (e.tie && e.end() == ev.start && e.notes.contains(&ev.notes[0]))
+                        .then_some((l, k))
+                });
+            let mut lane = from.map_or(0, |f| f.0);
+            let note = ev.notes[0].clone();
             loop {
                 let key = (part, voice, lane);
                 let list = out.entry(key).or_default();
@@ -312,6 +380,11 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
                         break;
                     }
                 }
+            }
+            if let Some((o, i)) = from
+                && o != lane
+            {
+                move_tied(&mut out, (part, voice), (o, i), lane, &note);
             }
         }
     }
@@ -601,8 +674,15 @@ impl Ctx<'_> {
         for w in points.windows(2) {
             let (a, b) = (w[0], w[1]);
             let mut head = String::new();
+            // A short first bar (an upbeat) is written under the bar's own
+            // signature without a bar line before it, as the language allows.
+            let upbeat = a == lo && short(&ms[first]);
             if self.starts.contains(&a) {
-                let sig = self.signature(self.measure_at(a));
+                let sig = if upbeat {
+                    ms[first].sig
+                } else {
+                    self.signature(self.measure_at(a))
+                };
                 if last_sig != Some(sig) {
                     head += &format!("time {}/{} ", sig.0, sig.1);
                     last_sig = Some(sig);
@@ -648,8 +728,17 @@ impl Ctx<'_> {
                 self.rests(&mut items, a, b)?;
                 texts.push(emit(&items));
             }
-            let opens = if self.starts.contains(&a) { "| " } else { "" };
-            let closes = if self.starts.contains(&b) { " |" } else { "" };
+            let opens = if self.starts.contains(&a) && !upbeat {
+                "| "
+            } else {
+                ""
+            };
+            // A short last bar has no bar line after it, so it is not checked.
+            let closes = if self.starts.contains(&b) && !(b == hi && short(&ms[last])) {
+                " |"
+            } else {
+                ""
+            };
             let label = self.label(a, b);
             if texts.len() == 1 {
                 lines.push(format!("{opens}{head}{}{closes}  // {label}", texts[0]));
@@ -711,7 +800,7 @@ impl Ctx<'_> {
         let mut lvl = None;
         // An open cresc/dim: (start of its wedge, level it ends on).
         let mut open: Option<(Q, usize)> = None;
-        for e in evs {
+        for (k, e) in evs.iter().enumerate() {
             self.rests(&mut items, cur, e.start)?;
             if e.start > a {
                 self.bar_line(&mut items, e.start);
@@ -758,7 +847,16 @@ impl Ctx<'_> {
                 w,
                 n,
                 text,
-                if e.tie { "~".into() } else { String::new() },
+                if e.tie
+                    && evs.get(k + 1).is_some_and(|n| {
+                        n.start == e.end()
+                            && n.notes.iter().any(|x| e.notes.iter().any(|y| x.0 == y.0))
+                    })
+                {
+                    "~".into()
+                } else {
+                    String::new()
+                },
             ));
             cur = e.end();
         }

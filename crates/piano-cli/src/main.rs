@@ -1,4 +1,4 @@
-//! Binary `piano`: entry point for the `edit`, `play`, `export`, `new`, and `doctor` subcommands.
+//! Binary `piano`: entry point for the `edit`, `play`, `export`, `new`, `import`, and `doctor` subcommands.
 
 use std::io::{IsTerminal, Write};
 use std::path::{Path, PathBuf};
@@ -56,7 +56,8 @@ enum Cmd {
     },
     /// Create a project in any folder (existing files are kept)
     New { dir: PathBuf },
-    /// Import a MusicXML (.mxl, .musicxml, .xml) or Humdrum kern (.krn) score as a new project in DIR
+    /// Import a MusicXML (.mxl, .musicxml, .xml) or Humdrum kern (.krn) score as a new project in DIR.
+    /// FILE may be a folder: each score in it becomes DIR/<file name>
     Import { file: PathBuf, dir: PathBuf },
     /// Check SoundFont, audio device, and terminal keys
     Doctor,
@@ -120,6 +121,93 @@ fn new(dir: &Path) -> Result<(), String> {
 
 /// Imports a score into a new project; files that exist are never overwritten.
 fn import(file: &Path, dir: &Path) -> Result<(), String> {
+    if file.is_dir() {
+        return import_folder(file, dir);
+    }
+    let imp = import_score(file, dir)?;
+    report(&imp, dir)
+}
+
+/// Score files `piano import` reads.
+const SCORE_EXTENSIONS: [&str; 4] = ["mxl", "musicxml", "xml", "krn"];
+
+/// Imports each score directly in `src` (by name) into `out/<file name>`.
+/// Existing projects are skipped; a failed score does not stop the rest.
+fn import_folder(src: &Path, out: &Path) -> Result<(), String> {
+    let entries = std::fs::read_dir(src).map_err(|e| format!("{}: {e}", src.display()))?;
+    let mut files: Vec<PathBuf> = entries
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| {
+            p.is_file()
+                && p.extension().is_some_and(|x| {
+                    SCORE_EXTENSIONS.contains(&x.to_string_lossy().to_lowercase().as_str())
+                })
+        })
+        .collect();
+    files.sort();
+    if files.is_empty() {
+        return Err(format!(
+            "{}: no scores (.{})",
+            src.display(),
+            SCORE_EXTENSIONS.join(" .")
+        ));
+    }
+    let (mut ok, mut mismatch, mut failed, mut skipped) = (0, 0, 0, 0);
+    for file in &files {
+        let name = file
+            .file_stem()
+            .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+        let dir = out.join(&name);
+        let used = std::fs::read_dir(&dir).is_ok_and(|mut d| d.next().is_some());
+        if used {
+            println!("  skip  {name}: {} is not empty", dir.display());
+            skipped += 1;
+            continue;
+        }
+        match import_score(file, &dir) {
+            Ok(imp) if imp.check.ok() => {
+                ok += 1;
+                println!(
+                    "  ok    {name}: {} · {} bars · {} pieces",
+                    imp.title.as_deref().unwrap_or("score"),
+                    imp.stats.measures,
+                    imp.pieces.len()
+                );
+            }
+            Ok(imp) => {
+                mismatch += 1;
+                let c = &imp.check;
+                println!(
+                    "  check {name}: {}/{} notes match, {} extra, {} alerts ✖",
+                    c.matched,
+                    c.expected,
+                    c.extra,
+                    c.alerts.len()
+                );
+            }
+            Err(e) => {
+                failed += 1;
+                println!("  fail  {name}: {e}");
+            }
+        }
+    }
+    println!(
+        "{} scores → {}: {ok} imported, {mismatch} not matching, {failed} failed, {skipped} skipped",
+        files.len(),
+        out.display()
+    );
+    if mismatch + failed > 0 {
+        return Err(format!(
+            "{} of {} scores did not import cleanly (see above)",
+            mismatch + failed,
+            files.len()
+        ));
+    }
+    Ok(())
+}
+
+/// Reads `file` and writes it as a new project in `dir`.
+fn import_score(file: &Path, dir: &Path) -> Result<piano_import::Import, String> {
     if dir.join(CONFIG_FILE).exists() {
         return Err(format!("{} is already a project", dir.display()));
     }
@@ -155,13 +243,17 @@ fn import(file: &Path, dir: &Path) -> Result<(), String> {
         write(name, text)?;
     }
     write(SONG, &imp.song)?;
+    Ok(imp)
+}
 
+/// Prints what an import did; an error if the song does not match the score.
+fn report(imp: &piano_import::Import, dir: &Path) -> Result<(), String> {
     let s = &imp.stats;
     let c = &imp.check;
     println!(
         "imported {} → {}",
         imp.title.as_deref().unwrap_or("score"),
-        project.root.display()
+        dir.display()
     );
     println!(
         "  {} bars · {} voices · {} pieces · {} blocks · {} tempo marks",

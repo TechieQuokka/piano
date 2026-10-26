@@ -91,7 +91,7 @@ only descriptions are Korean.
     Syntax   <note>~ <same note>            G/2~ G/4
     Meaning  같은 높이의 두 음을 하나의 긴 음으로 이음.
              두 번째 음은 다시 치지 않음.
-    Bars     마디줄을 넘어도 됨.
+    Bars     마디줄을 넘어도 되고, 함수 안팎으로도 이어짐.
     Chords   {C E G}/2~ {C E G}/4 는 세 음을 모두 이음.
     Other    ~ 뒤가 다른 음이면 Warning, 붙임줄은 무시됨.
     Example  C4 D G/2~ | G/4 F

@@ -3,6 +3,23 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.30.0
+- `piano import <folder> <dir>` imports every score in a folder (`.mxl`, `.musicxml`,
+  `.xml`, `.krn`) as its own project, `dir/<file name>`, named after the file.
+  Projects already there are skipped; a score that fails does not stop the rest.
+  One line per score, then a total. See `docs/DESIGN.md` §13.16.
+- Language: a tie goes on into and out of a function body, e.g.
+  `G~ tuplet(3){ G E C }` and `tuplet(3){ C E G~ } G`. Before, it was ignored with a
+  warning, and the note was struck again. Notes are matched after the function, so
+  `up(2){ C~ } D` holds D. Ties still stop at repeats and `voices`.
+- Fix (import): a held note under moving notes of the same voice (a tied note in a
+  chord with new notes) could lose its tie and be struck again.
+- Fix (import): a note tied from a chord that goes on with a different length now
+  leaves the chord, so the other notes are not tied to nothing; a tie with no note
+  after it in the score is not written.
+- Fix (import): an upbeat is written under the piece's time signature without a bar
+  line before it, and a short last bar has no bar line after it, so neither warns.
+
 ## 1.29.1
 - Fix (import): hairpins were written as a dynamic mark on each note, a whole level
   at a time, and a diminuendo started from the last written mark instead of the top

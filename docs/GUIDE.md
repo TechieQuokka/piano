@@ -518,7 +518,9 @@ second note is not struck again. Use it for lengths that no single symbol can wr
 - A chord can be tied to a chord: each note of the first is joined with the same note
   in the second.
 - A different note, a rest, or the end after `~` gives a warning and the tie is ignored.
-- A tie does not reach into or out of a repeat, a function, or `voices`.
+- A tie goes on into and out of a function, e.g. `G~ tuplet(3){ G E C }`; its
+  notes are matched after the function, so `up(2){ C~ } D` holds D.
+- A tie does not reach into or out of a repeat or `voices`.
 - There is no slur (legato between different notes); the damper pedal is the way to
   connect notes (`guide pedal`).
 
@@ -1379,7 +1381,7 @@ functions and no recursion.
   go on from the last written note.
 - Results outside A0–C8 are folded by octaves, with a warning.
 - An unknown name or a wrong argument is an error; the body still plays, unchanged.
-- A tie does not reach into or out of a function.
+- A tie goes on into and out of a function: `G~ tuplet(3){ G E C }` holds G.
 
 #### Arguments
 

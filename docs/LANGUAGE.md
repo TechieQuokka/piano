@@ -92,7 +92,7 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     Syntax   <note>~ <same note>            G/2~ G/4
     Meaning  Joins two notes of the same pitch into one long note.
              The second note is not struck again.
-    Bars     May cross bar lines.
+    Bars     May cross bar lines, and go into and out of functions.
     Chords   {C E G}/2~ {C E G}/4 ties all three.
     Other    Different pitch after ~ -> Warning, tie ignored.
     Example  C4 D G/2~ | G/4 F
