@@ -631,8 +631,8 @@ piano/
     │   └── src/ synth.rs player.rs scheduler.rs render.rs
     ├── piano-export/             # Score → MIDI / WAV / FLAC
     │   └── src/ midi.rs wav.rs
-    ├── piano-import/             # MusicXML → pieces (1.26.0)
-    │   └── src/ musicxml.rs write.rs check.rs rational.rs
+    ├── piano-import/             # MusicXML (1.26.0), **kern (1.29.0) → pieces
+    │   └── src/ musicxml.rs kern.rs write.rs check.rs rational.rs
     ├── piano-project/            # project, config, sandbox, recent, watch
     │   └── src/ project.rs config.rs sandbox.rs recent.rs watch.rs
     ├── piano-app/                # state, buffers, history, commands, help, tutorial
@@ -794,7 +794,7 @@ piano play <dir|file> [--lines 2-4]
 piano export <dir|file> --midi|--wav|--flac [--rate 48000] [--bits 24] [-o out]
                                               # default out: <piece>.<ext>; a project dir → <folder>.<ext>
 piano new <dir>                               # create project
-piano import <score.mxl> <dir>                # MusicXML → new project (§13.13)
+piano import <score.mxl|.krn> <dir>           # MusicXML / **kern → new project (§13.13, §13.15)
 piano doctor                                  # check SoundFont, audio device, terminal keys
 ```
 
@@ -1078,4 +1078,30 @@ Salamander), so its samples are not resampled, and write 24-bit samples. Before
 The mix is normalized only if it would clip, then rounded to the bit depth. FLAC is
 lossless: it decodes to exactly the samples of the WAV (tested), at about 40 % of
 its size.
+
+### 13.15 Importing Humdrum **kern (1.29.0)
+
+`piano import <score.krn> <dir>` reads a Humdrum `**kern` score into the same model
+as MusicXML (`kern.rs`); pieces, song, and check are shared (§13.13). The format is
+told by the content: MusicXML starts with `<`, kern has a `**kern` spine.
+
+- **Spines**: each `**kern` spine is a staff (`*staffN`, else counted from the
+  right); its sub-spines (`*^` / `*v`) are its voices, numbered by position. A
+  `**dynam` spine gives the dynamics, hairpins (`<` `>`, ended by `[` `]`), of the
+  staves in its `*staff1/2`.
+- **Time**: a line starts when the first note of the line before ends; grace notes
+  (`q`) and lines of marks only last no time.
+- **Tokens**: lengths `4.`, `12` (triplets), `3%2`, `0` / `00`; ties `[ _ ]`; trills
+  `t` (half step) / `T` (whole step); `*M`, `*MM` (quarters per minute), `*ped` /
+  `*Xped`. Cue-size notes (`*cue`, e.g. a cadenza) are played; invisible notes and
+  rests (`y`) are kept. Accents, slurs, stems, beams, and fermatas are ignored, as
+  are `sf` / `fp` and tempo words without `*MM`.
+- **Sections**: `*>A` labels are played in the order of the expansion list
+  (`*>[A,B,B]`); a numbered ending missing from the list (`A2` in `A,A1,A,B`) is
+  played after the repeat of its section with that number. Without a list the score
+  is played as written. A bar split by a repeat sign is whole again in playing order
+  (the section's end and the upbeat after it).
+- Writer fixes found with these scores (they apply to MusicXML too): a tied note
+  continues in the voice of the note it is tied from, also when only part of a chord
+  is tied; a rest that starts a bar inside a multi-bar block gets its bar line.
 

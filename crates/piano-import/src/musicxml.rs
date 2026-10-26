@@ -96,7 +96,7 @@ pub struct Notices {
     pub runaway_repeats: usize,
 }
 
-const LETTERS: [char; 7] = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+pub(crate) const LETTERS: [char; 7] = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 
 fn step_semitone(letter: char) -> i32 {
     match letter {
@@ -110,7 +110,7 @@ fn step_semitone(letter: char) -> i32 {
     }
 }
 
-fn midi_of(letter: char, alter: i32, octave: i32) -> i32 {
+pub(crate) fn midi_of(letter: char, alter: i32, octave: i32) -> i32 {
     (octave + 1) * 12 + step_semitone(letter) + alter
 }
 
@@ -147,7 +147,7 @@ fn int(n: Node, name: &str) -> Option<i64> {
 
 const LEVELS: [&str; 8] = ["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff"];
 
-fn level(tag: &str) -> Option<usize> {
+pub(crate) fn level(tag: &str) -> Option<usize> {
     if let Some(i) = LEVELS.iter().position(|l| *l == tag) {
         return Some(i);
     }
@@ -348,7 +348,7 @@ fn place(model: &mut Model, part: usize, m: &RawMeasure, start: Q) {
 }
 
 /// Sorts events and drops ties that lead nowhere.
-fn finish(model: &mut Model) {
+pub(crate) fn finish(model: &mut Model) {
     model.notes.sort_by_key(|n| (n.start, n.voice, n.midi));
     let starts: HashSet<(VoiceId, i32, Q)> = model
         .notes

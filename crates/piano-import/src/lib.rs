@@ -1,13 +1,15 @@
-//! Imports MusicXML scores (`.mxl`, `.musicxml`, `.xml`) as piano-language pieces.
+//! Imports MusicXML scores (`.mxl`, `.musicxml`, `.xml`) and Humdrum `**kern`
+//! scores (`.krn`) as piano-language pieces.
 //!
 //! ```text
-//! file ─▶ musicxml (model in playing order) ─▶ write (pieces, song) ─▶ check
+//! file ─▶ musicxml | kern (model in playing order) ─▶ write (pieces, song) ─▶ check
 //! ```
 //!
 //! The result is text only; the caller writes the files. Every import is checked:
 //! the pieces are compiled and their notes compared with the score.
 
 pub mod check;
+pub mod kern;
 pub mod musicxml;
 pub mod rational;
 pub mod write;
@@ -56,7 +58,7 @@ pub struct Stats {
     pub notices: Notices,
 }
 
-/// Reads a `.mxl` (compressed) or plain MusicXML file.
+/// Reads a `.mxl` (compressed) file, or a plain MusicXML or kern file.
 pub fn read_file(path: &Path) -> Result<String, ImportError> {
     let bytes = std::fs::read(path)?;
     if bytes.starts_with(b"PK") {
@@ -95,9 +97,19 @@ fn read_mxl(bytes: &[u8]) -> Result<String, ImportError> {
     Err(ImportError::Format("no score in the .mxl".into()))
 }
 
-/// Imports MusicXML text. `source` names the file in the piece comments.
-pub fn import(xml: &str, source: &str) -> Result<Import, ImportError> {
-    let model = musicxml::parse(xml)?;
+/// Imports MusicXML or kern text. `source` names the file in the piece comments.
+pub fn import(text: &str, source: &str) -> Result<Import, ImportError> {
+    let model = if text
+        .trim_start_matches('\u{feff}')
+        .trim_start()
+        .starts_with('<')
+    {
+        musicxml::parse(text)?
+    } else if text.lines().any(|l| l.split('\t').any(|t| t == "**kern")) {
+        kern::parse(text)?
+    } else {
+        return Err(ImportError::Format("not a MusicXML or **kern score".into()));
+    };
     let written = write::write(&model, source)?;
     let check = check::check(&written.pieces, &written.song, &written.expected);
     let voices = model

@@ -21,6 +21,7 @@ piano play my_song     # play song.piano without the editor
 piano export my_song --midi
 piano export my_song --flac            # lossless audio, 24-bit at the SoundFont's rate
 piano import score.mxl my_song   # a MusicXML score (MuseScore, ...) as a new project
+piano import score.krn my_song   # a Humdrum **kern score (kern.humdrum.org, ...)
 piano doctor           # check SoundFont, audio device, terminal keys
 ```
 

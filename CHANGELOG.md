@@ -3,6 +3,17 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.29.0
+- `piano import` reads Humdrum `**kern` scores (`.krn`, e.g. from kern.humdrum.org)
+  as well as MusicXML: staves, split voices, chords, tuplets, ties, grace notes,
+  trills, dynamics and hairpins, tempo, and the expansion list of the sections
+  (repeats). A numbered ending missing from the list is still played after its
+  repeat. Cue-size notes (a cadenza) are played. See `docs/DESIGN.md` §13.15.
+- Fix (import): a note tied from a chord where only some notes are tied lost its tie
+  (struck again, with a warning). It now continues in the same voice.
+- Fix (import): in a block of several bars, a rest at the start of a bar had no bar
+  line before it, so the bar check warned.
+
 ## 1.28.1
 - Fix: `soft on` did not soften the note written right after it (`soft on C4`): at
   the same instant the note was struck before the pedal went down. The soft pedal now

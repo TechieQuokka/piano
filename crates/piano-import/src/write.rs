@@ -176,7 +176,15 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
         });
         let single = evs.len() == 1;
         for ev in evs {
-            let mut lane = 0;
+            // A tied note goes on in the lane of the note it is tied from.
+            let mut lane = (0..)
+                .map_while(|l| out.get(&(part, voice, l)).map(|list| (l, list)))
+                .find(|(_, list)| {
+                    list.last().is_some_and(|last| {
+                        last.tie && last.end() == ev.start && last.notes.contains(&ev.notes[0])
+                    })
+                })
+                .map_or(0, |(l, _)| l);
             loop {
                 let key = (part, voice, lane);
                 let list = out.entry(key).or_default();
@@ -588,6 +596,9 @@ impl Ctx<'_> {
 
     /// Rests from `t` to `until`, with bar lines at the bars inside.
     fn rests(&self, items: &mut Vec<Item>, mut t: Q, until: Q) -> Result<(), ImportError> {
+        if t < until && !items.is_empty() {
+            self.bar_line(items, t);
+        }
         while t < until {
             let next = self
                 .starts
@@ -605,11 +616,18 @@ impl Ctx<'_> {
                 items.push(Item::Len(w, n, "r".into(), String::new()));
             }
             t = next;
-            if t < until && self.starts.contains(&t) {
-                items.push(Item::Bar);
+            if t < until {
+                self.bar_line(items, t);
             }
         }
         Ok(())
+    }
+
+    /// A bar line if a bar starts at `t`, once.
+    fn bar_line(&self, items: &mut Vec<Item>, t: Q) {
+        if self.starts.contains(&t) && !matches!(items.last(), Some(Item::Bar)) {
+            items.push(Item::Bar);
+        }
     }
 
     fn voice(&self, evs: &[&Ev], a: Q, b: Q) -> Result<String, ImportError> {
@@ -618,11 +636,8 @@ impl Ctx<'_> {
         let mut lvl = None;
         for e in evs {
             self.rests(&mut items, cur, e.start)?;
-            if e.start > a
-                && self.starts.contains(&e.start)
-                && !matches!(items.last(), Some(Item::Bar))
-            {
-                items.push(Item::Bar);
+            if e.start > a {
+                self.bar_line(&mut items, e.start);
             }
             let want = self.level(e.staff, e.start);
             let mut text = String::new();
@@ -660,8 +675,8 @@ impl Ctx<'_> {
         let mut cur = a;
         for &(at, text) in ped {
             self.rests(&mut items, cur, at)?;
-            if at > a && self.starts.contains(&at) && !matches!(items.last(), Some(Item::Bar)) {
-                items.push(Item::Bar);
+            if at > a {
+                self.bar_line(&mut items, at);
             }
             items.push(Item::Raw(text.to_string()));
             cur = at;

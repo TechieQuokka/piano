@@ -56,7 +56,7 @@ enum Cmd {
     },
     /// Create a project in any folder (existing files are kept)
     New { dir: PathBuf },
-    /// Import a MusicXML score (.mxl, .musicxml, .xml) as a new project in DIR
+    /// Import a MusicXML (.mxl, .musicxml, .xml) or Humdrum kern (.krn) score as a new project in DIR
     Import { file: PathBuf, dir: PathBuf },
     /// Check SoundFont, audio device, and terminal keys
     Doctor,
