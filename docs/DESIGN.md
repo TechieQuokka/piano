@@ -304,6 +304,7 @@ C/4. D E F/8 G                // D, E are dotted quarters; G is an eighth
 | `tempo n` | Quarter notes per minute; may change mid-piece | `100` |
 | `time a/b` | Time signature; may change mid-piece | `4/4` |
 | `\|` | Bar line (optional; length mismatch = Warning) | – |
+| `free{ ... }` | Unmetered bar (cadenza): the bar holding it is not checked; no `\|` inside (Error) | – |
 
 ### 5.4 Dynamics
 
@@ -1133,3 +1134,18 @@ its column (it lasts no time); that had made bars of op. 109/III short. The note
 compares the song with the reader's own model, so a reader error that moves notes is
 caught only by the bar-length warnings.
 
+### 13.17 Free bars (1.32.0)
+
+`free{ ... }` writes an unmetered stretch, such as a cadenza, as one bar of any
+length. Parser: `free` before `{` is a keyword like `voices` (no arguments, not a
+builtin); `|` anywhere inside is an Error. Resolve: the body is inline (state carries
+in and out, like a `Group`). Layout (`expand.rs`): after the body the context marks
+the current bar `free`; the next bar line skips the length check and clears the mark.
+A voice starts with the outer bar's mark, and after a `voices` block the bar is free if
+it is in any voice. Inside a function body the mark goes out with the body.
+
+Import: a bar whose length no time signature can write (beats 1-32 over the units
+tried) is wrapped in `free{ }` in every voice, between its bar lines (Beethoven
+op. 27/1 III, op. 31/1 II, op. 101 III). Bar lines are no longer written at the start
+of a voice before anything that takes time (a pedal at the start of a block gave an
+empty bar, `{ ped on | ... }`).

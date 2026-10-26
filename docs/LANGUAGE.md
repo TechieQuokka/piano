@@ -146,8 +146,22 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     Meaning  Bar line. Optional.
     Check    A bar whose length differs from the time signature -> Warning.
              A short first bar (pickup) is fine.
+             A bar that holds a free block is not checked.
     Example  | C4 D E F | G A B C |
-    See      time, bar-repeat
+    See      time, bar-repeat, free
+
+### FREE {#free}
+
+    Syntax   free{ ... }                    | free{ C/16 D E F G A } |
+    Meaning  One bar of any length, without a beat (a cadenza).
+             The bar that holds it is not checked against the time
+             signature; the next bar is checked again.
+    Inside   Anything but |  (| inside -> Error). Plays the written
+             lengths; state and ties carry in and out as usual.
+    Voices   Each voice checks its own bars: free{ voices{ }{ } }
+             frees the bar for all of them.
+    Example  time 3/4 | C4 E G | free{ G/16 A B C5 D E F G A } | C5/2. |
+    See      bar, time
 
 ### TIME {#time}
 
@@ -375,6 +389,7 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     repeat   |: ... :| [x n]   [1 ... :| [2 ...
     function up down accent louder softer tuplet seq  (name(args){ ... })
     voices   voices{ ... }{ ... }
+    free     free{ ... }
     song     piece > piece   fade   r/n   ped
     Example  tempo 90 | p C4/8 D E F G/4 A | ped on {C E G}/1 ped off |
     See      file

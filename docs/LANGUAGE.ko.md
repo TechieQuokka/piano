@@ -145,8 +145,22 @@ only descriptions are Korean.
     Meaning  마디줄. 선택 사항.
     Check    마디 길이가 박자와 다르면 Warning.
              첫 마디가 짧은 것(못갖춘마디)은 괜찮음.
+             free 블록이 든 마디는 검사하지 않음.
     Example  | C4 D E F | G A B C |
-    See      time, bar-repeat
+    See      time, bar-repeat, free
+
+### FREE {#free}
+
+    Syntax   free{ ... }                    | free{ C/16 D E F G A } |
+    Meaning  길이 제한이 없는, 박 없는 한 마디 (카덴차).
+             그 마디는 박자표와 비교하지 않고, 다음 마디부터 다시
+             검사함.
+    Inside   | 말고는 무엇이든 (안에 | → Error). 적힌 길이대로
+             연주하고, 상태와 붙임줄은 평소처럼 안팎으로 이어짐.
+    Voices   성부마다 자기 마디를 검사함: free{ voices{ }{ } }는
+             모든 성부의 마디를 풀어 줌.
+    Example  time 3/4 | C4 E G | free{ G/16 A B C5 D E F G A } | C5/2. |
+    See      bar, time
 
 ### TIME {#time}
 
@@ -373,6 +387,7 @@ only descriptions are Korean.
     repeat   |: ... :| [x n]   [1 ... :| [2 ...
     function up down accent louder softer tuplet seq  (name(args){ ... })
     voices   voices{ ... }{ ... }
+    free     free{ ... }
     song     piece > piece   fade   r/n   ped
     Example  tempo 90 | p C4/8 D E F G/4 A | ped on {C E G}/1 ped off |
     See      file

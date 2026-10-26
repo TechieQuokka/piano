@@ -348,7 +348,7 @@ C8 D   // Warning: D8은 없음, D7로 접힘
 ## 3. Rhythm {#rhythm}
 
 리듬은 음이 언제 시작해서 얼마나 길게 이어지는지입니다. 이 장에서는 음 길이, 점,
-쉼표, 붙임줄, 템포, 박자표, 마디줄, 잇단음표를 다루고, 마지막으로 값이 음에서 음으로
+쉼표, 붙임줄, 템포, 박자표, 마디줄, 자유 마디, 잇단음표를 다루고, 마지막으로 값이 음에서 음으로
 이어지는 방식을 설명합니다.
 
 ### Beats and lengths {#length}
@@ -601,6 +601,7 @@ tempo 500 C   // Error: tempo는 20-400
   소리를 바꾸지 않고, 어떤 박도 저절로 강조하지 않습니다. 강조는 `accent`로 합니다
   (`guide fn.accent`).
 - `voices` 안의 time은 Warning과 함께 무시됩니다.
+- `free` 블록이 든 마디는 박자표와 비교하지 않습니다 (`guide free`).
 
 #### Examples
 
@@ -641,6 +642,7 @@ time 3/5 C   // Error: 단위는 1 2 4 8 16 32 64 128
   마디로 셉니다.
 - `%`는 앞 마디가 무엇인지 알기 위해 마디줄이 필요합니다.
 - 줄바꿈은 마디줄이 아닙니다.
+- `free` 블록이 든 마디는 검사하지 않습니다 (`guide free`).
 
 #### Examples
 
@@ -663,7 +665,61 @@ G4 | C5 C C D | E/2 C/2 |   // 못갖춘마디: 첫 마디 앞에 한 박
 
 #### See also
 
-`guide time` · `guide bar-repeat` · `guide file`
+`guide time` · `guide bar-repeat` · `guide file` · `guide free`
+
+### Free bars {#free}
+
+#### Concept
+
+어떤 음악에는 박을 셀 수 없는 구간이 있습니다. 카덴차처럼, 연주자가 자유롭게 치는
+작은 음표의 흐름입니다. `free{ }`는 그런 구간을 길이에 제한이 없는 한 마디로 씁니다.
+그 한 마디만 마디 길이 assert를 끄는 셈입니다.
+
+#### Syntax
+
+`free{ <음표> }`: `free{ C/16 D E F G A B C }`.
+
+#### Rules
+
+- `free` 블록이 든 마디는 길이가 얼마든 박자표와 비교하지 않습니다. 그다음 마디부터
+  다시 검사합니다.
+- `free` 블록은 한 마디입니다. 안에 `|`를 쓰면 Error입니다. 마디줄은 블록 바깥에
+  쓰세요.
+- 그 밖의 것은 모두 안에 쓸 수 있습니다: 음표, 화음, 쉼표, 셈여림, 페달, 함수,
+  `voices`.
+- 적힌 길이를 현재 템포로 연주합니다. 소리는 바뀌지 않습니다.
+- 옥타브, 길이, 셈여림은 평소처럼 블록 안팎으로 이어지고, 붙임줄도 블록 안으로,
+  밖으로 이어집니다.
+- `voices` 안에서는 성부마다 자기 마디를 검사하므로, 한 성부의 `free`는 그 성부의
+  마디만 풀어 줍니다. 모든 성부의 마디를 풀려면 voices를 안에 넣으세요:
+  `free{ voices{ ... }{ ... } }`.
+
+#### Examples
+
+```piano
+time 3/4 | C4 E G | free{ G/16 A B C5 D E F G A B C6 B A G F E D C } | C5/2. |
+// 흐름은 4박 반, 그 앞뒤 마디는 3/4
+```
+
+```piano
+| free{ voices{ G5/32 A G A G A G A G A G A G A G A }{ {C3 E G}/2 } } |
+// 누르고 있는 화음 위의 트릴, 4/4에서 두 박
+```
+
+```piano error
+free{ C4 D | E F }   // Error: `free` 안에는 마디줄을 쓸 수 없음
+```
+
+#### Common mistakes
+
+- 박을 잘못 센 것을 `free`로 감추기. 박이 있는 구간에서 길이가 틀린 마디는 대개
+  오타이고, Warning은 그것을 찾으라고 있습니다.
+- 긴 카덴차 안에 마디줄 쓰기. 빼거나, 블록을 여러 개로 나누세요:
+  `| free{ ... } | free{ ... } |`.
+
+#### See also
+
+`guide bar` · `guide time` · `guide voices`
 
 ### Tuplets {#fn.tuplet}
 
@@ -1629,6 +1685,7 @@ C4 F#   // Warning: line 1: C4 → F# is ambiguous (6 semitones)
 #### Brackets
 
 - only notes are allowed in a chord; chord `{` has no matching `}`; unmatched `}`.
+- no bar lines inside `free`: `free` 블록은 한 마디입니다; `free{` has no matching `}`.
 - `|:` has no matching `:|`; `[2` outside a repeat; `x` needs a number.
 
 #### Functions
@@ -1736,6 +1793,7 @@ dynamic   ppp pp p mp mf f ff fff   cresc   dim
 pedal     ped|sos|soft on|off
 repeat    |: ... :| [x n]   |: ... [1 ... :| [2 ... |
 voices    voices{ ... }{ ... }
+free      free{ ... }
 function  up down accent louder softer tuplet seq   name(args){ ... }
 ```
 
@@ -1801,6 +1859,8 @@ tempo 120 C D E   // 조각에 쓴 템포가 기본값보다 우선
 - arpeggio, broken chord (펼침화음): 화음의 음을 하나씩 차례로 치는 것.
 - bar, measure (마디): 박의 묶음, `|`로 끝남.
 - beat (박): 음악 시간의 단위. piano에서는 4분음표.
+- cadenza (카덴차): 대개 작은 음표의 흐름으로, 엄격한 박 없이 자유롭게 연주하는
+  구간. `free`로 씀.
 - chord (화음): 함께 치는 여러 건반.
 - crescendo / diminuendo (크레셴도 / 디미누엔도): 점점 세게 / 점점 여리게.
 - dynamics (셈여림): 소리의 세기, ppp부터 fff까지.

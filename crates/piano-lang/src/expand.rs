@@ -55,6 +55,8 @@ struct Ctx {
     bars_seen: u32,
     /// Part of the current bar played before this context started (inside `voices`).
     lead: Tick,
+    /// The current bar holds a `free` block: its length is not checked.
+    free: bool,
     /// Notes waiting for a tie continuation: (note index, span of the tied sound).
     ties: Vec<(usize, SrcSpan)>,
 }
@@ -67,6 +69,7 @@ impl Ctx {
             bar_cur: 0,
             bars_seen: 0,
             lead: 0,
+            free: false,
             ties: Vec::new(),
         }
     }
@@ -169,7 +172,7 @@ fn lay_item(
             } else {
                 len > expected
             };
-            if check && len > 0 {
+            if check && len > 0 && !ctx.free {
                 alerts.push(
                     Alert::warning(
                         *span,
@@ -186,6 +189,7 @@ fn lay_item(
             ctx.bar_prev = ctx.bar_cur;
             ctx.bar_cur = now;
             ctx.bars_seen += 1;
+            ctx.free = false;
         }
         Item::BarRepeat(span) => {
             let (from, to) = (ctx.bar_prev, ctx.bar_cur);
@@ -299,6 +303,7 @@ fn lay_item(
                 l.0 -= removed.iter().filter(|&&q| q < l.0).count();
             }
             ctx.ties = leaving;
+            ctx.free |= sub.free;
         }
         Item::Voices { voices, span } => {
             ctx.flush_ties(alerts);
@@ -315,6 +320,8 @@ fn lay_item(
                 ctx.bars_seen = v.bars_seen;
                 ctx.lead = 0;
             }
+            // A `free` block in any voice frees the bar the block ends in.
+            ctx.free = ctxs.iter().any(|v| v.free);
             let lens: Vec<Tick> = tracks.iter().map(|t| t.len).collect();
             if lens.iter().any(|&l| l != lens[0]) {
                 let beats: Vec<String> = lens.iter().map(|&l| beats(l, ctx.time)).collect();
@@ -331,6 +338,10 @@ fn lay_item(
             }
         }
         Item::Group(items) => lay_seq(items, resolved, ctx, track, alerts),
+        Item::Free(items) => {
+            lay_seq(items, resolved, ctx, track, alerts);
+            ctx.free = true;
+        }
     }
 }
 
@@ -346,6 +357,7 @@ fn voice_track(
     let mut ctx = Ctx::new(outer.time);
     ctx.bars_seen = outer.bars_seen;
     ctx.lead = now - outer.bar_cur + outer.lead;
+    ctx.free = outer.free;
     let mut track = Track::default();
     lay_seq(items, resolved, &mut ctx, &mut track, alerts);
     ctx.flush_ties(alerts);

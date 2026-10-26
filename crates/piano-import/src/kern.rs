@@ -693,6 +693,19 @@ mod tests {
     }
 
     #[test]
+    fn a_bar_no_signature_can_write_goes_in_free() {
+        // 4 1/8 quarters in 2/4: 33/32 has more than 32 beats.
+        let k = format!(
+            "{HEAD}=1\t=1\t=1\n2C\t2c\t.\n=2\t=2\t=2\n1D\t1d\t.\n32E\t32e\t.\n\
+             =3\t=3\t=3\n2F\t2f\t.\n==\t==\t==\n"
+        );
+        let i = crate::import(&k, "test.krn").unwrap();
+        let text: String = i.pieces.iter().map(|p| p.1.as_str()).collect();
+        assert!(i.check.ok(), "{:?}\n{text}", i.check);
+        assert!(text.contains("free{"), "{text}");
+    }
+
+    #[test]
     fn a_grace_does_not_cut_the_note_held_in_its_column() {
         // B4 sounds 0-1.5; the grace line in its column must not end it at 1.
         let k = format!(

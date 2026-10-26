@@ -354,8 +354,8 @@ C8 D   // Warning: D8 does not exist, folded to D7
 ## 3. Rhythm {#rhythm}
 
 Rhythm is when notes start and how long they last. This chapter covers note lengths,
-dots, rests, ties, tempo, time signatures, bar lines, and tuplets, and ends with how
-values carry from note to note.
+dots, rests, ties, tempo, time signatures, bar lines, free bars, and tuplets, and ends
+with how values carry from note to note.
 
 ### Beats and lengths {#length}
 
@@ -610,6 +610,7 @@ march), 6/8 six eighths felt as two groups of three.
   (`guide bar-repeat`). It does not change the sound and does not accent any beat by
   itself; for that, use `accent` (`guide fn.accent`).
 - Inside `voices`, time is ignored with a warning.
+- A bar that holds a `free` block is not checked against it (`guide free`).
 
 #### Examples
 
@@ -651,6 +652,7 @@ if a bar does not add up to the time signature, you get a warning.
   bar, not a pickup.
 - `%` needs bar lines to know what the previous bar was.
 - A line break is not a bar line.
+- A bar that holds a `free` block is not checked (`guide free`).
 
 #### Examples
 
@@ -673,7 +675,60 @@ G4 | C5 C C D | E/2 C/2 |   // pickup: one beat before the first bar
 
 #### See also
 
-`guide time` · `guide bar-repeat` · `guide file`
+`guide time` · `guide bar-repeat` · `guide file` · `guide free`
+
+### Free bars {#free}
+
+#### Concept
+
+Some music has a stretch with no beat to count: a cadenza, a run of small notes the
+player takes freely. `free{ }` writes such a stretch as one bar of any length. It turns
+the bar-length assertion off for that one bar.
+
+#### Syntax
+
+`free{ <notes> }`: `free{ C/16 D E F G A B C }`.
+
+#### Rules
+
+- The bar that holds a `free` block is not checked against the time signature, whatever
+  its length. The bar after it is checked again.
+- A `free` block is one bar: `|` inside it is an error. Put the bar lines around it.
+- Anything else can be inside: notes, chords, rests, dynamics, pedals, functions,
+  `voices`.
+- It plays the written lengths at the current tempo; the sound is not changed.
+- Octave, length, and dynamic carry into and out of the block as usual, and a tie goes
+  on into it and out of it.
+- Inside `voices`, each voice checks its own bars, so a `free` in one voice frees only
+  that voice's bar. To free a bar for every voice, put the voices inside:
+  `free{ voices{ ... }{ ... } }`.
+
+#### Examples
+
+```piano
+time 3/4 | C4 E G | free{ G/16 A B C5 D E F G A B C6 B A G F E D C } | C5/2. |
+// the run is 4 1/2 beats, the bar around it 3/4
+```
+
+```piano
+| free{ voices{ G5/32 A G A G A G A G A G A G A G A }{ {C3 E G}/2 } } |
+// a trill over a held chord, two beats in 4/4
+```
+
+```piano error
+free{ C4 D | E F }   // Error: no bar lines inside `free`
+```
+
+#### Common mistakes
+
+- Using `free` to hide a counting mistake. In a passage with a beat, a bar of the wrong
+  length is usually a typo, and the warning is there to find it.
+- Bar lines inside a long cadenza. Leave them out, or split it into several blocks:
+  `| free{ ... } | free{ ... } |`.
+
+#### See also
+
+`guide bar` · `guide time` · `guide voices`
 
 ### Tuplets {#fn.tuplet}
 
@@ -1644,6 +1699,7 @@ C4 F#   // Warning: line 1: C4 → F# is ambiguous (6 semitones)
 #### Brackets
 
 - only notes are allowed in a chord; chord `{` has no matching `}`; unmatched `}`.
+- no bar lines inside `free`: a `free` block is one bar; `free{` has no matching `}`.
 - `|:` has no matching `:|`; `[2` outside a repeat; `x` needs a number.
 
 #### Functions
@@ -1751,6 +1807,7 @@ dynamic   ppp pp p mp mf f ff fff   cresc   dim
 pedal     ped|sos|soft on|off
 repeat    |: ... :| [x n]   |: ... [1 ... :| [2 ... |
 voices    voices{ ... }{ ... }
+free      free{ ... }
 function  up down accent louder softer tuplet seq   name(args){ ... }
 ```
 
@@ -1816,6 +1873,8 @@ tempo 120 C D E   // the piece's own tempo wins over the default
 - arpeggio, broken chord: the notes of a chord played one after another.
 - bar, measure: a group of beats, ended by `|`.
 - beat: the unit of musical time; in piano a quarter note.
+- cadenza: a free passage, often a run of small notes, played without a strict beat;
+  written with `free`.
 - chord: several keys struck together.
 - crescendo / diminuendo: gradually louder / softer.
 - dynamics: loudness, from ppp to fff.

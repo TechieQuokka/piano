@@ -619,6 +619,21 @@ impl Ctx<'_> {
         m.sig
     }
 
+    /// A bar no time signature can write (a cadenza): it goes in `free{ }`.
+    fn unmetered(&self, i: usize) -> bool {
+        let m = &self.model.measures[i];
+        m.len != Q::new(4 * i64::from(m.sig.0), i64::from(m.sig.1)) && self.signature(i) == m.sig
+    }
+
+    /// Items of a voice starting at `a`: inside `free{` if its bar is unmetered.
+    fn begin(&self, a: Q) -> Vec<Item> {
+        if self.unmetered(self.measure_at(a)) {
+            vec![Item::Free(true)]
+        } else {
+            Vec::new()
+        }
+    }
+
     fn down_at(&self, t: Q) -> bool {
         self.pedals
             .iter()
@@ -732,9 +747,9 @@ impl Ctx<'_> {
                 texts.push(self.pedal(&ped, a, b)?);
             }
             if texts.is_empty() {
-                let mut items = Vec::new();
+                let mut items = self.begin(a);
                 self.rests(&mut items, a, b)?;
-                texts.push(emit(&items));
+                texts.push(emit(&mut items));
             }
             let opens = if self.starts.contains(&a) && !upbeat {
                 "| "
@@ -768,7 +783,7 @@ impl Ctx<'_> {
 
     /// Rests from `t` to `until`, with bar lines at the bars inside.
     fn rests(&self, items: &mut Vec<Item>, mut t: Q, until: Q) -> Result<(), ImportError> {
-        if t < until && !items.is_empty() {
+        if t < until {
             self.bar_line(items, t);
         }
         while t < until {
@@ -795,15 +810,24 @@ impl Ctx<'_> {
         Ok(())
     }
 
-    /// A bar line if a bar starts at `t`, once.
+    /// A bar line if a bar starts at `t`, once, and not at the start of the voice
+    /// (nothing that takes time yet); an unmetered bar goes in `free{ }`.
     fn bar_line(&self, items: &mut Vec<Item>, t: Q) {
-        if self.starts.contains(&t) && !matches!(items.last(), Some(Item::Bar)) {
+        if self.starts.contains(&t)
+            && items.iter().any(|i| matches!(i, Item::Len(..)))
+            && !matches!(items.last(), Some(Item::Bar | Item::Free(true)))
+        {
+            close_free(items);
             items.push(Item::Bar);
+            let i = self.measure_at(t);
+            if self.model.measures[i].start == t && self.unmetered(i) {
+                items.push(Item::Free(true));
+            }
         }
     }
 
     fn voice(&self, evs: &[&Ev], a: Q, b: Q) -> Result<String, ImportError> {
-        let mut items = Vec::new();
+        let mut items = self.begin(a);
         let mut cur = a;
         let mut lvl = None;
         // An open cresc/dim: (start of its wedge, level it ends on).
@@ -872,11 +896,11 @@ impl Ctx<'_> {
             items.push(Item::Raw(LEVELS[target].to_string()));
         }
         self.rests(&mut items, cur, b)?;
-        Ok(emit(&items))
+        Ok(emit(&mut items))
     }
 
     fn pedal(&self, ped: &[(Q, &str)], a: Q, b: Q) -> Result<String, ImportError> {
-        let mut items = Vec::new();
+        let mut items = self.begin(a);
         let mut cur = a;
         for &(at, text) in ped {
             self.rests(&mut items, cur, at)?;
@@ -887,7 +911,7 @@ impl Ctx<'_> {
             cur = at;
         }
         self.rests(&mut items, cur, b)?;
-        Ok(emit(&items))
+        Ok(emit(&mut items))
     }
 
     /// The notes the written pieces play, ties merged per voice.
@@ -926,10 +950,28 @@ enum Item {
     Len(Q, Option<u32>, String, String),
     Bar,
     Raw(String),
+    /// `free{` (true) or its `}`.
+    Free(bool),
+}
+
+/// Closes an open `free{`; one with nothing in it is dropped.
+fn close_free(items: &mut Vec<Item>) {
+    let open = items.iter().rev().find_map(|i| match i {
+        Item::Free(o) => Some(*o),
+        _ => None,
+    });
+    if open == Some(true) {
+        if matches!(items.last(), Some(Item::Free(true))) {
+            items.pop();
+        } else {
+            items.push(Item::Free(false));
+        }
+    }
 }
 
 /// Joins items: tuplets grouped, lengths written only when they change.
-fn emit(items: &[Item]) -> String {
+fn emit(items: &mut Vec<Item>) -> String {
+    close_free(items);
     let mut out: Vec<String> = Vec::new();
     let mut group: Vec<String> = Vec::new();
     let mut group_n = None;
@@ -971,6 +1013,10 @@ fn emit(items: &[Item]) -> String {
             Item::Raw(t) => {
                 flush(&mut out, &mut group, &mut group_n);
                 out.push(t.clone());
+            }
+            Item::Free(open) => {
+                flush(&mut out, &mut group, &mut group_n);
+                out.push(if *open { "free{" } else { "}" }.into());
             }
         }
     }

@@ -58,6 +58,11 @@ pub enum Node {
         voices: Vec<Vec<Node>>,
         span: SrcSpan,
     },
+    /// `free{ ... }`: an unmetered stretch; the bar that holds it is not checked.
+    Free {
+        body: Vec<Node>,
+        span: SrcSpan,
+    },
     /// Nodes kept for their content only (e.g. the body of an unknown function).
     Group(Vec<Node>),
 }
@@ -79,7 +84,8 @@ impl Node {
             | Node::BarRepeat(span)
             | Node::Repeat { span, .. }
             | Node::Func { span, .. }
-            | Node::Voices { span, .. } => Some(*span),
+            | Node::Voices { span, .. }
+            | Node::Free { span, .. } => Some(*span),
             Node::Group(nodes) => nodes.first().and_then(Node::span),
         }
     }

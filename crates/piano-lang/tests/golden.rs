@@ -278,3 +278,30 @@ fn bar_repeat_after_voices() {
     let c = clean("| voices{ C4/2 D }{ E3/1 } | % |");
     assert_eq!(notes(&c), "E3@0+8 C4@0+4 D4@4+4 E3@8+8 C4@8+4 D4@12+4");
 }
+
+#[test]
+fn a_free_bar_has_any_length() {
+    // Six beats in 4/4, then bars are checked again.
+    let c = clean("| C4 D E F | free{ G/8 A B C D E F G A B C D } | C4/1 |");
+    assert_eq!(c.score.notes.len(), 17);
+    assert_eq!(c.score.notes.last().unwrap().start, 10 * TICKS_PER_QUARTER);
+    let c = compile_piece("| free{ C4/1 D/2 } | E/4 F G |");
+    assert_eq!(c.alerts.len(), 1, "{:?}", c.alerts);
+    assert!(c.alerts[0].message.contains("bar has 3 beats"));
+}
+
+#[test]
+fn free_bars_in_voices_and_ties_through_free() {
+    let c = clean("| voices{ free{ C4/1 D/2 } | E/1 }{ free{ C3/1. } | G2/1 } |");
+    assert_eq!(c.score.notes.len(), 5);
+    let c = clean("| C4/1~ | free{ C/2 D/1 } |");
+    assert_eq!(notes(&c), "C4@0+12 D4@12+8");
+}
+
+#[test]
+fn bar_lines_inside_free_are_errors() {
+    let c = compile_piece("free{ C4 D | E F G }");
+    assert_eq!(c.alerts.len(), 1, "{:?}", c.alerts);
+    assert_eq!(c.alerts[0].severity, Severity::Error);
+    assert_eq!(c.score.notes.len(), 5);
+}

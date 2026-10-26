@@ -142,6 +142,8 @@ pub enum Item {
         voices: Vec<Vec<Item>>,
         span: SrcSpan,
     },
+    /// An unmetered stretch (`free`).
+    Free(Vec<Item>),
     Group(Vec<Item>),
 }
 
@@ -343,6 +345,7 @@ impl Resolver<'_> {
                 })
             }
             Node::Voices { voices, span } => Some(self.voices(voices, *span)),
+            Node::Free { body, .. } => Some(Item::Free(self.seq(body))),
             Node::Group(nodes) => Some(Item::Group(self.seq(nodes))),
         }
     }

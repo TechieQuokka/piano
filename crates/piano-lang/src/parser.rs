@@ -18,6 +18,7 @@ pub fn parse(tokens: &[Token], alerts: &mut Vec<Alert>) -> Vec<Node> {
         tokens,
         pos: 0,
         depth: 0,
+        in_free: 0,
         alerts,
     };
     let (nodes, _) = p.seq(Ctx::Top);
@@ -47,6 +48,8 @@ struct Parser<'a> {
     tokens: &'a [Token],
     pos: usize,
     depth: usize,
+    /// Depth of `free` blocks around the cursor.
+    in_free: usize,
     alerts: &'a mut Vec<Alert>,
 }
 
@@ -254,6 +257,10 @@ impl Parser<'_> {
             }
             Tok::LBrace => Some(self.chord(span)),
             Tok::Word(w) => self.word(&w, span),
+            Tok::Bar if self.in_free > 0 => {
+                self.error(span, "no bar lines inside `free`, it is one bar");
+                None
+            }
             Tok::Bar => Some(Node::Bar(span)),
             Tok::Percent => Some(Node::BarRepeat(span)),
             Tok::Len { .. } => {
@@ -385,6 +392,9 @@ impl Parser<'_> {
         }
         if lower == "voices" && matches!(self.peek_tok(), Some(Tok::LBrace)) {
             return Some(self.voices(span));
+        }
+        if lower == "free" && matches!(self.peek_tok(), Some(Tok::LBrace)) {
+            return Some(self.free(span));
         }
         if matches!(self.peek_tok(), Some(Tok::LParen)) {
             return self.func(w, span);
@@ -535,6 +545,27 @@ impl Parser<'_> {
         Node::Voices { voices, span }
     }
 
+    /// `free{ ... }`: one bar of any length, without bar lines inside.
+    fn free(&mut self, span: SrcSpan) -> Node {
+        self.bump(); // {
+        self.depth += 1;
+        self.in_free += 1;
+        let (body, end) = self.seq(Ctx::Func);
+        self.in_free -= 1;
+        self.depth -= 1;
+        if end != End::RBrace {
+            self.error(span, "`free{` has no matching `}`");
+        }
+        if self.depth >= MAX_DEPTH {
+            self.warning(
+                span,
+                format!("blocks nested deeper than {MAX_DEPTH}, `free` ignored"),
+            );
+            return Node::Group(body);
+        }
+        Node::Free { body, span }
+    }
+
     /// Whether the `{` at the cursor closes with a `}` followed by a length or `~`.
     fn chord_ahead(&self) -> bool {
         let mut depth = 0;
@@ -648,6 +679,16 @@ mod tests {
         let (nodes, alerts) = parse_src("voices{ C D }");
         assert_eq!(alerts.len(), 1);
         assert!(matches!(&nodes[0], Node::Voices { voices, .. } if voices.len() == 1));
+    }
+
+    #[test]
+    fn free_block() {
+        let (nodes, alerts) = parse_src("| free{ C D E F G } |");
+        assert!(alerts.is_empty(), "{alerts:?}");
+        assert!(matches!(&nodes[1], Node::Free { body, .. } if body.len() == 5));
+        let (nodes, alerts) = parse_src("free{ C D | E }");
+        assert_eq!(alerts.len(), 1, "{alerts:?}");
+        assert!(matches!(&nodes[0], Node::Free { body, .. } if body.len() == 3));
     }
 
     #[test]

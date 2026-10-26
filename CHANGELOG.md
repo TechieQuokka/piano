@@ -3,6 +3,17 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.32.0
+- Language: `free{ ... }` writes an unmetered bar, such as a cadenza: the bar that
+  holds it is not checked against the time signature, whatever its length. No `|`
+  inside (Error); notes, ties, and state carry in and out as usual. In `voices`, each
+  voice checks its own bars; `free{ voices{ ... }{ ... } }` frees the bar for all.
+  See `guide free` / `man free`.
+- `piano import` wraps bars that no time signature can write in `free{ }`. Three more
+  Beethoven movements import without warnings (98 of 103).
+- Fix (import): a pedal at the start of a block was followed by a bar line, writing an
+  empty bar (`{ ped on | ... }`).
+
 ## 1.31.1
 - Fix (import, kern): a grace note in a column where a note was still sounding ended
   that note's time there, so the next line could last no time and later notes came
