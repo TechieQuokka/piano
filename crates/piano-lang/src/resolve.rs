@@ -133,6 +133,7 @@ pub enum Item {
         body: Vec<Item>,
         endings: Vec<Vec<Item>>,
         times: u32,
+        span: SrcSpan,
     },
     Func {
         builtin: Builtin,
@@ -312,7 +313,7 @@ impl Resolver<'_> {
                 body,
                 endings,
                 times,
-                ..
+                span,
             } => {
                 let body = self.seq(body);
                 let after_body = self.state;
@@ -327,6 +328,7 @@ impl Resolver<'_> {
                     body,
                     endings,
                     times: *times,
+                    span: *span,
                 })
             }
             Node::Func {

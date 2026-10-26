@@ -1318,7 +1318,13 @@ sets how many times.
 - `:|` without `|:` repeats from the start, or from the end of the last repeat, with a
   hint.
 - Repeats may be nested.
-- After a repeat, `%` has no bar to copy.
+- Bars are counted as heard. A repeat sign is a bar line when the bar before it is
+  full, or is the pickup; inside a bar it is not, and the bar goes on with what is heard
+  next. So a pickup at the start of the repeat and a short last bar before `:|` make
+  one bar.
+- Every pass starts under the time signature written before `|:`.
+- A tie goes from the shared part into an ending, but not into or out of the repeat.
+- `%` after a repeat copies its last bar as heard.
 
 #### Examples
 
@@ -1332,6 +1338,10 @@ sets how many times.
 
 ```piano
 |: |: C4 D :| E F :|   // (C D C D E F) twice
+```
+
+```piano
+|: G4 | C5 C C D | E/2 C/4 :|   // the pickup and the last bar make one bar
 ```
 
 ```piano hint

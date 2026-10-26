@@ -1226,3 +1226,10 @@ stopped at `voices`. Fixed in order:
   notes that start it, the first voice first (`tie_into`, shared with functions); a
   voice's ties left at its end go on after the block if the note ends with the block
   (one per key; others warn).
+- 1.39.0: repeats are laid out pass by pass in the piece's own context, as heard, so
+  bars, `%`, and short bars go on through them (later passes only add new alerts).
+  Every pass starts under the time before `|:`; after the repeat the time at the end
+  of the last pass goes on. A repeat sign (`|:`, `:|`, `[n`) is a bar line only when
+  the bar is full, or is the pickup, or holds `free`; inside a bar it is not, so a bar
+  split by a repeat sign is checked whole (`repeat_sign`). A longer bar warns there.
+  Ties stop at the repeat signs but go from the shared part into an ending.

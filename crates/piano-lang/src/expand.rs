@@ -165,23 +165,6 @@ fn lay_seq(
     }
 }
 
-/// Lays out `items` in a fresh context (own ties and bars) as a separate track.
-/// Also returns the time signature at its end.
-fn sub_track(
-    items: &[Item],
-    resolved: &Resolved,
-    time: TimeSig,
-    alerts: &mut Vec<Alert>,
-) -> (Track, TimeSig) {
-    let mut ctx = Ctx::new(time);
-    let mut track = Track::default();
-    lay_seq(items, resolved, &mut ctx, &mut track, alerts);
-    ctx.flush_ties(alerts);
-    // The music goes on after a repeat's pass: its bars are not the last.
-    alerts.extend(ctx.short.drain(..).map(|s| s.1));
-    (track, ctx.time)
-}
-
 fn lay_item(
     item: &Item,
     resolved: &Resolved,
@@ -315,33 +298,39 @@ fn lay_item(
             body,
             endings,
             times,
+            span,
         } => {
+            // The passes are laid out as they are heard, so bars, `time`, and `%` go
+            // on through them. Ties stop at the repeat signs.
             ctx.flush_ties(alerts);
-            let (body_track, after_body) = sub_track(body, resolved, ctx.time, alerts);
-            // A `time` inside goes on after the repeat (from the last ending).
-            let mut time = after_body;
-            let passes: Vec<Track> = if endings.is_empty() {
-                (0..*times).map(|_| body_track.clone()).collect()
+            repeat_sign(ctx, now, *span, alerts);
+            let passes = if endings.is_empty() {
+                *times as usize
             } else {
-                endings
-                    .iter()
-                    .map(|e| {
-                        let mut pass = body_track.clone();
-                        let at = pass.len;
-                        let (ending, after) = sub_track(e, resolved, after_body, alerts);
-                        time = after;
-                        pass.append(ending, at);
-                        pass
-                    })
-                    .collect()
+                endings.len()
             };
-            ctx.time = time;
-            for pass in passes {
-                let at = track.len;
-                track.append(pass, at);
+            // Every pass reads the same text, under the time written before it.
+            let time = ctx.time;
+            for k in 0..passes {
+                // Later passes only add new alerts.
+                let mut quiet = Vec::new();
+                let sink = if k == 0 { &mut *alerts } else { &mut quiet };
+                ctx.time = time;
+                lay_seq(body, resolved, ctx, track, sink);
+                if let Some(ending) = endings.get(k) {
+                    repeat_sign(ctx, track.len, *span, sink);
+                    lay_seq(ending, resolved, ctx, track, sink);
+                }
+                ctx.flush_ties(sink);
+                if endings.is_empty() || k + 1 < passes {
+                    repeat_sign(ctx, track.len, *span, sink);
+                }
+                for a in quiet {
+                    if !alerts.contains(&a) {
+                        alerts.push(a);
+                    }
+                }
             }
-            ctx.bar_prev = track.len;
-            ctx.bar_cur = track.len;
         }
         Item::Func { builtin, body } => {
             // Ties go on into the body and out of it, as across a bar line. So do bars,
@@ -592,6 +581,37 @@ fn tie_into(
         l.0 -= removed.iter().filter(|&&q| q < l.0).count();
     }
     leaving
+}
+
+/// A repeat sign at `now` (`|:`, `:|`, `[n`). It is a bar line when the bar is full or
+/// is the pickup; inside a bar it is not, and the bar is checked whole as heard (a
+/// bar split by the sign: the end of a pass and the start of the next one).
+fn repeat_sign(ctx: &mut Ctx, now: Tick, span: SrcSpan, alerts: &mut Vec<Alert>) {
+    let len = ctx.bar_so_far(now);
+    let expected = ctx.time.bar_ticks();
+    if len == 0 || (len < expected && ctx.bars_seen > 0 && !ctx.free) {
+        return;
+    }
+    if len > expected && !ctx.free {
+        alerts.push(
+            Alert::warning(
+                span,
+                format!(
+                    "bar has {} beats, {} expects {}",
+                    beats(len, ctx.time),
+                    ctx.time,
+                    ctx.time.beats
+                ),
+            )
+            .with_fix("(at a repeat sign)"),
+        );
+    }
+    ctx.lead = 0;
+    ctx.bar_prev = ctx.bar_cur;
+    ctx.bar_cur = now;
+    ctx.bars_seen += 1;
+    ctx.free = false;
+    ctx.follow(now, true);
 }
 
 /// The power of two that `tuplet(n)` plays its notes in the time of.

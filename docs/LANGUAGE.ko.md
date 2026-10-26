@@ -252,6 +252,9 @@ only descriptions are Korean.
              옥타브는 글자 기준으로 한 번만 해석됨.
     Start    |: 없이 :|만 쓰면 처음(또는 앞 반복 뒤)부터 반복.
     Count    1-99. 그 밖은 Warning, 2로 처리.
+    Bars     들리는 순서로 셈: 마디 중간의 반복 기호는 마디줄이 아님
+             (못갖춘마디와 :| 앞의 짧은 마디가 한 마디). 매 회차는
+             |: 앞의 박자로 시작. 반복 뒤의 %는 마지막 마디를 복사.
     Example  |: C4 E G :| x3
     See      volta, bar-repeat
 

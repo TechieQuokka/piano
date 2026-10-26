@@ -255,6 +255,10 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
              every pass; the octave is resolved once on the text.
     Start    :| without |: repeats from the start (or after the last repeat).
     Count    1-99. Others -> Warning, 2 is used.
+    Bars     Counted as heard: a repeat sign inside a bar is not a bar
+             line (a pickup and the short bar before :| make one bar).
+             Every pass starts under the time before |:. % after a
+             repeat copies its last bar.
     Example  |: C4 E G :| x3
     See      volta, bar-repeat
 

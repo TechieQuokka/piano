@@ -391,3 +391,26 @@ fn ties_go_into_and_out_of_voices() {
     assert_eq!(c.alerts.len(), 2, "{:?}", c.alerts);
     assert!(c.alerts.iter().any(|a| a.message.contains("not followed")));
 }
+
+#[test]
+fn bars_go_on_through_repeats_as_heard() {
+    // a pickup inside the repeat: the last bar of each pass completes it
+    clean("|: G4 | C5 C C D | E/2 C/4 :|");
+    // a pickup before it
+    clean("G4 |: C5 C C D | E/2 C/2 :|");
+    clean("|: C4 D E F [1 G/1 :| [2 C/1 |");
+    // % after a repeat copies its last bar as heard
+    let c = clean("| C4 D E F |: G A B C :| % |");
+    assert_eq!(c.score.notes.len(), 16);
+    let warns = |src: &str, what: &str| {
+        let c = compile_piece(src);
+        assert_eq!(c.alerts.len(), 1, "{src}: {:?}", c.alerts);
+        assert!(c.alerts[0].message.contains(what), "{src}: {:?}", c.alerts);
+    };
+    // a short bar right after `|:` that nothing completes (warned once, not per pass)
+    warns(
+        "| C4 D E F |: G A | B C D E :| F G A B |",
+        "bar has 2 beats",
+    );
+    warns("| C4 D E F |: G A B C D :|", "bar has 5 beats");
+}

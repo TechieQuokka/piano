@@ -3,6 +3,13 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.39.0
+- Language: bars are counted through repeats as heard. A repeat sign inside a bar is
+  not a bar line, so a pickup at the start of a repeat and the short bar before `:|`
+  make one bar (`|: G4 | C5 C C D | E/2 C/4 :|`). A short bar right after `|:` that
+  nothing completes now warns (it did not). `%` after a repeat copies its last bar
+  (it had nothing to copy). A tie goes from the shared part into an ending.
+
 ## 1.38.0
 - Language: ties go into and out of `voices`. A note tied before the block is held
   by the first voice that starts with it; a voice's note that ends with the block can
