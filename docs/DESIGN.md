@@ -1198,3 +1198,5 @@ cleanly: 103 of 103.
   `⚠ part1 line 69: ...`, not `⚠ line 1: [part1 line 69] ...`. `Alert` keeps the piece
   and line (`piece`) when a song takes a piece's alert; `Alert::located(file)` writes
   that form, and the editor keeps the song's line (it jumps there).
+- 1.35.1: a metronome mark at the end of a title (`Allegro. [quarter] = 138`, from
+  kern's `!!!OMD`) is left out of it; the score's tempo already carries it.

@@ -108,6 +108,27 @@ fn one_line(title: &str) -> String {
         .join(" — ")
 }
 
+/// The title without a metronome mark written at its end (`Allegro. [quarter] = 138`,
+/// `[eighth]=58`): the tempo is imported as a tempo.
+fn without_tempo_text(title: &str) -> &str {
+    let Some(i) = title.rfind('[') else {
+        return title;
+    };
+    let Some((note, value)) = title[i + 1..].split_once(']') else {
+        return title;
+    };
+    let value = value.trim_start().strip_prefix('=').map(str::trim);
+    let mark = !note.is_empty()
+        && note.chars().all(|c| c.is_ascii_alphabetic() || c == '-')
+        && value.is_some_and(|v| !v.is_empty() && v.chars().all(|c| c.is_ascii_digit()));
+    let rest = title[..i].trim_end().trim_end_matches('.').trim_end();
+    if mark && !rest.is_empty() {
+        rest
+    } else {
+        title
+    }
+}
+
 /// Imports MusicXML or kern text. `source` names the file in the piece comments.
 pub fn import(text: &str, source: &str) -> Result<Import, ImportError> {
     let mut model = if text
@@ -121,7 +142,9 @@ pub fn import(text: &str, source: &str) -> Result<Import, ImportError> {
     } else {
         return Err(ImportError::Format("not a MusicXML or **kern score".into()));
     };
-    model.title = model.title.map(|t| one_line(&t));
+    model.title = model
+        .title
+        .map(|t| without_tempo_text(&one_line(&t)).to_string());
     let written = write::write(&model, source)?;
     let check = check::check(&written.pieces, &written.song, &written.expected);
     let voices = model
@@ -254,6 +277,24 @@ mod tests {
             "Sonata — MINUETTO — Allegretto"
         );
         assert_eq!(one_line("A\n  B\r\n"), "A — B");
+    }
+
+    #[test]
+    fn titles_without_metronome_marks() {
+        let t = |s| without_tempo_text(s);
+        assert_eq!(
+            t("Sonata no. 29 — Allegro. [quarter] = 138"),
+            "Sonata no. 29 — Allegro"
+        );
+        assert_eq!(
+            t("SCHERZO — Assai vivace. [half-dot] = 80"),
+            "SCHERZO — Assai vivace"
+        );
+        assert_eq!(t("Adagio con affetto. [eighth]=58"), "Adagio con affetto");
+        // not a metronome mark, or nothing left
+        assert_eq!(t("Etude [no. 3]"), "Etude [no. 3]");
+        assert_eq!(t("Sonata [Op. 2] = 1"), "Sonata [Op. 2] = 1");
+        assert_eq!(t("[quarter] = 60"), "[quarter] = 60");
     }
 
     #[test]

@@ -3,6 +3,10 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.35.1
+- Fix (import): a metronome mark at the end of a title (`Allegro. [quarter] = 138`,
+  kern's `!!!OMD`) is left out; the tempo is imported as a tempo already.
+
 ## 1.35.0
 - `piano import <folder>` with no scores of its own names the folders below it that
   have some, with the command for each (`kern/ has 103 scores: piano import ...`).
