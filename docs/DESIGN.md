@@ -1200,3 +1200,13 @@ cleanly: 103 of 103.
   that form, and the editor keeps the song's line (it jumps there).
 - 1.35.1: a metronome mark at the end of a title (`Allegro. [quarter] = 138`, from
   kern's `!!!OMD`) is left out of it; the score's tempo already carries it.
+
+### 13.21 Grammar audit (1.35.2 – )
+
+An audit of the language found that bars and ties did not cross block boundaries the
+same way: bar lines, tempo, time, and pedals went through `voices`, but bar lines
+inside functions and repeats were counted from the block's start, a `time` inside
+them was forgotten after them, the last bar could not be short when closed, and ties
+stopped at `voices`. Fixed in order:
+
+- 1.35.2: a `time` inside a function or a repeat (the last ending's) goes on after it.

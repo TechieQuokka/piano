@@ -112,12 +112,18 @@ fn lay_seq(
 }
 
 /// Lays out `items` in a fresh context (own ties and bars) as a separate track.
-fn sub_track(items: &[Item], resolved: &Resolved, time: TimeSig, alerts: &mut Vec<Alert>) -> Track {
+/// Also returns the time signature at its end.
+fn sub_track(
+    items: &[Item],
+    resolved: &Resolved,
+    time: TimeSig,
+    alerts: &mut Vec<Alert>,
+) -> (Track, TimeSig) {
     let mut ctx = Ctx::new(time);
     let mut track = Track::default();
     lay_seq(items, resolved, &mut ctx, &mut track, alerts);
     ctx.flush_ties(alerts);
-    track
+    (track, ctx.time)
 }
 
 fn lay_item(
@@ -250,7 +256,9 @@ fn lay_item(
             times,
         } => {
             ctx.flush_ties(alerts);
-            let body_track = sub_track(body, resolved, ctx.time, alerts);
+            let (body_track, after_body) = sub_track(body, resolved, ctx.time, alerts);
+            // A `time` inside goes on after the repeat (from the last ending).
+            let mut time = after_body;
             let passes: Vec<Track> = if endings.is_empty() {
                 (0..*times).map(|_| body_track.clone()).collect()
             } else {
@@ -259,11 +267,14 @@ fn lay_item(
                     .map(|e| {
                         let mut pass = body_track.clone();
                         let at = pass.len;
-                        pass.append(sub_track(e, resolved, ctx.time, alerts), at);
+                        let (ending, after) = sub_track(e, resolved, after_body, alerts);
+                        time = after;
+                        pass.append(ending, at);
                         pass
                     })
                     .collect()
             };
+            ctx.time = time;
             for pass in passes {
                 let at = track.len;
                 track.append(pass, at);
@@ -323,6 +334,7 @@ fn lay_item(
             }
             ctx.ties = leaving;
             ctx.free |= sub.free;
+            ctx.time = sub.time;
         }
         Item::Voices { voices, span } => {
             ctx.flush_ties(alerts);

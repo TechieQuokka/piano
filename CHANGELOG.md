@@ -3,6 +3,10 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.35.2
+- Fix: a `time` written inside a function or a repeat was forgotten after it, so the
+  bars after it were checked against the old signature (false warnings).
+
 ## 1.35.1
 - Fix (import): a metronome mark at the end of a title (`Allegro. [quarter] = 138`,
   kern's `!!!OMD`) is left out; the tempo is imported as a tempo already.

@@ -337,3 +337,10 @@ fn tempo_inside_voices_applies_to_every_voice() {
     assert!(c.alerts[0].message.contains("`tempo` differently"));
     assert!(c.score.tempos.iter().all(|t| t.bpm != 90));
 }
+
+#[test]
+fn time_inside_functions_and_repeats_goes_on_after_them() {
+    clean("| C4 D E F |: time 3/4 C D E :| F G A | B C D |");
+    clean("| C4 D E F | up(2){ time 3/4 C D E } | F G A |");
+    clean("| C4 D E F |: G A B C [1 time 3/4 D E F :| [2 time 2/4 G A | B C |");
+}
