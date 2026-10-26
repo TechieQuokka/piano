@@ -179,21 +179,21 @@ fn import_folder(src: &Path, out: &Path) -> Result<(), String> {
             Ok(imp) if imp.check.ok() => {
                 ok += 1;
                 println!(
-                    "  ok    {name}: {} · {} bars · {} pieces",
+                    "  ok    {name}: {} · {} · {}",
                     imp.title.as_deref().unwrap_or("score"),
-                    imp.stats.measures,
-                    imp.pieces.len()
+                    count(imp.stats.measures, "bar"),
+                    count(imp.pieces.len(), "piece")
                 );
             }
             Ok(imp) => {
                 mismatch += 1;
                 let c = &imp.check;
                 println!(
-                    "  check {name}: {}/{} notes match, {} extra, {} alerts ✖",
+                    "  check {name}: {}/{} notes match, {} extra, {} ✖",
                     c.matched,
                     c.expected,
                     c.extra,
-                    c.alerts.len()
+                    count(c.alerts.len(), "alert")
                 );
             }
             Err(e) => {
@@ -203,15 +203,15 @@ fn import_folder(src: &Path, out: &Path) -> Result<(), String> {
         }
     }
     println!(
-        "{} scores → {}: {ok} imported, {mismatch} not matching, {failed} failed, {skipped} skipped",
-        files.len(),
+        "{} → {}: {ok} imported, {mismatch} not matching, {failed} failed, {skipped} skipped",
+        count(files.len(), "score"),
         out.display()
     );
     if mismatch + failed > 0 {
         return Err(format!(
-            "{} of {} scores did not import cleanly (see above)",
+            "{} of {} did not import cleanly (see above)",
             mismatch + failed,
-            files.len()
+            count(files.len(), "score")
         ));
     }
     Ok(())
@@ -257,6 +257,15 @@ fn import_score(file: &Path, dir: &Path) -> Result<piano_import::Import, String>
     Ok(imp)
 }
 
+/// `1 bar`, `2 bars`.
+fn count(n: usize, one: &str) -> String {
+    if n == 1 {
+        format!("1 {one}")
+    } else {
+        format!("{n} {one}s")
+    }
+}
+
 /// Prints what an import did; an error if the song does not match the score.
 fn report(imp: &piano_import::Import, dir: &Path) -> Result<(), String> {
     let s = &imp.stats;
@@ -267,36 +276,36 @@ fn report(imp: &piano_import::Import, dir: &Path) -> Result<(), String> {
         dir.display()
     );
     println!(
-        "  {} bars · {} voices · {} pieces · {} blocks · {} tempo marks",
-        s.measures,
-        s.voices,
-        imp.pieces.len(),
-        s.blocks,
-        s.tempos
+        "  {} · {} · {} · {} · {}",
+        count(s.measures, "bar"),
+        count(s.voices, "voice"),
+        count(imp.pieces.len(), "piece"),
+        count(s.blocks, "block"),
+        count(s.tempos, "tempo mark")
     );
     let mut approx = Vec::new();
     if s.graces > 0 {
-        approx.push(format!("{} grace notes (64ths)", s.graces));
+        approx.push(format!("{} (64ths)", count(s.graces, "grace note")));
     }
     if s.trills > 0 {
-        approx.push(format!("{} trills (32nds)", s.trills));
+        approx.push(format!("{} (32nds)", count(s.trills, "trill")));
     }
     if s.notices.arpeggios > 0 {
         approx.push(format!(
-            "{} arpeggios (struck together)",
-            s.notices.arpeggios
+            "{} (struck together)",
+            count(s.notices.arpeggios, "arpeggio")
         ));
     }
     if !approx.is_empty() {
         println!("  approximated: {}", approx.join(", "));
     }
     let skipped: Vec<String> = [
-        (s.notices.cue, "cue notes"),
-        (s.notices.unpitched, "unpitched notes"),
+        (s.notices.cue, "cue note"),
+        (s.notices.unpitched, "unpitched note"),
     ]
     .into_iter()
     .filter(|(n, _)| *n > 0)
-    .map(|(n, what)| format!("{n} {what}"))
+    .map(|(n, what)| count(n, what))
     .collect();
     if !skipped.is_empty() {
         println!("  skipped: {}", skipped.join(", "));
@@ -305,11 +314,11 @@ fn report(imp: &piano_import::Import, dir: &Path) -> Result<(), String> {
         println!("  repeats did not end; unrolling stopped");
     }
     println!(
-        "  check: {}/{} notes match, {} extra, {} alerts {}",
+        "  check: {}/{} notes match, {} extra, {} {}",
         c.matched,
         c.expected,
         c.extra,
-        c.alerts.len(),
+        count(c.alerts.len(), "alert"),
         if c.ok() { "✔" } else { "✖" }
     );
     if !c.ok() {
@@ -596,5 +605,17 @@ fn sound_check(player: &piano_audio::Player, interactive: bool) {
         println!("    A signal with nothing heard usually means the wrong output or muted volume.");
     } else {
         println!("  sound ok");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn counts() {
+        assert_eq!(count(1, "piece"), "1 piece");
+        assert_eq!(count(0, "alert"), "0 alerts");
+        assert_eq!(count(26, "tempo mark"), "26 tempo marks");
     }
 }

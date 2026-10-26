@@ -3,6 +3,12 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.34.1
+- Fix: `piano import` printed `1 pieces`, `1 alerts`, `1 bars`, ...; a count of one is
+  now singular.
+- Fix (docs): the guide listed lengths and time-signature units only up to 64; `/128`
+  is valid for both (since 1.31.0).
+
 ## 1.34.0
 - Language: `tempo` and `time` inside `voices` apply to every voice from that point
   and go on after the block (they were ignored with a warning). Voices that set them

@@ -378,8 +378,8 @@ eighth of a whole note. A bigger number is a shorter note.
   `r/8`.
 - Without a length, a note keeps the length of the note or rest before it. The first
   note of a piece is a quarter.
-- Only 1, 2, 4, 8, 16, 32, and 64 exist. Anything else is an error and the length stays
-  as it was. Thirds of a beat are written with `tuplet` (`guide fn.tuplet`).
+- Only 1, 2, 4, 8, 16, 32, 64, and 128 exist. Anything else is an error and the length
+  stays as it was. Thirds of a beat are written with `tuplet` (`guide fn.tuplet`).
 
 #### Examples
 
@@ -608,7 +608,7 @@ march), 6/8 six eighths felt as two groups of three.
 
 #### Syntax
 
-`time <beats>/<unit>`: beats 1–32, unit 1, 2, 4, 8, 16, 32, or 64.
+`time <beats>/<unit>`: beats 1–32, unit 1, 2, 4, 8, 16, 32, 64, or 128.
 
 #### Rules
 
