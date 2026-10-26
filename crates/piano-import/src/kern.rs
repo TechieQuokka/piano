@@ -299,7 +299,10 @@ pub fn parse(text: &str) -> Result<Model, ImportError> {
                         };
                         bar.events.push((t, ev));
                     }
-                    cols[c].end = t + len;
+                    // Grace notes last no time: the note held in the column goes on.
+                    if len > Q::ZERO {
+                        cols[c].end = t + len;
+                    }
                     next = Some(next.map_or(t + len, |n| n.min(t + len)));
                 }
                 Kind::Dynam => dynamics(tok, &col.staves, t, bar),
@@ -687,5 +690,19 @@ mod tests {
         assert_eq!(m.graces[0].principal, Q::int(1));
         let e = m.notes.iter().find(|n| n.name == "E4").unwrap();
         assert!(e.tie);
+    }
+
+    #[test]
+    fn a_grace_does_not_cut_the_note_held_in_its_column() {
+        // B4 sounds 0-1.5; the grace line in its column must not end it at 1.
+        let k = format!(
+            "{HEAD}=1\t=1\t=1\n8c\t4.b\t.\n8d\t.\t.\n.\t16aq\t.\n8e\t.\t.\n\
+             8f\t8a\t.\n==\t==\t==\n"
+        );
+        let m = parse(&k).unwrap();
+        let at = |name: &str| m.notes.iter().find(|n| n.name == name).unwrap().start;
+        assert_eq!(at("E4"), Q::int(1));
+        assert_eq!(at("A4"), Q::new(3, 2));
+        assert_eq!(m.measures[0].len, Q::int(2));
     }
 }

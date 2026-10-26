@@ -3,6 +3,13 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.31.1
+- Fix (import, kern): a grace note in a column where a note was still sounding ended
+  that note's time there, so the next line could last no time and later notes came
+  early (Beethoven op. 109/III, bar 176: a 3/4 bar of 2 5/6 beats). The note check
+  could not see it, because it compares the song with what the reader built; only the
+  bar-length warnings did.
+
 ## 1.31.0
 - Language: `/128` notes (1/32 beat; dotted and double-dotted too).
 - Language: `tuplet(9)` and `tuplet(11)` are exact, as are 6, 10 and products of 3,

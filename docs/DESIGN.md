@@ -1128,4 +1128,8 @@ short last bar has none after it. Then (1.31.0) `/128`, ticks for 9 and 11 in a
 tuplet, and one key once in a chord (E#4 with F4). Result: all 103 import; 95 match;
 8 match every note but warn: a signature change or unmetered bars inside a block
 that ties hold together, cadenza bars longer than 32 beats, a few ties across lanes.
+In 1.31.1 a grace note in kern no longer ends the time of the note still sounding in
+its column (it lasts no time); that had made bars of op. 109/III short. The note check
+compares the song with the reader's own model, so a reader error that moves notes is
+caught only by the bar-length warnings.
 
