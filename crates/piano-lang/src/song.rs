@@ -169,6 +169,7 @@ fn lay(
                 alerts.extend(compiled.alerts.into_iter().map(|a| Alert {
                     message: format!("[{name} line {}] {}", a.span.line, a.message),
                     span: *span,
+                    piece: Some((name.clone(), a.span.line)),
                     ..a
                 }));
                 let piece = piece_track(compiled.score);

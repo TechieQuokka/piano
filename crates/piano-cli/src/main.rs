@@ -142,11 +142,9 @@ fn import(file: &Path, dir: &Path) -> Result<(), String> {
 /// Score files `piano import` reads.
 const SCORE_EXTENSIONS: [&str; 4] = ["mxl", "musicxml", "xml", "krn"];
 
-/// Imports each score directly in `src` (by name) into `out/<file name>`.
-/// Existing projects are skipped; a failed score does not stop the rest.
-fn import_folder(src: &Path, out: &Path) -> Result<(), String> {
-    let entries = std::fs::read_dir(src).map_err(|e| format!("{}: {e}", src.display()))?;
-    let mut files: Vec<PathBuf> = entries
+/// Score files directly in `dir`, sorted.
+fn scores_in(dir: &Path) -> std::io::Result<Vec<PathBuf>> {
+    let mut files: Vec<PathBuf> = std::fs::read_dir(dir)?
         .filter_map(|e| e.ok().map(|e| e.path()))
         .filter(|p| {
             p.is_file()
@@ -156,12 +154,69 @@ fn import_folder(src: &Path, out: &Path) -> Result<(), String> {
         })
         .collect();
     files.sort();
+    Ok(files)
+}
+
+/// Folders below `dir` (a few levels, not hidden ones) that hold scores, with their
+/// number of scores.
+fn score_folders(dir: &Path, depth: usize) -> Vec<(PathBuf, usize)> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut subs: Vec<PathBuf> = entries
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| {
+            p.is_dir()
+                && !p
+                    .file_name()
+                    .is_some_and(|n| n.to_string_lossy().starts_with('.'))
+        })
+        .collect();
+    subs.sort();
+    let mut out = Vec::new();
+    for sub in subs {
+        let n = scores_in(&sub).map_or(0, |f| f.len());
+        if n > 0 {
+            out.push((sub.clone(), n));
+        }
+        if depth > 1 {
+            out.extend(score_folders(&sub, depth - 1));
+        }
+    }
+    out
+}
+
+/// Folders shown when a folder has no scores of its own.
+const MAX_HINTS: usize = 5;
+
+/// Imports each score directly in `src` (by name) into `out/<file name>`.
+/// Existing projects are skipped; a failed score does not stop the rest.
+fn import_folder(src: &Path, out: &Path) -> Result<(), String> {
+    let files = scores_in(src).map_err(|e| format!("{}: {e}", src.display()))?;
     if files.is_empty() {
-        return Err(format!(
+        let mut msg = format!(
             "{}: no scores (.{})",
             src.display(),
             SCORE_EXTENSIONS.join(" .")
-        ));
+        );
+        let found = score_folders(src, 3);
+        for (dir, n) in found.iter().take(MAX_HINTS) {
+            let rel = dir.strip_prefix(src).unwrap_or(dir);
+            msg += &format!(
+                "\n  {}/ has {}: piano import {} {}",
+                rel.display(),
+                count(*n, "score"),
+                dir.display(),
+                out.display()
+            );
+        }
+        if found.len() > MAX_HINTS {
+            msg += &format!(
+                "\n  ... and {} more",
+                count(found.len() - MAX_HINTS, "folder")
+            );
+        }
+        return Err(msg);
     }
     let (mut ok, mut mismatch, mut failed, mut skipped) = (0, 0, 0, 0);
     for file in &files {
@@ -189,12 +244,24 @@ fn import_folder(src: &Path, out: &Path) -> Result<(), String> {
                 mismatch += 1;
                 let c = &imp.check;
                 println!(
-                    "  check {name}: {}/{} notes match, {} extra, {} ✖",
+                    "  check {name}: {} · {}/{} notes match, {} extra, {} ✖",
+                    imp.title.as_deref().unwrap_or("score"),
                     c.matched,
                     c.expected,
                     c.extra,
                     count(c.alerts.len(), "alert")
                 );
+                let lines = problems(c);
+                for l in lines.iter().take(MAX_PROBLEMS) {
+                    println!("          {l}");
+                }
+                if lines.len() > MAX_PROBLEMS {
+                    println!(
+                        "          ... {} more: piano import {} <empty folder> lists all",
+                        lines.len() - MAX_PROBLEMS,
+                        file.display()
+                    );
+                }
             }
             Err(e) => {
                 failed += 1;
@@ -255,6 +322,22 @@ fn import_score(file: &Path, dir: &Path) -> Result<piano_import::Import, String>
     }
     write(SONG, &imp.song)?;
     Ok(imp)
+}
+
+/// Problems shown for a score in a folder import.
+const MAX_PROBLEMS: usize = 3;
+
+/// What does not match: the alerts, then the missing notes.
+fn problems(c: &piano_import::Check) -> Vec<String> {
+    c.alerts
+        .iter()
+        .cloned()
+        .chain(
+            c.missing
+                .iter()
+                .map(|(at, midi)| format!("missing: MIDI {midi} at quarter {at}")),
+        )
+        .collect()
 }
 
 /// `1 bar`, `2 bars`.
@@ -322,11 +405,12 @@ fn report(imp: &piano_import::Import, dir: &Path) -> Result<(), String> {
         if c.ok() { "✔" } else { "✖" }
     );
     if !c.ok() {
-        for a in c.alerts.iter().take(10) {
-            println!("    {a}");
+        let lines = problems(c);
+        for l in lines.iter().take(10) {
+            println!("    {l}");
         }
-        for (at, midi) in c.missing.iter().take(10) {
-            println!("    missing: MIDI {midi} at quarter {at}");
+        if lines.len() > 10 {
+            println!("    ... {} more", lines.len() - 10);
         }
         return Err("the imported song does not match the score (files were written)".into());
     }
@@ -372,7 +456,7 @@ fn compiled(app: &App, name: &str) -> Result<Arc<Score>, String> {
         .score_of(name)
         .ok_or_else(|| format!("no piece `{name}`"))?;
     for a in &compiled.alerts {
-        eprintln!("{a}");
+        eprintln!("{}", a.located(name));
     }
     if compiled
         .alerts
@@ -611,6 +695,52 @@ fn sound_check(player: &piano_audio::Player, interactive: bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn folders_with_scores_are_found_below() {
+        // Under the workspace `target/`, like the other crates' tests.
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../target/test-tmp")
+            .join(format!("cli-folders-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        for (dir, file) in [
+            ("kern", "a.krn"),
+            ("kern", "b.krn"),
+            ("docs", "x.pdf"),
+            ("more/deep", "c.mxl"),
+            (".git", "d.xml"),
+        ] {
+            std::fs::create_dir_all(root.join(dir)).unwrap();
+            std::fs::write(root.join(dir).join(file), "").unwrap();
+        }
+        let found: Vec<(String, usize)> = score_folders(&root, 3)
+            .into_iter()
+            .map(|(d, n)| (d.strip_prefix(&root).unwrap().display().to_string(), n))
+            .collect();
+        assert_eq!(
+            found,
+            [("kern".to_string(), 2), ("more/deep".to_string(), 1)]
+        );
+        let err = import_folder(&root, Path::new("out")).unwrap_err();
+        assert!(err.contains("kern/ has 2 scores: piano import"), "{err}");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn problems_list_alerts_then_missing_notes() {
+        let c = piano_import::Check {
+            alerts: vec!["⚠ part1 line 69: bar has 7 beats".into()],
+            missing: vec![(2.5, 60)],
+            ..Default::default()
+        };
+        assert_eq!(
+            problems(&c),
+            [
+                "⚠ part1 line 69: bar has 7 beats",
+                "missing: MIDI 60 at quarter 2.5"
+            ]
+        );
+    }
 
     #[test]
     fn counts() {

@@ -1184,3 +1184,17 @@ tempo gets `time` / `tempo` after its bar line in the first voice that has one; 
 block's head writes the tempo of its first bar, not the block's mean. The last three
 Beethoven movements with warnings (op. 27/1 IV, op. 106 IV, op. 109 III) import
 cleanly: 103 of 103.
+
+### 13.20 Import and terminal output (1.35.0)
+
+- A folder with no scores of its own is still an error, and it names the folders
+  below it (three levels, hidden ones skipped) that hold scores, at most five, each
+  with the command to import it: `kern/ has 103 scores: piano import .../kern out`.
+  Subfolders are never imported by themselves.
+- In a folder import, a `check` line has the title like an `ok` line, then up to three
+  of its alerts and missing notes; with more, it says how many and how to list them
+  all (import the file alone). The report of one file lists up to ten.
+- In the terminal (`import`, `play`, `export`), an alert is placed in its own file:
+  `⚠ part1 line 69: ...`, not `⚠ line 1: [part1 line 69] ...`. `Alert` keeps the piece
+  and line (`piece`) when a song takes a piece's alert; `Alert::located(file)` writes
+  that form, and the editor keeps the song's line (it jumps there).

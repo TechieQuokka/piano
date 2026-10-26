@@ -40,6 +40,9 @@ pub struct Alert {
     pub span: SrcSpan,
     pub message: String,
     pub fix: Option<String>,
+    /// For an alert of a piece shown in a song: the piece and the line in it. The
+    /// span is then the song's line that plays the piece.
+    pub piece: Option<(String, u32)>,
 }
 
 impl Alert {
@@ -61,12 +64,32 @@ impl Alert {
             span,
             message: message.into(),
             fix: None,
+            piece: None,
         }
     }
 
     pub fn with_fix(mut self, fix: impl Into<String>) -> Alert {
         self.fix = Some(fix.into());
         self
+    }
+
+    /// The alert with the file it is in, for a terminal: `⚠ part1 line 69: ...`.
+    /// `file` is the name of what was compiled (a song or a piece).
+    pub fn located(&self, file: &str) -> String {
+        let (file, line, message) = match &self.piece {
+            Some((name, line)) => {
+                let prefix = format!("[{name} line {line}] ");
+                let message = self.message.strip_prefix(&prefix).unwrap_or(&self.message);
+                (name.as_str(), *line, message)
+            }
+            None => (file, self.span.line, self.message.as_str()),
+        };
+        let mut out = format!("{} {file} line {line}: {message}", self.severity.marker());
+        if let Some(fix) = &self.fix {
+            out += " ";
+            out += fix;
+        }
+        out
     }
 }
 
@@ -107,5 +130,19 @@ mod tests {
             a.to_string(),
             "⚠ line 3: C4 → F# is ambiguous (6 semitones), chose F#4. Write F#3 or F#4 to fix."
         );
+        assert_eq!(
+            a.located("p1"),
+            "⚠ p1 line 3: C4 → F# is ambiguous (6 semitones), chose F#4. Write F#3 or F#4 to fix."
+        );
+    }
+
+    #[test]
+    fn located_in_a_piece_of_a_song() {
+        let a = Alert {
+            piece: Some(("part1".into(), 69)),
+            ..Alert::warning(SrcSpan::new(1, 1, 5), "[part1 line 69] bar has 7 beats")
+        };
+        assert_eq!(a.to_string(), "⚠ line 1: [part1 line 69] bar has 7 beats");
+        assert_eq!(a.located("song"), "⚠ part1 line 69: bar has 7 beats");
     }
 }

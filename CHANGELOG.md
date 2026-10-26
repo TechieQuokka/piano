@@ -3,6 +3,15 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.35.0
+- `piano import <folder>` with no scores of its own names the folders below it that
+  have some, with the command for each (`kern/ has 103 scores: piano import ...`).
+- In a folder import, a score that does not match shows its title and up to three of
+  its alerts or missing notes, and how to list the rest.
+- Alerts in the terminal (`piano import`, `play`, `export`) name the piece file and
+  its line: `⚠ part1 line 69: ...` instead of `⚠ line 1: [part1 line 69] ...`. The
+  editor is unchanged.
+
 ## 1.34.1
 - Fix: `piano import` printed `1 pieces`, `1 alerts`, `1 bars`, ...; a count of one is
   now singular.

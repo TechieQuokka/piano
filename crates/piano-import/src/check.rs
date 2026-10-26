@@ -70,7 +70,7 @@ pub fn check(pieces: &[(String, String)], song: &str, expected: &[(Q, i32, Q)]) 
             .alerts
             .iter()
             .filter(|a| a.severity != Severity::Hint)
-            .map(ToString::to_string)
+            .map(|a| a.located("song"))
             .collect(),
     }
 }
