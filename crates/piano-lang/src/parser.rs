@@ -341,11 +341,15 @@ impl Parser<'_> {
                     ..
                 }) => {
                     self.bump();
-                    notes.push((name, s));
                     if let Some(Tok::Len { .. }) = self.peek_tok() {
                         let s = self.bump().map(|t| t.span).unwrap_or(s);
                         self.warning(s, "put the chord length after `}`");
                     }
+                    let tie = matches!(self.peek_tok(), Some(Tok::Tie));
+                    if tie {
+                        self.bump();
+                    }
+                    notes.push((name, s, tie));
                 }
                 Some(t) => {
                     self.bump();
@@ -360,6 +364,12 @@ impl Parser<'_> {
             self.warning(span, "empty chord");
         }
         let (len, tie) = self.len_tie();
+        if tie && notes.iter().any(|n| n.2) {
+            self.alerts.push(Alert::hint(
+                span,
+                "`~` after the chord ties every note, the `~` inside are not needed",
+            ));
+        }
         Node::Chord {
             notes,
             len,
@@ -657,6 +667,25 @@ mod tests {
         let (nodes, alerts) = parse_src("ped on {C E G}/2~ ped off");
         assert!(alerts.is_empty(), "{alerts:?}");
         assert!(matches!(&nodes[1], Node::Chord { notes, tie: true, .. } if notes.len() == 3));
+    }
+
+    #[test]
+    fn ties_inside_a_chord() {
+        let (nodes, alerts) = parse_src("{C4~ E G~}/2 {C E G}");
+        assert!(alerts.is_empty(), "{alerts:?}");
+        match &nodes[0] {
+            Node::Chord { notes, tie, .. } => {
+                assert!(!tie);
+                assert_eq!(
+                    notes.iter().map(|n| n.2).collect::<Vec<_>>(),
+                    [true, false, true]
+                );
+            }
+            n => panic!("{n:?}"),
+        }
+        let (_, alerts) = parse_src("{C4~ E}~ {C E}");
+        assert_eq!(alerts.len(), 1, "{alerts:?}");
+        assert_eq!(alerts[0].severity, piano_core::Severity::Hint);
     }
 
     #[test]

@@ -267,7 +267,7 @@ A score-like, left-to-right language. Whitespace and case are lenient.
 | `0`–`8` | Octave (scientific pitch; `C4` = middle C; range A0–C8) | `C4` |
 | `/n` | Length: `1 2 4 8 16 32 64 128` (others = Error) | `C/8` |
 | `.` / `..` | Dotted / double-dotted (max 2; more = Warning) | `C/4.` |
-| `~` | Tie (same pitch only; may cross bars and function bodies; works on chords) | `G/2~ G/4` |
+| `~` | Tie (same pitch only; may cross bars and function bodies; works on chords: after `}` every note, after a note inside `{ }` that note alone) | `G/2~ G/4`, `{C~ E G}/2 C` |
 | `r` | Rest | `r/4` |
 | `{ }` | Chord; length after the brace | `{C E G}/2` |
 | `//` | Line comment | `C D // intro` |
@@ -1149,3 +1149,19 @@ tried) is wrapped in `free{ }` in every voice, between its bar lines (Beethoven
 op. 27/1 III, op. 31/1 II, op. 101 III). Bar lines are no longer written at the start
 of a voice before anything that takes time (a pedal at the start of a block gave an
 empty bar, `{ ped on | ... }`).
+
+### 13.18 Ties on single notes of a chord (1.33.0)
+
+A `~` right after a note inside `{ }` ties that note alone (`{C3~ E4 G}/2 {C3 F4 A}/2`);
+a `~` after `}` still ties every note, and both together give a Hint. The parser keeps
+a tie flag per chord note; `Sound` has one tie per pitch (`ties`), which layout uses
+note by note.
+
+Import: an event keeps which of its notes are tied (`tied`, MIDI numbers) instead of
+one flag, so notes struck together with the same length share a chord even when only
+some of them go on. The writer puts one `~` after the chord when every note goes on
+in the next event, else one after each note that does. Before, such notes went to
+separate lanes and a tie chain could change lanes in the middle, where a tie cannot
+follow it; the note was struck again (op. 53 I, op. 106 IV, op. 111 II, one or two
+notes each). 74 of the 103 Beethoven movements are written with fewer lanes; their
+notes are unchanged.

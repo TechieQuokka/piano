@@ -93,6 +93,7 @@ only descriptions are Korean.
              두 번째 음은 다시 치지 않음.
     Bars     마디줄을 넘어도 되고, 함수 안팎으로도 이어짐.
     Chords   {C E G}/2~ {C E G}/4 는 세 음을 모두 이음.
+             {C~ E G}/2 C/4 는 C만 이음: {} 안의 음 뒤에 붙인 ~.
     Other    ~ 뒤가 다른 음이면 Warning, 붙임줄은 무시됨.
     Example  C4 D G/2~ | G/4 F
     See      length, chord
@@ -111,6 +112,8 @@ only descriptions are Korean.
     Syntax   {<notes>}/<n>                  {C E G}/2
     Meaning  동시에 치는 음들.
     Length   } 뒤에 한 번만 씀. {} 안에 길이를 쓰면 Warning.
+    Tie      } 뒤의 ~는 모든 음을, 안의 음 뒤의 ~는 그 음만 이음:
+             {C3~ E4 G}/2 {C3 F4 A}/2
     Octave   화음 안의 각 음은 바로 앞 음 기준으로 해석됨.
              화음이 끝나면 첫 음이 기준이 됨.
     Example  {C4 E G}/2 {F A C}/2
@@ -378,7 +381,7 @@ only descriptions are Korean.
 
     note     C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [~]
     rest     r [/n [. ..]]
-    chord    { notes } [/n] [~]
+    chord    { note [~] ... } [/n] [~]
     comment  // ...
     header   tempo <bpm>   time <a>/<b>
     bar      |   %

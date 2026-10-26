@@ -24,7 +24,8 @@ pub enum Node {
         span: SrcSpan,
     },
     Chord {
-        notes: Vec<(NoteName, SrcSpan)>,
+        /// (name, span, tied by its own `~`)
+        notes: Vec<(NoteName, SrcSpan, bool)>,
         len: Option<Duration>,
         tie: bool,
         span: SrcSpan,

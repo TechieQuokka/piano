@@ -133,7 +133,8 @@ struct Ev {
     len: Q,
     /// (MIDI, name), sorted by pitch.
     notes: Vec<(i32, String)>,
-    tie: bool,
+    /// MIDI numbers of the notes tied to the next note of their key.
+    tied: Vec<i32>,
     staff: StaffId,
 }
 
@@ -269,6 +270,7 @@ fn move_tied(
     }
     if let Some(origin) = out.get_mut(&(part, voice, o)).and_then(|l| l.get_mut(i)) {
         origin.notes.retain(|n| n != note);
+        origin.tied.retain(|m| *m != note.0);
     }
     if let Some(list) = out.get_mut(&(part, voice, lane)) {
         list.insert(
@@ -277,7 +279,7 @@ fn move_tied(
                 start,
                 len,
                 notes: vec![note.clone()],
-                tie: true,
+                tied: vec![note.0],
                 staff,
             },
         );
@@ -331,7 +333,7 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
                         } else {
                             (*umidi, upper.clone())
                         }],
-                        tie: false,
+                        tied: Vec::new(),
                         staff: n.staff,
                     })
                     .collect::<Vec<_>>(),
@@ -342,7 +344,7 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
                 start: n.start,
                 len: n.len,
                 notes: vec![(n.midi, n.name.clone())],
-                tie,
+                tied: if tie { vec![n.midi] } else { Vec::new() },
                 staff: n.staff,
             }]
         });
@@ -360,8 +362,10 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
                         k
                     };
                     let e = &list[k];
-                    (e.tie && e.end() == ev.start && e.notes.contains(&ev.notes[0]))
-                        .then_some((l, k))
+                    (e.end() == ev.start
+                        && e.tied.contains(&ev.notes[0].0)
+                        && e.notes.contains(&ev.notes[0]))
+                    .then_some((l, k))
                 });
             let mut lane = from.map_or(0, |f| f.0);
             let note = ev.notes[0].clone();
@@ -369,16 +373,17 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
                 let key = (part, voice, lane);
                 let list = out.entry(key).or_default();
                 match list.last_mut() {
-                    Some(last)
-                        if single
-                            && last.start == ev.start
-                            && last.len == ev.len
-                            && last.tie == ev.tie =>
-                    {
+                    Some(last) if single && last.start == ev.start && last.len == ev.len => {
                         // One key once: E#4 and F4 in a chord are the same key.
                         if !last.notes.iter().any(|n| n.0 == ev.notes[0].0) {
                             last.notes.push(ev.notes[0].clone());
                             last.notes.sort();
+                        }
+                        // Some notes of a chord may be tied and others not (`{C~ E}`).
+                        for m in ev.tied {
+                            if !last.tied.contains(&m) {
+                                last.tied.push(m);
+                            }
                         }
                         break;
                     }
@@ -410,7 +415,7 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
             start,
             len: grace_len(),
             notes: vec![(g.midi, g.name.clone())],
-            tie: false,
+            tied: Vec::new(),
             staff: g.staff,
         });
     }
@@ -521,7 +526,7 @@ impl Ctx<'_> {
         self.lanes
             .values()
             .flatten()
-            .all(|e| !(e.start < t && t < e.end()) && !(e.tie && e.end() == t))
+            .all(|e| !(e.start < t && t < e.end()) && !(!e.tied.is_empty() && e.end() == t))
     }
 
     /// Pieces as (first, last) measure indexes: double bars, rehearsal marks, and
@@ -862,10 +867,34 @@ impl Ctx<'_> {
                     }
                 }
             }
+            // Tied notes that go on in the next event: all of them take one `~`
+            // after the note or chord, some of them one each (`{C~ E}`).
+            let held: Vec<i32> = evs
+                .get(k + 1)
+                .filter(|n| n.start == e.end())
+                .map(|n| {
+                    e.tied
+                        .iter()
+                        .copied()
+                        .filter(|m| n.notes.iter().any(|x| x.0 == *m))
+                        .collect()
+                })
+                .unwrap_or_default();
+            let whole = !held.is_empty() && held.len() == e.notes.len();
             if e.notes.len() == 1 {
                 text += &e.notes[0].1;
             } else {
-                let names: Vec<&str> = e.notes.iter().map(|n| n.1.as_str()).collect();
+                let names: Vec<String> = e
+                    .notes
+                    .iter()
+                    .map(|n| {
+                        if !whole && held.contains(&n.0) {
+                            format!("{}~", n.1)
+                        } else {
+                            n.1.clone()
+                        }
+                    })
+                    .collect();
                 text += &format!("{{{}}}", names.join(" "));
             }
             let (w, n) = note_length(e.len).ok_or_else(|| {
@@ -879,16 +908,7 @@ impl Ctx<'_> {
                 w,
                 n,
                 text,
-                if e.tie
-                    && evs.get(k + 1).is_some_and(|n| {
-                        n.start == e.end()
-                            && n.notes.iter().any(|x| e.notes.iter().any(|y| x.0 == y.0))
-                    })
-                {
-                    "~".into()
-                } else {
-                    String::new()
-                },
+                if whole { "~".into() } else { String::new() },
             ));
             cur = e.end();
         }
@@ -928,14 +948,14 @@ impl Ctx<'_> {
                     {
                         let o = &mut out[k];
                         o.2 = e.end() - o.0;
-                        if !e.tie {
+                        if !e.tied.contains(&midi) {
                             open.remove(&midi);
                         }
                         continue;
                     }
                     open.remove(&midi);
                     out.push((e.start, midi, e.len));
-                    if e.tie {
+                    if e.tied.contains(&midi) {
                         open.insert(midi, out.len() - 1);
                     }
                 }

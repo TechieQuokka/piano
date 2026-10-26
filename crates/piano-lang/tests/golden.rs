@@ -305,3 +305,14 @@ fn bar_lines_inside_free_are_errors() {
     assert_eq!(c.alerts[0].severity, Severity::Error);
     assert_eq!(c.score.notes.len(), 5);
 }
+
+#[test]
+fn a_tie_inside_a_chord_holds_only_that_note() {
+    let c = clean("{C4~ E G}/2 C/4");
+    assert_eq!(notes(&c), "C4@0+6 E4@0+4 G4@0+4");
+    let c = clean("{C4 E~ G}/2 {E G C5}/2");
+    assert_eq!(notes(&c), "C4@0+4 E4@0+8 G4@0+4 G4@4+4 C5@4+4");
+    let c = compile_piece("{C4~ E}/2 D");
+    assert_eq!(c.alerts.len(), 1, "{:?}", c.alerts);
+    assert!(c.alerts[0].message.contains("not followed"));
+}

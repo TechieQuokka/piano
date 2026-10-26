@@ -3,6 +3,15 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.33.0
+- Language: a `~` right after a note inside a chord ties that note alone:
+  `{C3~ E4 G}/2 {C3 F4 A}/2` holds C3 and strikes F4 and A over it. A `~` after `}`
+  still ties every note; both together give a Hint.
+- `piano import` writes notes struck together as one chord even when only some are
+  tied, with a `~` on each note that goes on. Imports have fewer voices, and a tie no
+  longer changes voice in the middle (it was dropped and the note struck again: three
+  Beethoven movements, 1-2 notes each). 100 of 103 movements import without warnings.
+
 ## 1.32.0
 - Language: `free{ ... }` writes an unmetered bar, such as a cadenza: the bar that
   holds it is not checked against the time signature, whatever its length. No `|`

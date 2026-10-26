@@ -107,7 +107,8 @@ pub struct Sound {
     pub pitches: Vec<Pitch>,
     pub len: Tick,
     pub velocity: u8,
-    pub tie: bool,
+    /// Per pitch: tied to the next sound.
+    pub ties: Vec<bool>,
     pub span: SrcSpan,
 }
 
@@ -227,8 +228,9 @@ impl Resolver<'_> {
                 let pitch = self.pitch(name, *span);
                 let first = pitch.map_or(self.state.reference, |(_, n)| n);
                 self.state.reference = first;
-                let pitches = pitch.map(|(p, _)| p).into_iter().collect();
-                Some(self.sound(pitches, *len, *tie, *span))
+                let pitches: Vec<Pitch> = pitch.map(|(p, _)| p).into_iter().collect();
+                let ties = vec![*tie; pitches.len()];
+                Some(self.sound(pitches, *len, ties, *span))
             }
             Node::Chord {
                 notes,
@@ -238,18 +240,24 @@ impl Resolver<'_> {
             } => {
                 let before = self.state.reference;
                 let mut pitches = Vec::new();
+                let mut ties = Vec::new();
                 let mut first = None;
-                for (name, s) in notes {
+                for (name, s, t) in notes {
                     if let Some((p, n)) = self.pitch(name, *s) {
                         first.get_or_insert(n);
                         self.state.reference = n;
-                        if !pitches.contains(&p) {
-                            pitches.push(p);
+                        // `~` after the chord ties every note.
+                        match pitches.iter().position(|q| *q == p) {
+                            Some(k) => ties[k] |= *t || *tie,
+                            None => {
+                                pitches.push(p);
+                                ties.push(*t || *tie);
+                            }
                         }
                     }
                 }
                 self.state.reference = first.unwrap_or(before);
-                Some(self.sound(pitches, *len, *tie, *span))
+                Some(self.sound(pitches, *len, ties, *span))
             }
             Node::Rest { len, span } => {
                 if let Some(l) = len {
@@ -426,7 +434,7 @@ impl Resolver<'_> {
         &mut self,
         pitches: Vec<Pitch>,
         len: Option<Duration>,
-        tie: bool,
+        ties: Vec<bool>,
         span: SrcSpan,
     ) -> Item {
         if let Some(l) = len {
@@ -437,7 +445,7 @@ impl Resolver<'_> {
             pitches,
             len: self.state.len.ticks(),
             velocity: self.state.dynamic.velocity(),
-            tie,
+            ties,
             span,
         });
         if let Some(c) = &mut self.cresc {

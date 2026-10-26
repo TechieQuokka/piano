@@ -118,7 +118,7 @@ fn lay_item(
             let sound = &resolved.sounds[*idx];
             let mut pending = std::mem::take(&mut ctx.ties);
             let mut new_ties = Vec::new();
-            for &pitch in &sound.pitches {
+            for (&pitch, &tie) in sound.pitches.iter().zip(&sound.ties) {
                 let continued = pending
                     .iter()
                     .position(|(i, _)| track.notes[*i].pitch == pitch);
@@ -140,7 +140,7 @@ fn lay_item(
                         track.notes.len() - 1
                     }
                 };
-                if sound.tie {
+                if tie {
                     new_ties.push((note_idx, sound.span));
                 }
             }

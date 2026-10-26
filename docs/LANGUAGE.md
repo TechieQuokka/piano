@@ -94,6 +94,7 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
              The second note is not struck again.
     Bars     May cross bar lines, and go into and out of functions.
     Chords   {C E G}/2~ {C E G}/4 ties all three.
+             {C~ E G}/2 C/4 ties C alone: a ~ inside {} after a note.
     Other    Different pitch after ~ -> Warning, tie ignored.
     Example  C4 D G/2~ | G/4 F
     See      length, chord
@@ -112,6 +113,8 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     Syntax   {<notes>}/<n>                  {C E G}/2
     Meaning  Notes struck together.
     Length   Written once, after }. A length inside {} -> Warning.
+    Tie      ~ after } ties every note; ~ after a note inside ties
+             that note alone: {C3~ E4 G}/2 {C3 F4 A}/2
     Octave   Each note resolves against the previous one in the chord.
              After the chord, the reference is its first note.
     Example  {C4 E G}/2 {F A C}/2
@@ -380,7 +383,7 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
 
     note     C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [~]
     rest     r [/n [. ..]]
-    chord    { notes } [/n] [~]
+    chord    { note [~] ... } [/n] [~]
     comment  // ...
     header   tempo <bpm>   time <a>/<b>
     bar      |   %

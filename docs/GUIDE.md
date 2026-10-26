@@ -517,6 +517,8 @@ second note is not struck again. Use it for lengths that no single symbol can wr
 - A tie may cross a bar line.
 - A chord can be tied to a chord: each note of the first is joined with the same note
   in the second.
+- A `~` right after a note inside a chord ties that note alone: `{C4~ E G}/2 C` holds C
+  and lets E and G end. A `~` after `}` ties every note.
 - A different note, a rest, or the end after `~` gives a warning and the tie is ignored.
 - A tie goes on into and out of a function, e.g. `G~ tuplet(3){ G E C }`; its
   notes are matched after the function, so `up(2){ C~ } D` holds D.
@@ -536,6 +538,10 @@ C4/1~ C/4 D E F   // C lasts five beats
 
 ```piano
 {C4 E G}/2~ {C E G}/2   // the whole chord is held for four beats
+```
+
+```piano
+{C4~ E G}/2 {C F A}/2   // C is held for four beats; F and A are struck over it
 ```
 
 ```piano warning
@@ -841,7 +847,7 @@ event: all its notes start together, last the same length, and have the same vol
 
 #### Syntax
 
-`{<notes>}/<n>`: `{C E G}/2`, `{C4 E G}/2~`.
+`{<notes>}/<n>`: `{C E G}/2`, `{C4 E G}/2~`, `{C4~ E G}/2`.
 
 #### Rules
 
@@ -849,7 +855,8 @@ event: all its notes start together, last the same length, and have the same vol
   ignored.
 - Inside the braces each note is taken from the note before it, so `{C E G}` stacks
   upward. After the chord the reference is its first note.
-- Only notes may be inside: no rests, marks, or lengths.
+- Only notes may be inside: no rests, marks, or lengths. A note inside may have its own
+  `~`, which ties that note alone (`guide tie`).
 - A chord takes and passes on the length like a note.
 - The same key written twice is played once.
 
@@ -878,7 +885,8 @@ C4/8 E G C5 {C4 E G C5}/2   // broken, then struck together
 #### Common mistakes
 
 - Expecting the notes of a chord to have different lengths, for example a long bass
-  under moving notes. That is what `voices` is for.
+  under moving notes. That is what `voices` is for, or a `~` on the held note:
+  `{C3~ E4 G}/2 {C3 F4 A}/2`.
 
 #### See also
 
@@ -1776,6 +1784,7 @@ C 4 D   // Error: unexpected number, write C4
 - `:|` without `|:` repeats from the start: fine if that is what you meant.
 - `ped on` while already on (or off while off): the pedal did not change.
 - `voices` has one voice: add another `{ ... }`.
+- `~` after the chord ties every note: the `~` inside it are not needed.
 
 #### Examples
 
@@ -1799,7 +1808,7 @@ music terms used in this guide.
 ```text
 note      C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [~]
 rest      r [/n [. ..]]
-chord     { notes } [/n [. ..]] [~]
+chord     { note [~] ... } [/n [. ..]] [~]
 comment   // ...
 header    tempo <20-400>   time <beats>/<unit>
 bar       |   %

@@ -238,7 +238,11 @@ mod tests {
         assert!(text.contains("\ntime 2/4 tempo 60 voices{"), "{text}");
         // the tie to nothing is not written
         assert!(text.ends_with("{ mf C3/4 }\n"), "{text}");
-        assert!(text.contains("{ mf F3/2~ | F3/4 r }"), "{text}");
+        // one chord: only D and A go on (`~` each), F is struck again
+        assert!(
+            text.contains("{D3 F3 A3}/2~ | {D3~ F3 A3~}/4 {D3 F3 A3}"),
+            "{text}"
+        );
         // C C | D F A d | e (F) f | C c: D and A held over the bar, F struck again
         assert_eq!(i.check.expected, 2 + 4 + 3 + 2);
     }
