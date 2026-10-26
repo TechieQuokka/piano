@@ -3,6 +3,10 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.40.1
+- Fix (docs): the guide said only how alerts look in the editor; it now also shows the
+  terminal form `⚠ p2 line 3: ...` (since 1.35.0).
+
 ## 1.40.0
 - `piano import` writes one block per bar: a tie over a bar line goes into the next
   block (1.38.0) instead of joining the bars into one block. Bars are joined only

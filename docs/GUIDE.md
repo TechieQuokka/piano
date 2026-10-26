@@ -1605,7 +1605,8 @@ and called as often as needed.
   dynamic, and octave reference, and a pedal left on is released at its end.
 - The same piece may appear any number of times.
 - An unknown piece is an error; the rest still plays. Alerts from inside a piece show
-  as `[p2 line 3] ...` on the song line.
+  as `[p2 line 3] ...` on the song line. In the terminal (`piano play`, `export`,
+  `import`) they name the piece instead: `⚠ p2 line 3: ...`.
 - The song file is `song.piano`, or the `entry` set in `piano.toml`.
 
 #### Examples
@@ -1718,6 +1719,8 @@ can be played is played. This chapter lists them with their causes and fixes.
 - The Output view lists them with line numbers (`output`).
 - The Code gutter marks each line with its most severe alert.
 - They update while you type.
+- In the terminal (`piano play`, `export`, `import`) each alert names its file and
+  line: `⚠ p2 line 3: ...`.
 
 #### Examples
 
