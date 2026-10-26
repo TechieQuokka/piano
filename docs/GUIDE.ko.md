@@ -1617,7 +1617,7 @@ C4 F#   // Warning: line 1: C4 → F# is ambiguous (6 semitones)
 - unknown symbol: 언어에 없는 문자. 예: `$`, 혼자 쓴 `#`, 길이 없는 점(`C.`).
 - unexpected number: 음과 옥타브 사이의 공백(`C 4`). `C4`로 쓰세요.
 - length without a note: 앞에 음이 없는 `/8`.
-- invalid length: `/3`, `/6`, ... 1 2 4 8 16 32 64만 됩니다. 셋잇단음표는
+- invalid length: `/3`, `/6`, ... 1 2 4 8 16 32 64 128만 됩니다. 셋잇단음표는
   `tuplet`으로 씁니다.
 
 #### Headers and pedals
