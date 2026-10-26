@@ -381,7 +381,7 @@ voices{ p r/2. G#4/8. G#4/16 }                       // melody
 | Bars | Bar lines inside a voice continue the current bar; bars after the block follow the first voice |
 | Length | Different voice lengths → Warning; the block lasts as long as the longest voice |
 | Header | `tempo` / `time` in any voice apply to every voice from that point and after the block; voices that differ at the same point → Warning, the first voice's is used |
-| Ties | A tie does not cross the block boundary (Warning) |
+| Ties | A tie goes in (the first voice starting with that note) and out (from a note ending with the block); otherwise Warning |
 | Chord after | A `{ }` right after the block is another voice, unless a length or `~` follows its `}` |
 
 The syntax extends the function form (`name{ ... }`) instead of adding symbols; line
@@ -1222,3 +1222,7 @@ stopped at `voices`. Fixed in order:
   time, and short bars back after it (`Ctx::rejoin`, with the block's times mapped).
   `seq` lays its body out again for each further pass only to move the bars on (alerts
   of those passes are kept only if new). Voices use the same two calls.
+- 1.38.0: ties go into and out of `voices`. Ties waiting before the block join the
+  notes that start it, the first voice first (`tie_into`, shared with functions); a
+  voice's ties left at its end go on after the block if the note ends with the block
+  (one per key; others warn).

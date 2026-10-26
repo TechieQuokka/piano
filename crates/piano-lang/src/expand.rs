@@ -381,46 +381,18 @@ fn lay_item(
             }
             let base = track.notes.len();
             track.append(out, now);
-            let mut leaving: Vec<(usize, SrcSpan)> = std::mem::take(&mut sub.ties)
+            let leaving: Vec<(usize, SrcSpan)> = std::mem::take(&mut sub.ties)
                 .into_iter()
                 .map(|(i, span)| (base + offset + i, span))
                 .collect();
-            // Ties into the body continue on its first notes.
-            let mut removed = Vec::new();
-            for (p, span) in std::mem::take(&mut ctx.ties) {
-                let pitch = track.notes[p].pitch;
-                let q = (base..track.notes.len()).find(|&q| {
-                    let n = &track.notes[q];
-                    n.start == now && n.pitch == pitch && !removed.contains(&q)
-                });
-                let Some(q) = q else {
-                    alerts.push(Alert::warning(
-                        span,
-                        "tie `~` is not followed by the same note, ignored",
-                    ));
-                    continue;
-                };
-                let end = track.notes[q].start + track.notes[q].len;
-                track.notes[p].len = end - track.notes[p].start;
-                for l in &mut leaving {
-                    if l.0 == q {
-                        l.0 = p;
-                    }
-                }
-                removed.push(q);
-            }
-            removed.sort_unstable();
-            for &q in removed.iter().rev() {
-                track.notes.remove(q);
-            }
-            for l in &mut leaving {
-                l.0 -= removed.iter().filter(|&&q| q < l.0).count();
-            }
-            ctx.ties = leaving;
+            let into = std::mem::take(&mut ctx.ties);
+            ctx.ties = tie_into(track, into, base, now, leaving, alerts);
             ctx.rejoin(&mut sub, now, |t| t * squeeze.0 / squeeze.1);
         }
         Item::Voices { voices, span } => {
-            ctx.flush_ties(alerts);
+            // Ties go on into the block (in the first voice with the note) and out of
+            // it (from a note that ends with the block).
+            let into = std::mem::take(&mut ctx.ties);
             // `time` in any voice applies to all of them: lay the voices out once to
             // find the changes, then again following them.
             let mut first = Vec::new();
@@ -493,9 +465,27 @@ fn lay_item(
                     .with_fix("(the longest one is used)"),
                 );
             }
-            for t in tracks {
+            let end = lens.iter().copied().max().unwrap_or(0);
+            let mut leaving: Vec<(usize, SrcSpan)> = Vec::new();
+            let mut pitches = Vec::new();
+            let base = track.notes.len();
+            for (t, v) in tracks.into_iter().zip(&mut ctxs) {
+                let first = track.notes.len();
+                for (i, span) in v.ties.drain(..) {
+                    let n = &t.notes[i];
+                    if n.start + n.len == end && !pitches.contains(&n.pitch) {
+                        pitches.push(n.pitch);
+                        leaving.push((first + i, span));
+                    } else {
+                        alerts.push(Alert::warning(
+                            span,
+                            "tie `~` is not followed by the same note, ignored",
+                        ));
+                    }
+                }
                 track.append(t, now);
             }
+            ctx.ties = tie_into(track, into, base, now, leaving, alerts);
         }
         Item::Group(items) => lay_seq(items, resolved, ctx, track, alerts),
         Item::Free(items) => {
@@ -555,9 +545,53 @@ fn voice_track(
     ctx.schedule = schedule.map(<[_]>::to_vec);
     let mut track = Track::default();
     lay_seq(items, resolved, &mut ctx, &mut track, alerts);
-    ctx.flush_ties(alerts);
+    // Ties left at the end go on after the block, if the note ends with it.
     ctx.settle(track.len, alerts);
     (track, ctx)
+}
+
+/// Joins the notes tied into a block (`into`, notes before `base`) with the notes
+/// that start the block at `now`, in order (the first voice first). `leaving` are the
+/// block's notes tied out of it; returns them with their indexes after the joins.
+fn tie_into(
+    track: &mut Track,
+    into: Vec<(usize, SrcSpan)>,
+    base: usize,
+    now: Tick,
+    mut leaving: Vec<(usize, SrcSpan)>,
+    alerts: &mut Vec<Alert>,
+) -> Vec<(usize, SrcSpan)> {
+    let mut removed = Vec::new();
+    for (p, span) in into {
+        let pitch = track.notes[p].pitch;
+        let q = (base..track.notes.len()).find(|&q| {
+            let n = &track.notes[q];
+            n.start == now && n.pitch == pitch && !removed.contains(&q)
+        });
+        let Some(q) = q else {
+            alerts.push(Alert::warning(
+                span,
+                "tie `~` is not followed by the same note, ignored",
+            ));
+            continue;
+        };
+        let end = track.notes[q].start + track.notes[q].len;
+        track.notes[p].len = end - track.notes[p].start;
+        for l in &mut leaving {
+            if l.0 == q {
+                l.0 = p;
+            }
+        }
+        removed.push(q);
+    }
+    removed.sort_unstable();
+    for &q in removed.iter().rev() {
+        track.notes.remove(q);
+    }
+    for l in &mut leaving {
+        l.0 -= removed.iter().filter(|&&q| q < l.0).count();
+    }
+    leaving
 }
 
 /// The power of two that `tuplet(n)` plays its notes in the time of.

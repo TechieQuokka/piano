@@ -3,6 +3,11 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.38.0
+- Language: ties go into and out of `voices`. A note tied before the block is held
+  by the first voice that starts with it; a voice's note that ends with the block can
+  be tied to the note after it, or into the next block. Ties still stop at repeats.
+
 ## 1.37.0
 - Language: bar lines inside a function continue the bar around it, counted in the
   time the notes are heard (squeezed by `tuplet`, through every pass of `seq`).

@@ -522,7 +522,9 @@ second note is not struck again. Use it for lengths that no single symbol can wr
 - A different note, a rest, or the end after `~` gives a warning and the tie is ignored.
 - A tie goes on into and out of a function, e.g. `G~ tuplet(3){ G E C }`; its
   notes are matched after the function, so `up(2){ C~ } D` holds D.
-- A tie does not reach into or out of a repeat or `voices`.
+- A tie goes into a `voices` block, held by the first voice that starts with the same
+  note, and out of it, from a note that ends where the block ends.
+- A tie does not reach into or out of a repeat.
 - There is no slur (legato between different notes); the damper pedal is the way to
   connect notes (`guide pedal`).
 
@@ -934,6 +936,9 @@ together and are joined at the end.
 - A `{ }` right after the block is another voice, unless a length or `~` follows it:
   then it is a chord.
 - Anything can be inside a voice: chords, functions, repeats.
+- A tie goes on into the block, in the first voice that starts with the same note, and
+  out of it from a note that ends with the block, so a note can be held from one block
+  to the next (`guide tie`).
 
 #### Examples
 
@@ -956,6 +961,11 @@ voices{ E4/2 }{ C4/2 } {C4 E G}/2   // the last { } has a length: a chord
 ```piano
 | time 2/4 voices{ G4/4 A~ | time 3/4 A/4 B C5 }{ C3/2 | E3/2. } |
 // the right hand holds A over the change; the 3/4 applies to both voices
+```
+
+```piano
+| voices{ E4/2 G~ }{ C3/1~ } | voices{ G4/2 F }{ C3/1 } |
+// the bass C3 and the G are held over the bar line, into the next block
 ```
 
 ```piano warning

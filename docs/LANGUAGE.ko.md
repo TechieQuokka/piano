@@ -91,7 +91,8 @@ only descriptions are Korean.
     Syntax   <note>~ <same note>            G/2~ G/4
     Meaning  같은 높이의 두 음을 하나의 긴 음으로 이음.
              두 번째 음은 다시 치지 않음.
-    Bars     마디줄을 넘어도 되고, 함수 안팎으로도 이어짐.
+    Bars     마디줄을 넘어도 되고, 함수와 voices 안팎으로도 이어짐
+             (반복은 안 됨).
     Chords   {C E G}/2~ {C E G}/4 는 세 음을 모두 이음.
              {C~ E G}/2 C/4 는 C만 이음: {} 안의 음 뒤에 붙인 ~.
     Other    ~ 뒤가 다른 음이면 Warning, 붙임줄은 무시됨.
@@ -195,6 +196,8 @@ only descriptions are Korean.
     Pedals   피아노 전체가 공유: 어느 성부의 페달이든 모든 성부에
              적용되고, 블록 뒤에도 그대로 유지됨.
     Bars     성부 안의 마디줄은 현재 마디에 이어서 셈.
+    Ties     붙임줄은 안으로(그 음으로 시작하는 첫 성부), 밖으로(블록
+             끝에 함께 끝나는 음에서) 이어짐.
     Length   성부 길이가 다르면 Warning. 블록 길이는 가장 긴 성부.
     Header   어느 성부의 tempo, time이든 그 위치부터 모든 성부에,
              블록 뒤에도 적용됨. 같은 위치에서 성부끼리 다르면

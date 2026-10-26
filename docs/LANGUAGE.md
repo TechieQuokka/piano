@@ -92,7 +92,8 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     Syntax   <note>~ <same note>            G/2~ G/4
     Meaning  Joins two notes of the same pitch into one long note.
              The second note is not struck again.
-    Bars     May cross bar lines, and go into and out of functions.
+    Bars     May cross bar lines, go into and out of functions and
+             voices (not repeats).
     Chords   {C E G}/2~ {C E G}/4 ties all three.
              {C~ E G}/2 C/4 ties C alone: a ~ inside {} after a note.
     Other    Different pitch after ~ -> Warning, tie ignored.
@@ -197,6 +198,8 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     Pedals   Shared by the whole piano: a pedal in any voice acts on
              every voice, and stays as set after the block.
     Bars     Bar lines inside a voice continue the current bar.
+    Ties     A tie goes in (first voice starting with that note) and
+             out (from a note ending with the block).
     Length   Voices of different lengths -> Warning; the block lasts
              as long as the longest voice.
     Header   tempo and time in any voice apply to every voice from

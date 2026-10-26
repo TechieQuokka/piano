@@ -373,3 +373,21 @@ fn bar_lines_inside_functions_continue_the_bar() {
     assert_eq!(c.alerts.len(), 1, "{:?}", c.alerts);
     assert!(c.alerts[0].message.contains("bar has 3 beats"));
 }
+
+#[test]
+fn ties_go_into_and_out_of_voices() {
+    let c = clean("C4/2~ voices{ C/2 }{ E3/2 }");
+    assert_eq!(notes(&c), "C4@0+8 E3@4+4");
+    let c = clean("voices{ C4/2~ }{ E3/2 } C/2");
+    assert_eq!(notes(&c), "E3@0+4 C4@0+8");
+    // from block to block, as the bars go
+    let c = clean("| voices{ C4/1~ }{ E3/1 } | voices{ C4/2 }{ G3/2 } |");
+    assert_eq!(notes(&c), "E3@0+8 C4@0+12 G3@8+4");
+    // the first voice with the note takes the tie
+    let c = clean("C4/2~ voices{ C/2 }{ C/2 }");
+    assert_eq!(notes(&c), "C4@0+8 C4@4+4");
+    // a voice that ends before the block cannot tie out of it
+    let c = compile_piece("voices{ C4/4~ }{ E3/2 } C/2");
+    assert_eq!(c.alerts.len(), 2, "{:?}", c.alerts);
+    assert!(c.alerts.iter().any(|a| a.message.contains("not followed")));
+}
