@@ -1062,8 +1062,9 @@ overwritten.
   Rests are split into plain and tuplet parts.
 - **Approximations**: grace notes are 64ths just before their note; trills
   alternate with the upper neighbor (key or marked accidental) in 32nds; arpeggios
-  are struck together; wedges step through the dynamic levels toward the next mark;
-  rubato becomes one tempo per block (harmonic mean, so durations are kept). Before
+  are struck together; wedges become `cresc` / `dim` from the level reached so far
+  to the mark at their end, or one level on (a swell `<` `>` returns to its level;
+  1.29.1); rubato becomes one tempo per block (harmonic mean, so durations are kept). Before
   the first mark the level is mf, like the language and MuseScore.
 - **Check** (`check.rs`): the song is compiled and its notes (start, pitch, length)
   compared with the model; mismatches and alerts are reported and make the command

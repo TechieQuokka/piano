@@ -3,6 +3,14 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.29.1
+- Fix (import): hairpins were written as a dynamic mark on each note, a whole level
+  at a time, and a diminuendo started from the last written mark instead of the top
+  of the crescendo before it, so a swell (`p < >`) fell below where it began
+  (`p mp p pp p`; a single note dropped to half the velocity). Hairpins are now
+  written as `cresc` / `dim` to the level they end on, so the language ramps the
+  velocity note by note, and a swell returns to its level.
+
 ## 1.29.0
 - `piano import` reads Humdrum `**kern` scores (`.krn`, e.g. from kern.humdrum.org)
   as well as MusicXML: staves, split voices, chords, tuplets, ties, grace notes,

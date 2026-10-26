@@ -5,7 +5,8 @@
 //! - Each MusicXML voice is a voice; notes that overlap inside one voice go to an
 //!   extra voice. Pedals and grace notes get voices of their own.
 //! - Rubato becomes one `tempo` per block: the harmonic mean, so time is kept.
-//! - Dynamics follow the marks of each staff; wedges step through the levels.
+//! - Dynamics follow the marks of each staff; wedges become `cresc` / `dim` to
+//!   the level they end on (a swell goes back to where it started).
 
 use std::collections::BTreeMap;
 
@@ -133,6 +134,110 @@ impl Ev {
     fn end(&self) -> Q {
         self.start + self.len
     }
+}
+
+/// A piece of a staff's dynamics curve: `level` from `at`, moving in a straight
+/// line to the ramp's level by its end (a cresc or dim).
+#[derive(Debug, Clone, Copy)]
+struct Seg {
+    at: Q,
+    level: usize,
+    ramp: Option<(Q, usize)>,
+}
+
+impl Seg {
+    fn level_at(&self, t: Q) -> usize {
+        match self.ramp {
+            Some((end, target)) if t < end => {
+                let f = ((t - self.at) / (end - self.at)).to_f64();
+                (self.level as f64 + (target as f64 - self.level as f64) * f).round() as usize
+            }
+            Some((_, target)) => target,
+            None => self.level,
+        }
+    }
+}
+
+/// The dynamics curve of each staff. A wedge starts from the level reached so
+/// far (the top of a swell, not the last mark) and ends on the mark written at
+/// its end, or one level further.
+fn curves(model: &Model) -> BTreeMap<StaffId, Vec<Seg>> {
+    // At one time: a wedge ends, then a mark, then a wedge starts.
+    #[derive(Clone, Copy)]
+    enum Mark {
+        Stop,
+        Level(usize),
+        Start(Wedge),
+    }
+    let mut staves: BTreeMap<StaffId, Vec<(Q, u8, Mark)>> = BTreeMap::new();
+    for &(at, s, l) in &model.dynamics {
+        staves.entry(s).or_default().push((at, 1, Mark::Level(l)));
+    }
+    for &(at, s, w) in &model.wedges {
+        let m = match w {
+            Wedge::Stop => (at, 0, Mark::Stop),
+            _ => (at, 2, Mark::Start(w)),
+        };
+        staves.entry(s).or_default().push(m);
+    }
+    let bar = model.measures.first().map_or(Q::int(4), |m| m.len);
+    let mut out = BTreeMap::new();
+    for (staff, mut marks) in staves {
+        marks.sort_by_key(|m| (m.0, m.1));
+        let mut segs = Vec::new();
+        let mut cur = DEFAULT_LEVEL;
+        let mut open: Option<(Q, Wedge)> = None;
+        for (i, &(at, _, mark)) in marks.iter().enumerate() {
+            // A wedge ends at its stop, a mark, or the next wedge.
+            if let Some((from, kind)) = open.take() {
+                let written = match mark {
+                    Mark::Level(l) => Some(l),
+                    // The mark just after the stop, if no wedge comes first.
+                    Mark::Stop => marks[i + 1..]
+                        .iter()
+                        .take_while(|m| m.0 <= at + bar && !matches!(m.2, Mark::Start(_)))
+                        .find_map(|m| match m.2 {
+                            Mark::Level(l) => Some(l),
+                            _ => None,
+                        }),
+                    Mark::Start(_) => None,
+                };
+                let up = kind == Wedge::Cresc;
+                let target = match written {
+                    Some(l) if (l > cur) == up && l != cur => l,
+                    _ if up => (cur + 1).min(7),
+                    _ => cur.saturating_sub(1),
+                };
+                if target != cur && at > from {
+                    segs.push(Seg {
+                        at: from,
+                        level: cur,
+                        ramp: Some((at, target)),
+                    });
+                    cur = target;
+                    segs.push(Seg {
+                        at,
+                        level: cur,
+                        ramp: None,
+                    });
+                }
+            }
+            match mark {
+                Mark::Level(l) => {
+                    cur = l;
+                    segs.push(Seg {
+                        at,
+                        level: l,
+                        ramp: None,
+                    });
+                }
+                Mark::Start(w) => open = Some((at, w)),
+                Mark::Stop => {}
+            }
+        }
+        out.insert(staff, segs);
+    }
+    out
 }
 
 /// A voice of the output: a MusicXML voice, an extra lane of it, or the grace voice.
@@ -264,6 +369,7 @@ pub struct Written {
 struct Ctx<'a> {
     model: &'a Model,
     lanes: BTreeMap<Lane, Vec<Ev>>,
+    curves: BTreeMap<StaffId, Vec<Seg>>,
     starts: Vec<Q>,
     /// (time, text) with the pedal state machine applied.
     pedals: Vec<(Q, &'static str)>,
@@ -292,6 +398,7 @@ pub fn write(model: &Model, source: &str) -> Result<Written, ImportError> {
     let ctx = Ctx {
         model,
         lanes,
+        curves: curves(model),
         starts,
         pedals,
     };
@@ -394,49 +501,17 @@ impl Ctx<'_> {
         ((b - a).to_f64() / secs).round().clamp(20.0, 400.0) as u32
     }
 
-    fn level(&self, staff: StaffId, t: Q) -> usize {
-        let marks = &self.model.dynamics;
-        let mut lvl = DEFAULT_LEVEL;
-        for &(at, s, l) in marks {
-            if s == staff && at <= t {
-                lvl = l;
-            }
-        }
-        let mut open: Option<(Q, Wedge)> = None;
-        for &(at, s, w) in &self.model.wedges {
-            if s != staff {
-                continue;
-            }
-            match w {
-                Wedge::Cresc | Wedge::Dim => open = Some((at, w)),
-                Wedge::Stop => {
-                    if let Some((from, kind)) = open.take()
-                        && from <= t
-                        && t < at
-                    {
-                        let bar = self.model.measures.first().map_or(Q::int(4), |m| m.len);
-                        let target = marks
-                            .iter()
-                            .find(|&&(x, s2, _)| s2 == staff && at <= x && x <= at + bar)
-                            .map_or_else(
-                                || {
-                                    if kind == Wedge::Cresc {
-                                        lvl as i64 + 1
-                                    } else {
-                                        lvl as i64 - 1
-                                    }
-                                },
-                                |m| m.2 as i64,
-                            )
-                            .clamp(0, 7);
-                        let f = (t - from) / (at - from);
-                        let v = Q::int(lvl as i64) + Q::int(target - lvl as i64) * f;
-                        return (v.to_f64().round() as i64).clamp(0, 7) as usize;
-                    }
-                }
-            }
-        }
-        lvl
+    /// The piece of the dynamics curve of `staff` that holds at `t`.
+    fn seg(&self, staff: StaffId, t: Q) -> Seg {
+        self.curves
+            .get(&staff)
+            .and_then(|c| c.iter().rfind(|s| s.at <= t))
+            .copied()
+            .unwrap_or(Seg {
+                at: Q::ZERO,
+                level: DEFAULT_LEVEL,
+                ramp: None,
+            })
     }
 
     fn measure_at(&self, t: Q) -> usize {
@@ -634,16 +709,37 @@ impl Ctx<'_> {
         let mut items = Vec::new();
         let mut cur = a;
         let mut lvl = None;
+        // An open cresc/dim: (start of its wedge, level it ends on).
+        let mut open: Option<(Q, usize)> = None;
         for e in evs {
             self.rests(&mut items, cur, e.start)?;
             if e.start > a {
                 self.bar_line(&mut items, e.start);
             }
-            let want = self.level(e.staff, e.start);
+            let seg = self.seg(e.staff, e.start);
+            let ramp = seg.ramp.filter(|r| e.start < r.0);
             let mut text = String::new();
-            if lvl != Some(want) {
-                text = format!("{} ", LEVELS[want]);
-                lvl = Some(want);
+            if let Some((from, target)) = open
+                && (ramp.is_none() || seg.at != from)
+            {
+                text += &format!("{} ", LEVELS[target]);
+                lvl = Some(target);
+                open = None;
+            }
+            if open.is_none() {
+                let now = seg.level_at(e.start);
+                if lvl != Some(now) {
+                    text += &format!("{} ", LEVELS[now]);
+                    lvl = Some(now);
+                }
+                if let Some((end, _)) = ramp {
+                    // Ends inside the block, or on the level reached at its end.
+                    let target = seg.level_at(end.min(b));
+                    if target != now {
+                        text += if target > now { "cresc " } else { "dim " };
+                        open = Some((seg.at, target));
+                    }
+                }
             }
             if e.notes.len() == 1 {
                 text += &e.notes[0].1;
@@ -665,6 +761,9 @@ impl Ctx<'_> {
                 if e.tie { "~".into() } else { String::new() },
             ));
             cur = e.end();
+        }
+        if let Some((_, target)) = open {
+            items.push(Item::Raw(LEVELS[target].to_string()));
         }
         self.rests(&mut items, cur, b)?;
         Ok(emit(&items))
@@ -786,6 +885,34 @@ mod tests {
         assert_eq!(note_length(Q::new(1, 6)), Some((Q::new(1, 4), Some(3))));
         // 5 thirty-seconds in the time of 6: dotted 32nds in tuplet(5)
         assert_eq!(note_length(Q::new(3, 20)), Some((Q::new(3, 16), Some(5))));
+    }
+
+    #[test]
+    fn a_swell_goes_back_to_its_level() {
+        let s = (0, 1);
+        let model = Model {
+            dynamics: vec![(Q::ZERO, s, 2)],
+            wedges: vec![
+                (Q::int(1), s, Wedge::Cresc),
+                (Q::int(2), s, Wedge::Stop),
+                (Q::int(2), s, Wedge::Dim),
+                (Q::int(3), s, Wedge::Stop),
+            ],
+            ..Model::default()
+        };
+        let c = &curves(&model)[&s];
+        let at = |t: Q| c.iter().rfind(|g| g.at <= t).unwrap().level_at(t);
+        // p, up to mp, back to p (not down to pp)
+        assert_eq!(at(Q::new(1, 2)), 2);
+        assert_eq!(at(Q::int(2)), 3);
+        assert_eq!(at(Q::new(5, 2)), 3);
+        assert_eq!(at(Q::int(3)), 2);
+        // a written mark at the end is the target
+        let mut model = model;
+        model.wedges.truncate(2);
+        model.dynamics.push((Q::int(2), s, 5));
+        let c = &curves(&model)[&s];
+        assert_eq!(c[1].ramp, Some((Q::int(2), 5)));
     }
 
     #[test]
