@@ -285,7 +285,7 @@ fn a_free_bar_has_any_length() {
     let c = clean("| C4 D E F | free{ G/8 A B C D E F G A B C D } | C4/1 |");
     assert_eq!(c.score.notes.len(), 17);
     assert_eq!(c.score.notes.last().unwrap().start, 10 * TICKS_PER_QUARTER);
-    let c = compile_piece("| free{ C4/1 D/2 } | E/4 F G |");
+    let c = compile_piece("| free{ C4/1 D/2 } | E/4 F G | A/1 |");
     assert_eq!(c.alerts.len(), 1, "{:?}", c.alerts);
     assert!(c.alerts[0].message.contains("bar has 3 beats"));
 }
@@ -343,4 +343,21 @@ fn time_inside_functions_and_repeats_goes_on_after_them() {
     clean("| C4 D E F |: time 3/4 C D E :| F G A | B C D |");
     clean("| C4 D E F | up(2){ time 3/4 C D E } | F G A |");
     clean("| C4 D E F |: G A B C [1 time 3/4 D E F :| [2 time 2/4 G A | B C |");
+}
+
+#[test]
+fn the_last_bar_may_be_short() {
+    clean("G4 | C5 C C D | E/2 C/4 |");
+    clean("| C4 D E F | G A |");
+    clean("ped on | C4 D E F | G A | ped off");
+    clean("| voices{ C4/1 }{ C3/1 } | voices{ D4/2 }{ D3/2 } |");
+    let warns = |src: &str| {
+        let c = compile_piece(src);
+        assert_eq!(c.alerts.len(), 1, "{src}: {:?}", c.alerts);
+        assert!(c.alerts[0].message.contains("bar has"), "{src}");
+    };
+    warns("| C4 D E F | G A | B C D E |"); // short in the middle
+    warns("| C4 D E F | G A | r"); // something after it
+    warns("| C4 D E F | G A B C D |"); // longer is never fine
+    warns("| voices{ C4/1 }{ C3/1 } | voices{ D4/2 }{ D3/2 } | E4/1 |");
 }

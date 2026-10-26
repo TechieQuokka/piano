@@ -45,6 +45,8 @@ pub fn layout(resolved: &Resolved, time: TimeSig, alerts: &mut Vec<Alert>) -> Tr
     let mut track = Track::default();
     lay_seq(&resolved.items, resolved, &mut ctx, &mut track, alerts);
     ctx.flush_ties(alerts);
+    // A short bar with nothing after it is the last bar: it may be short.
+    ctx.settle(track.len, alerts);
     track
 }
 
@@ -62,6 +64,9 @@ struct Ctx {
     schedule: Option<Vec<(Tick, TimeSig)>>,
     /// Notes waiting for a tie continuation: (note index, span of the tied sound).
     ties: Vec<(usize, SrcSpan)>,
+    /// Bars shorter than the time signature, by the time they end: a warning once
+    /// anything takes time after them (the last bar may be short).
+    short: Vec<(Tick, Alert)>,
 }
 
 impl Ctx {
@@ -75,7 +80,15 @@ impl Ctx {
             free: false,
             schedule: None,
             ties: Vec::new(),
+            short: Vec::new(),
         }
+    }
+
+    /// Warns about the short bars that end before `now`.
+    fn settle(&mut self, now: Tick, alerts: &mut Vec<Alert>) {
+        let (late, keep): (Vec<_>, Vec<_>) = self.short.drain(..).partition(|s| s.0 < now);
+        alerts.extend(late.into_iter().map(|s| s.1));
+        self.short = keep;
     }
 
     /// Takes the block's time changes before `now`, or at `now` too with `at`.
@@ -123,6 +136,8 @@ fn sub_track(
     let mut track = Track::default();
     lay_seq(items, resolved, &mut ctx, &mut track, alerts);
     ctx.flush_ties(alerts);
+    // The music goes on after a repeat's pass: its bars are not the last.
+    alerts.extend(ctx.short.drain(..).map(|s| s.1));
     (track, ctx.time)
 }
 
@@ -135,6 +150,7 @@ fn lay_item(
 ) {
     let now = track.len;
     ctx.follow(now, false);
+    ctx.settle(now, alerts);
     match item {
         Item::Sound(idx) => {
             let sound = &resolved.sounds[*idx];
@@ -197,18 +213,21 @@ fn lay_item(
                 len > expected
             };
             if check && len > 0 && !ctx.free {
-                alerts.push(
-                    Alert::warning(
-                        *span,
-                        format!(
-                            "bar has {} beats, {} expects {}",
-                            beats(len, ctx.time),
-                            ctx.time,
-                            ctx.time.beats
-                        ),
-                    )
-                    .with_fix("(bar lines are optional)"),
-                );
+                let alert = Alert::warning(
+                    *span,
+                    format!(
+                        "bar has {} beats, {} expects {}",
+                        beats(len, ctx.time),
+                        ctx.time,
+                        ctx.time.beats
+                    ),
+                )
+                .with_fix("(bar lines are optional)");
+                if len < expected {
+                    ctx.short.push((now, alert));
+                } else {
+                    alerts.push(alert);
+                }
             }
             ctx.bar_prev = ctx.bar_cur;
             ctx.bar_cur = now;
@@ -287,6 +306,7 @@ fn lay_item(
             let mut sub = Ctx::new(ctx.time);
             let mut body_track = Track::default();
             lay_seq(body, resolved, &mut sub, &mut body_track, alerts);
+            alerts.extend(sub.short.drain(..).map(|s| s.1));
             let count = body_track.notes.len();
             let out = builtin.apply(body_track, alerts);
             // A function that repeats its body (`seq`) ties out of its last pass.
@@ -398,6 +418,10 @@ fn lay_item(
             }
             // A `free` block in any voice frees the bar the block ends in.
             ctx.free = ctxs.iter().any(|v| v.free);
+            for v in &mut ctxs {
+                ctx.short
+                    .extend(v.short.drain(..).map(|(at, a)| (now + at, a)));
+            }
             let lens: Vec<Tick> = tracks.iter().map(|t| t.len).collect();
             if lens.iter().any(|&l| l != lens[0]) {
                 let beats: Vec<String> = lens.iter().map(|&l| beats(l, ctx.time)).collect();
@@ -475,6 +499,7 @@ fn voice_track(
     let mut track = Track::default();
     lay_seq(items, resolved, &mut ctx, &mut track, alerts);
     ctx.flush_ties(alerts);
+    ctx.settle(track.len, alerts);
     (track, ctx)
 }
 

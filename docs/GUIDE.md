@@ -656,6 +656,11 @@ if a bar does not add up to the time signature, you get a warning.
   a warning.
 - The first bar may be shorter: a pickup (upbeat) before the first full bar. It may not
   be longer.
+- The last bar may be shorter too: the bar the final `|` closes, when nothing that
+  takes time comes after it. With a pickup it usually makes up the rest of a bar. It
+  may not be longer.
+- Only bars closed by `|` are checked: what comes after the last `|` is never compared
+  with the time signature.
 - A `|` at the very start of a piece is fine, but then the next bar counts as a full
   bar, not a pickup.
 - `%` needs bar lines to know what the previous bar was.
@@ -670,6 +675,10 @@ if a bar does not add up to the time signature, you get a warning.
 
 ```piano
 G4 | C5 C C D | E/2 C/2 |   // pickup: one beat before the first bar
+```
+
+```piano
+G4 | C5 C C D | E/2 C/4 |   // the last bar is one beat short: it completes the pickup
 ```
 
 ```piano warning

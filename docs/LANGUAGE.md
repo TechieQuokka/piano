@@ -148,7 +148,9 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     Syntax   |                              | C D E F |
     Meaning  Bar line. Optional.
     Check    A bar whose length differs from the time signature -> Warning.
-             A short first bar (pickup) is fine.
+             A short first bar (pickup) is fine, and so is a short last
+             bar (closed by the final |, nothing after it). Only bars
+             closed by | are checked.
              A bar that holds a free block is not checked.
     Example  | C4 D E F | G A B C |
     See      time, bar-repeat, free

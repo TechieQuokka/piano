@@ -288,8 +288,12 @@ fn move_tied(
 
 /// A bar shorter than its time signature (an upbeat, or the bar that ends it).
 fn short(m: &crate::musicxml::Measure) -> bool {
-    let (beats, unit) = m.sig;
-    m.len < Q::new(4 * i64::from(beats), i64::from(unit))
+    m.len < full(m.sig)
+}
+
+/// Length of a bar of `sig`, in quarters.
+fn full((beats, unit): (u32, u32)) -> Q {
+    Q::new(4 * i64::from(beats), i64::from(unit))
 }
 
 /// A voice of the output: a MusicXML voice, an extra lane of it, or the grace voice.
@@ -699,6 +703,16 @@ impl Ctx<'_> {
             String::new(),
         ];
         let (mut last_tempo, mut last_sig, mut tempos) = (None, None, 0);
+        // The signature to write for measure `i`. A short last bar keeps the one
+        // before it (the language lets the last bar be short), if that one is long
+        // enough for it.
+        let sig_of = |i: usize, before: Option<(u32, u32)>| {
+            let m = &ms[i];
+            match before {
+                Some(s) if i == last && i != first && short(m) && m.len <= full(s) => s,
+                _ => self.signature(i),
+            }
+        };
         for w in points.windows(2) {
             let (a, b) = (w[0], w[1]);
             let mut head = String::new();
@@ -709,7 +723,7 @@ impl Ctx<'_> {
                 let sig = if upbeat {
                     ms[first].sig
                 } else {
-                    self.signature(self.measure_at(a))
+                    sig_of(self.measure_at(a), last_sig)
                 };
                 if last_sig != Some(sig) {
                     head += &format!("time {}/{} ", sig.0, sig.1);
@@ -767,7 +781,7 @@ impl Ctx<'_> {
             // Changes at the bars inside the block go after the bar line of the first
             // voice that has one; they apply to every voice.
             for t in self.starts.iter().copied().filter(|&t| a < t && t < b) {
-                let sig = self.signature(self.measure_at(t));
+                let sig = sig_of(self.measure_at(t), last_sig);
                 let tempo = self.mean_tempo(t, bar_end(t));
                 let mut marks = Vec::new();
                 if last_sig != Some(sig) {
@@ -799,12 +813,7 @@ impl Ctx<'_> {
             } else {
                 ""
             };
-            // A short last bar has no bar line after it, so it is not checked.
-            let closes = if self.starts.contains(&b) && !(b == hi && short(&ms[last])) {
-                " |"
-            } else {
-                ""
-            };
+            let closes = if self.starts.contains(&b) { " |" } else { "" };
             let label = self.label(a, b);
             if texts.len() == 1 {
                 lines.push(format!("{opens}{head}{}{closes}  // {label}", texts[0]));

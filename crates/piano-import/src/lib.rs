@@ -259,8 +259,9 @@ mod tests {
         assert!(i.check.ok(), "{:?}\n{text}", i.check);
         // the upbeat: the piece's signature, no bar line before it
         assert!(text.contains("\ntime 2/4 tempo 60 voices{"), "{text}");
-        // the tie to nothing is not written
-        assert!(text.ends_with("{ mf C3/4 }\n"), "{text}");
+        // the tie to nothing is not written; the short last bar keeps 2/4, closed
+        assert!(text.ends_with("{ mf C3/4 } |\n"), "{text}");
+        assert!(!text.contains("time 1/4"), "{text}");
         // one chord: only D and A go on (`~` each), F is struck again
         assert!(
             text.contains("{D3 F3 A3}/2~ | {D3~ F3 A3~}/4 {D3 F3 A3}"),

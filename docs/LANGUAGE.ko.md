@@ -147,7 +147,8 @@ only descriptions are Korean.
     Syntax   |                              | C D E F |
     Meaning  마디줄. 선택 사항.
     Check    마디 길이가 박자와 다르면 Warning.
-             첫 마디가 짧은 것(못갖춘마디)은 괜찮음.
+             첫 마디가 짧은 것(못갖춘마디)도, 마지막 마디가 짧은 것(마지막
+             | 로 닫히고 뒤에 아무것도 없음)도 괜찮음. | 로 닫힌 마디만 검사함.
              free 블록이 든 마디는 검사하지 않음.
     Example  | C4 D E F | G A B C |
     See      time, bar-repeat, free

@@ -1210,3 +1210,9 @@ them was forgotten after them, the last bar could not be short when closed, and 
 stopped at `voices`. Fixed in order:
 
 - 1.35.2: a `time` inside a function or a repeat (the last ending's) goes on after it.
+- 1.36.0: the last bar may be short, like the first: a short bar's warning waits until
+  something takes time after it (`Ctx::short`, settled before every item and at the
+  end; a voice hands its own to the block, a repeat's pass and a function body warn at
+  their end). Only bars closed by `|` are checked, as before; this is now written down.
+  Import closes a short last bar with `|` and keeps the signature before it instead of
+  writing its own (`time 2/8`).
