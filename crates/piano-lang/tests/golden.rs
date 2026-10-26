@@ -361,3 +361,15 @@ fn the_last_bar_may_be_short() {
     warns("| C4 D E F | G A B C D |"); // longer is never fine
     warns("| voices{ C4/1 }{ C3/1 } | voices{ D4/2 }{ D3/2 } | E4/1 |");
 }
+
+#[test]
+fn bar_lines_inside_functions_continue_the_bar() {
+    clean("| C4 D up(2){ E F | G A B C } |");
+    // in the squeezed time of a tuplet: F G A is one beat
+    clean("| C4 D E tuplet(3){ F/8 G A | B C D } E/4 F G |");
+    // through every pass of seq
+    clean("| C4 D E F | G A seq(2, 12){ B C | D E } F G |");
+    let c = compile_piece("| C4 D up(2){ E | F G A B } |");
+    assert_eq!(c.alerts.len(), 1, "{:?}", c.alerts);
+    assert!(c.alerts[0].message.contains("bar has 3 beats"));
+}

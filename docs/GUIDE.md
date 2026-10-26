@@ -665,6 +665,8 @@ if a bar does not add up to the time signature, you get a warning.
   bar, not a pickup.
 - `%` needs bar lines to know what the previous bar was.
 - A line break is not a bar line.
+- Bars go on through blocks: a bar line inside a function, `voices`, or `free`
+  continues the bar it is in.
 - A bar that holds a `free` block is not checked (`guide free`).
 
 #### Examples
@@ -1465,6 +1467,9 @@ functions and no recursion.
 - Results outside A0–C8 are folded by octaves, with a warning.
 - An unknown name or a wrong argument is an error; the body still plays, unchanged.
 - A tie goes on into and out of a function: `G~ tuplet(3){ G E C }` holds G.
+- Bar lines inside the body continue the bar around it, in the time the notes are
+  heard: squeezed inside `tuplet`, and through every pass of `seq`.
+  `| C4 D up(2){ E F | G A B C } |` is two full bars.
 
 #### Arguments
 

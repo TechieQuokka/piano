@@ -3,6 +3,7 @@
 
 use piano_core::{Alert, NoteEvent, PedalEvent, SrcSpan, TempoEvent, Tick, TimeSig, TimeSigEvent};
 
+use crate::builtins::Builtin;
 use crate::resolve::{Item, Resolved};
 
 /// A laid-out section, starting at tick 0.
@@ -55,8 +56,11 @@ struct Ctx {
     bar_prev: Tick,
     bar_cur: Tick,
     bars_seen: u32,
-    /// Part of the current bar played before this context started (inside `voices`).
+    /// Part of the current bar played before this context started (inside a block).
     lead: Tick,
+    /// Real time per tick of this context, as (numerator, denominator): less than one
+    /// inside `tuplet`.
+    scale: (Tick, Tick),
     /// The current bar holds a `free` block: its length is not checked.
     free: bool,
     /// In a voice: the block's time changes (from any voice), by time in the voice.
@@ -77,11 +81,48 @@ impl Ctx {
             bar_cur: 0,
             bars_seen: 0,
             lead: 0,
+            scale: (1, 1),
             free: false,
             schedule: None,
             ties: Vec::new(),
             short: Vec::new(),
         }
+    }
+
+    /// How much of the current bar has passed at `now`, in real ticks.
+    fn bar_so_far(&self, now: Tick) -> Tick {
+        (now - self.bar_cur) * self.scale.0 / self.scale.1 + self.lead
+    }
+
+    /// A context for a block starting at `now` that goes on with this one's bar: its
+    /// own ties and track. `scale` is the block's time against this context's.
+    fn child(&self, now: Tick, scale: (Tick, Tick)) -> Ctx {
+        let mut c = Ctx::new(self.time);
+        c.bars_seen = self.bars_seen;
+        c.lead = self.bar_so_far(now);
+        c.free = self.free;
+        c.scale = (self.scale.0 * scale.0, self.scale.1 * scale.1);
+        c
+    }
+
+    /// Goes on after a block laid out in `sub` from `now`: its bars, time, and short
+    /// bars. `map` turns the block's times into this context's.
+    fn rejoin(&mut self, sub: &mut Ctx, now: Tick, map: impl Fn(Tick) -> Tick) {
+        if sub.bars_seen > self.bars_seen {
+            // With one bar line inside, the bar it ended began out here.
+            if sub.bars_seen - self.bars_seen >= 2 {
+                self.bar_prev = now + map(sub.bar_prev);
+            } else {
+                self.bar_prev = self.bar_cur;
+            }
+            self.bar_cur = now + map(sub.bar_cur);
+            self.bars_seen = sub.bars_seen;
+            self.lead = 0;
+        }
+        self.free = sub.free;
+        self.time = sub.time;
+        self.short
+            .extend(sub.short.drain(..).map(|(at, a)| (now + map(at), a)));
     }
 
     /// Warns about the short bars that end before `now`.
@@ -205,7 +246,8 @@ fn lay_item(
             track.time_sigs.push(TimeSigEvent { at: now, sig: *sig });
         }
         Item::Bar(span) => {
-            let len = now - ctx.bar_cur + std::mem::take(&mut ctx.lead);
+            let len = ctx.bar_so_far(now);
+            ctx.lead = 0;
             let expected = ctx.time.bar_ticks();
             let check = if ctx.bars_seen > 0 {
                 len != expected
@@ -302,11 +344,34 @@ fn lay_item(
             ctx.bar_cur = track.len;
         }
         Item::Func { builtin, body } => {
-            // Ties go on into the body and out of it, as across a bar line.
-            let mut sub = Ctx::new(ctx.time);
+            // Ties go on into the body and out of it, as across a bar line. So do bars,
+            // in the body's real time: squeezed by `tuplet`, every pass of `seq`.
+            let squeeze = match builtin {
+                Builtin::Tuplet(n) => (Tick::from(lower_power_of_two(*n)), Tick::from(*n)),
+                _ => (1, 1),
+            };
+            let mut sub = ctx.child(now, squeeze);
             let mut body_track = Track::default();
             lay_seq(body, resolved, &mut sub, &mut body_track, alerts);
-            alerts.extend(sub.short.drain(..).map(|s| s.1));
+            if let Builtin::Seq { times, .. } = builtin {
+                // The other passes only move the bars on; their alerts repeat the first's.
+                let ties = std::mem::take(&mut sub.ties);
+                let mut quiet = Vec::new();
+                let mut pass = Track {
+                    len: body_track.len,
+                    ..Track::default()
+                };
+                for _ in 1..*times {
+                    lay_seq(body, resolved, &mut sub, &mut pass, &mut quiet);
+                    sub.flush_ties(&mut quiet);
+                }
+                for a in quiet {
+                    if !alerts.contains(&a) {
+                        alerts.push(a);
+                    }
+                }
+                sub.ties = ties;
+            }
             let count = body_track.notes.len();
             let out = builtin.apply(body_track, alerts);
             // A function that repeats its body (`seq`) ties out of its last pass.
@@ -316,8 +381,7 @@ fn lay_item(
             }
             let base = track.notes.len();
             track.append(out, now);
-            let mut leaving: Vec<(usize, SrcSpan)> = sub
-                .ties
+            let mut leaving: Vec<(usize, SrcSpan)> = std::mem::take(&mut sub.ties)
                 .into_iter()
                 .map(|(i, span)| (base + offset + i, span))
                 .collect();
@@ -353,8 +417,7 @@ fn lay_item(
                 l.0 -= removed.iter().filter(|&&q| q < l.0).count();
             }
             ctx.ties = leaving;
-            ctx.free |= sub.free;
-            ctx.time = sub.time;
+            ctx.rejoin(&mut sub, now, |t| t * squeeze.0 / squeeze.1);
         }
         Item::Voices { voices, span } => {
             ctx.flush_ties(alerts);
@@ -404,23 +467,20 @@ fn lay_item(
                         .collect();
                 }
             }
-            if let Some(&(_, sig)) = sigs.last() {
-                ctx.time = sig;
-            }
             // Bar lines continue from those of the first voice.
-            if let Some(v) = ctxs.first()
-                && v.bars_seen > ctx.bars_seen
-            {
-                let outer = |t: Tick| if t == 0 { ctx.bar_cur } else { now + t };
-                (ctx.bar_prev, ctx.bar_cur) = (outer(v.bar_prev), outer(v.bar_cur));
-                ctx.bars_seen = v.bars_seen;
-                ctx.lead = 0;
+            let free = ctxs.iter().any(|v| v.free);
+            for (k, v) in ctxs.iter_mut().enumerate() {
+                if k == 0 {
+                    ctx.rejoin(v, now, |t| t);
+                } else {
+                    ctx.short
+                        .extend(v.short.drain(..).map(|(at, a)| (now + at, a)));
+                }
             }
             // A `free` block in any voice frees the bar the block ends in.
-            ctx.free = ctxs.iter().any(|v| v.free);
-            for v in &mut ctxs {
-                ctx.short
-                    .extend(v.short.drain(..).map(|(at, a)| (now + at, a)));
+            ctx.free = free;
+            if let Some(&(_, sig)) = sigs.last() {
+                ctx.time = sig;
             }
             let lens: Vec<Tick> = tracks.iter().map(|t| t.len).collect();
             if lens.iter().any(|&l| l != lens[0]) {
@@ -491,16 +551,18 @@ fn voice_track(
     schedule: Option<&[(Tick, TimeSig)]>,
     alerts: &mut Vec<Alert>,
 ) -> (Track, Ctx) {
-    let mut ctx = Ctx::new(outer.time);
+    let mut ctx = outer.child(now, (1, 1));
     ctx.schedule = schedule.map(<[_]>::to_vec);
-    ctx.bars_seen = outer.bars_seen;
-    ctx.lead = now - outer.bar_cur + outer.lead;
-    ctx.free = outer.free;
     let mut track = Track::default();
     lay_seq(items, resolved, &mut ctx, &mut track, alerts);
     ctx.flush_ties(alerts);
     ctx.settle(track.len, alerts);
     (track, ctx)
+}
+
+/// The power of two that `tuplet(n)` plays its notes in the time of.
+fn lower_power_of_two(n: u32) -> u32 {
+    1 << (31 - (n - 1).leading_zeros())
 }
 
 /// Bar length in beats of the time signature's unit, e.g. "3" or "3.5".

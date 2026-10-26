@@ -281,6 +281,8 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     Flow     Octaves are resolved on the written text before the
              function, so notes after it are not affected.
     Folding  Results outside A0-C8 are moved by octaves, Warning.
+    Bars     Bar lines inside continue the bar around it, in the
+             time heard (squeezed by tuplet, every pass of seq).
     Unknown  Unknown name or bad arguments -> Error, body still plays.
     Example  up(12){ accent(1/3){ C4/8 D E F G A } }
     See      fn.up, fn.accent

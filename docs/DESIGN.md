@@ -1216,3 +1216,9 @@ stopped at `voices`. Fixed in order:
   their end). Only bars closed by `|` are checked, as before; this is now written down.
   Import closes a short last bar with `|` and keeps the signature before it instead of
   writing its own (`time 2/8`).
+- 1.37.0: bar lines inside a function body continue the bar around it. Layout gives
+  every block a child context (`Ctx::child`: bars seen, the part of the bar already
+  played, free, and a `scale` for real time, below one in `tuplet`) and takes its bars,
+  time, and short bars back after it (`Ctx::rejoin`, with the block's times mapped).
+  `seq` lays its body out again for each further pass only to move the bars on (alerts
+  of those passes are kept only if new). Voices use the same two calls.

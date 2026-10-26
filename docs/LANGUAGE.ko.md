@@ -278,6 +278,8 @@ only descriptions are Korean.
     Flow     옥타브는 함수 적용 전 글자 기준으로 해석되므로
              함수 뒤의 음은 영향을 받지 않음.
     Folding  결과가 A0-C8 밖이면 옥타브를 옮기고 Warning.
+    Bars     안의 마디줄은 바깥 마디를 이어 감. 들리는 시간 기준
+             (tuplet은 줄어든 시간, seq는 매 회차).
     Unknown  모르는 이름이나 잘못된 인자는 Error, 안의 음은 재생됨.
     Example  up(12){ accent(1/3){ C4/8 D E F G A } }
     See      fn.up, fn.accent

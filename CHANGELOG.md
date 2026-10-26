@@ -3,6 +3,11 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.37.0
+- Language: bar lines inside a function continue the bar around it, counted in the
+  time the notes are heard (squeezed by `tuplet`, through every pass of `seq`).
+  `| C4 D up(2){ E F | G A B C } |` no longer warns "bar has 8 beats".
+
 ## 1.36.0
 - Language: the last bar may be shorter than the time signature, like the first (a
   pickup and the bar that completes it): `G4 | C5 C C D | E/2 C/4 |` no longer warns.
