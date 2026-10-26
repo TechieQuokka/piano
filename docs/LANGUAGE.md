@@ -69,7 +69,7 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
 
 ### LENGTH {#length}
 
-    Syntax   <note>/<n>   n = 1 2 4 8 16 32 64      C/8  G/2
+    Syntax   <note>/<n>   n = 1 2 4 8 16 32 64 128      C/8  G/2
     Meaning  /1 whole, /2 half, /4 quarter, /8 eighth, ...
              Bigger n = shorter note.
     Omitted  Inherited from the previous note or rest. Start: /4.
@@ -154,7 +154,7 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     Syntax   time <beats>/<unit>            time 3/4  time 6/8
     Meaning  Time signature, used for the bar check and %.
     Where    Anywhere; applies from that point. Default 4/4.
-    Range    beats 1-32, unit 1 2 4 8 16 32 64. Others -> Error.
+    Range    beats 1-32, unit 1 2 4 8 16 32 64 128. Others -> Error.
     Example  time 3/4 | C4 D E | F G A |
     See      bar
 
@@ -302,7 +302,8 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
 
     Syntax   tuplet(<n>){ ... }             tuplet(3){ C/8 D E }
     Meaning  Plays the section in the time of the nearest lower
-             power of two: 3 in 2, 5 in 4, 7 in 4. n 3-64.
+             power of two: 3 in 2, 5 in 4, 7 in 4, 9 and 11 in 8.
+             n 3-64; exact for 3 5 6 7 9 10 11 and their products.
     Example  tuplet(3){ C4/8 D E } F/4
     See      length
 

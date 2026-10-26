@@ -68,7 +68,7 @@ only descriptions are Korean.
 
 ### LENGTH {#length}
 
-    Syntax   <note>/<n>   n = 1 2 4 8 16 32 64      C/8  G/2
+    Syntax   <note>/<n>   n = 1 2 4 8 16 32 64 128      C/8  G/2
     Meaning  /1 온음표, /2 2분음표, /4 4분음표, /8 8분음표, ...
              n이 클수록 짧음.
     Omitted  앞 음이나 쉼표의 길이를 이어받음. 시작은 /4.
@@ -153,7 +153,7 @@ only descriptions are Korean.
     Syntax   time <beats>/<unit>            time 3/4  time 6/8
     Meaning  박자표. 마디 검사와 %에 쓰임.
     Where    어디든 쓸 수 있고, 그 지점부터 적용. 기본 4/4.
-    Range    박 수 1-32, 단위 1 2 4 8 16 32 64. 그 밖은 Error.
+    Range    박 수 1-32, 단위 1 2 4 8 16 32 64 128. 그 밖은 Error.
     Example  time 3/4 | C4 D E | F G A |
     See      bar
 
@@ -300,7 +300,8 @@ only descriptions are Korean.
 
     Syntax   tuplet(<n>){ ... }             tuplet(3){ C/8 D E }
     Meaning  구간을 바로 아래 2의 거듭제곱 개수의 시간에 연주:
-             3은 2개 시간에, 5는 4개, 7은 4개. n은 3-64.
+             3은 2개 시간에, 5는 4개, 7은 4개, 9와 11은 8개.
+             n은 3-64. 3 5 6 7 9 10 11과 그 곱은 시간이 정확함.
     Example  tuplet(3){ C4/8 D E } F/4
     See      length
 

@@ -370,7 +370,7 @@ eighth of a whole note. A bigger number is a shorter note.
 - `/4` quarter note: 1 beat
 - `/8` eighth note: 1/2 beat
 - `/16` sixteenth note: 1/4 beat
-- `/32` and `/64`: 1/8 and 1/16 beat
+- `/32`, `/64`, and `/128`: 1/8, 1/16, and 1/32 beat
 
 #### Rules
 
@@ -626,7 +626,7 @@ time 6/8 | C4/8 D E F G A | G/4. E/4. |
 ```
 
 ```piano error
-time 3/5 C   // Error: the unit must be 1 2 4 8 16 32 64
+time 3/5 C   // Error: the unit must be 1 2 4 8 16 32 64 128
 ```
 
 #### See also
@@ -690,7 +690,9 @@ squeezes them: three eighths take the time of two eighths, one beat.
 #### Rules
 
 - The body is played in the time of the nearest lower power of two: 3 in 2, 5 in 4,
-  6 in 4, 7 in 4, 9 in 8.
+  6 in 4, 7 in 4, 9 in 8, 11 in 8.
+- Times are exact for 3, 5, 6, 7, 9, 10, 11 and numbers made of these (12, 14,
+  15, ...); others, such as 13, are rounded to the nearest tick.
 - Everything in the body is squeezed: notes, rests, chords.
 - After the block the length carries on as written inside, not squeezed: write the
   next length again.
@@ -1631,7 +1633,7 @@ C4 F#   // Warning: line 1: C4 → F# is ambiguous (6 semitones)
   dot without a length (`C.`).
 - unexpected number: a space between a note and its octave (`C 4`). Write `C4`.
 - length without a note: `/8` with no note before it.
-- invalid length: `/3`, `/6`, ... Only 1 2 4 8 16 32 64; use `tuplet` for triplets.
+- invalid length: `/3`, `/6`, ... Only 1 2 4 8 16 32 64 128; use `tuplet` for triplets.
 
 #### Headers and pedals
 

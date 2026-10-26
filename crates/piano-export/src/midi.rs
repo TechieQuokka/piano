@@ -14,7 +14,16 @@ fn controller(kind: PedalKind) -> u8 {
     }
 }
 
-/// Encodes `score` as a `.mid` file. Ticks map 1:1 (PPQ = `TICKS_PER_QUARTER`).
+/// Ticks per quarter in the file: a MIDI header holds at most 32767. Exact for
+/// `/64` notes and tuplets of 3, 5 and 7; finer times are rounded to the nearest.
+pub const MIDI_PPQ: u16 = 6720;
+
+/// A score time in file ticks.
+fn file_tick(t: Tick) -> Tick {
+    (t * Tick::from(MIDI_PPQ) + TICKS_PER_QUARTER / 2) / TICKS_PER_QUARTER
+}
+
+/// Encodes `score` as a `.mid` file at [`MIDI_PPQ`] ticks per quarter.
 pub fn midi_bytes(score: &Score) -> Vec<u8> {
     // (tick, order, kind): order mirrors playback: releases, then presses; the soft
     // pedal goes down before the notes it softens, damper and sostenuto after them.
@@ -80,6 +89,9 @@ pub fn midi_bytes(score: &Score) -> Vec<u8> {
             }),
         ));
     }
+    for e in &mut events {
+        e.0 = file_tick(e.0);
+    }
     events.sort_by_key(|(t, order, _)| (*t, *order));
 
     let mut track = Vec::with_capacity(events.len() + 1);
@@ -91,7 +103,7 @@ pub fn midi_bytes(score: &Score) -> Vec<u8> {
         });
         last = t;
     }
-    let end = score.end.max(last);
+    let end = file_tick(score.end).max(last);
     track.push(TrackEvent {
         delta: u28::new((end - last) as u32),
         kind: TrackEventKind::Meta(MetaMessage::EndOfTrack),
@@ -99,7 +111,7 @@ pub fn midi_bytes(score: &Score) -> Vec<u8> {
 
     let mut smf = Smf::new(Header::new(
         Format::SingleTrack,
-        Timing::Metrical(u15::new(TICKS_PER_QUARTER as u16)),
+        Timing::Metrical(u15::new(MIDI_PPQ)),
     ));
     smf.tracks.push(track);
     let mut out = Vec::new();
@@ -121,7 +133,7 @@ mod tests {
         let Timing::Metrical(ppq) = smf.header.timing else {
             panic!("timing");
         };
-        assert_eq!(u32::from(ppq.as_int()), TICKS_PER_QUARTER as u32);
+        assert_eq!(ppq.as_int(), MIDI_PPQ);
         let track = &smf.tracks[0];
         let ons = track
             .iter()
@@ -141,7 +153,7 @@ mod tests {
             TrackEventKind::Meta(MetaMessage::Tempo(t)) if t.as_int() == 500_000
         )));
         let total: u64 = track.iter().map(|e| u64::from(e.delta.as_int())).sum();
-        assert_eq!(total, score.end);
+        assert_eq!(total, file_tick(score.end));
     }
 
     #[test]

@@ -3,6 +3,20 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.31.0
+- Language: `/128` notes (1/32 beat; dotted and double-dotted too).
+- Language: `tuplet(9)` and `tuplet(11)` are exact, as are 6, 10 and products of 3,
+  5, 7, 9 and 11: a quarter is now 443520 ticks (was 6720). MIDI files keep 6720 per
+  quarter, the most a MIDI header allows that divides /64 and 3, 5, 7; finer times
+  (9 or 11 in a tuplet) are rounded there by less than a tick. Playback, WAV, and
+  FLAC are exact.
+- `piano import` writes 128ths and tuplets of 9 and 11; all 103 movements of
+  Beethoven's sonatas now import (9 failed before), 95 without warnings.
+- Fix (import): a chord holding the same key twice (E#4 with F4) strikes it once; the
+  check counted it twice and reported a missing note.
+- Fix (import): a title with a line break, real or written `\n` in kern
+  (`MINUETTO\nAllegretto`), is shown on one line (`MINUETTO — Allegretto`).
+
 ## 1.30.1
 - Fix: `piano import --help` described neither argument and hid that the source may
   be a folder. It now names them `SOURCE` and `DIR`, explains both, and shows

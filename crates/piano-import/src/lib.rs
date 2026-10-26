@@ -97,9 +97,20 @@ fn read_mxl(bytes: &[u8]) -> Result<String, ImportError> {
     Err(ImportError::Format("no score in the .mxl".into()))
 }
 
+/// A title on one line: line breaks, real or written `\n` (kern), become ` — `.
+fn one_line(title: &str) -> String {
+    title
+        .replace("\\n", "\n")
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .collect::<Vec<_>>()
+        .join(" — ")
+}
+
 /// Imports MusicXML or kern text. `source` names the file in the piece comments.
 pub fn import(text: &str, source: &str) -> Result<Import, ImportError> {
-    let model = if text
+    let mut model = if text
         .trim_start_matches('\u{feff}')
         .trim_start()
         .starts_with('<')
@@ -110,6 +121,7 @@ pub fn import(text: &str, source: &str) -> Result<Import, ImportError> {
     } else {
         return Err(ImportError::Format("not a MusicXML or **kern score".into()));
     };
+    model.title = model.title.map(|t| one_line(&t));
     let written = write::write(&model, source)?;
     let check = check::check(&written.pieces, &written.song, &written.expected);
     let voices = model
@@ -229,6 +241,15 @@ mod tests {
         assert!(text.contains("{ mf F3/2~ | F3/4 r }"), "{text}");
         // C C | D F A d | e (F) f | C c: D and A held over the bar, F struck again
         assert_eq!(i.check.expected, 2 + 4 + 3 + 2);
+    }
+
+    #[test]
+    fn titles_on_one_line() {
+        assert_eq!(
+            one_line("Sonata — MINUETTO\\nAllegretto"),
+            "Sonata — MINUETTO — Allegretto"
+        );
+        assert_eq!(one_line("A\n  B\r\n"), "A — B");
     }
 
     #[test]

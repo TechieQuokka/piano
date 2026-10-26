@@ -265,7 +265,7 @@ A score-like, left-to-right language. Whitespace and case are lenient.
 | `C D E F G A B` | Note names (lowercase accepted) | `C D E` |
 | `#` / `b` | Sharp / flat | `C#` `Bb` |
 | `0`–`8` | Octave (scientific pitch; `C4` = middle C; range A0–C8) | `C4` |
-| `/n` | Length: `1 2 4 8 16 32 64` (others = Error) | `C/8` |
+| `/n` | Length: `1 2 4 8 16 32 64 128` (others = Error) | `C/8` |
 | `.` / `..` | Dotted / double-dotted (max 2; more = Warning) | `C/4.` |
 | `~` | Tie (same pitch only; may cross bars and function bodies; works on chords) | `G/2~ G/4` |
 | `r` | Rest | `r/4` |
@@ -670,8 +670,9 @@ Headless CLI subcommands (`play`, `export`) use `piano-app` without `piano-tui`.
 
 ```rust
 pub type Tick = u64;
-/// Divisible by 2^6, 3, 5, 7: exact for /64, triplets, quintuplets, septuplets.
-pub const TICKS_PER_QUARTER: Tick = 6720;
+/// Divisible by 2^7, 3^2, 5, 7, 11: exact for double-dotted /128 and tuplets of
+/// 3, 5, 6, 7, 9, 10, 11 (1.31.0; was 6720). MIDI files use 6720 per quarter.
+pub const TICKS_PER_QUARTER: Tick = 443_520;
 
 pub struct Pitch(u8);                 // MIDI number 21 (A0) ..= 108 (C8)
 
@@ -1123,8 +1124,8 @@ and the ties waiting before it are joined after the function is applied); tied n
 take their lane before notes struck with them; a note tied from a chord into a
 differently shaped chord moves to the lane it goes on in; ties to nothing are
 dropped; an upbeat takes the piece's signature without a bar line before it, and a
-short last bar has none after it. Result: 90 match; 4 import with warnings only (a
-time signature change or unmetered bars inside a block that ties hold together, a
-few ties across lanes); 9 fail on lengths the language cannot write exactly (9 or 11
-in a tuplet: 6720 ticks per quarter have no factor 9 or 11; 128th notes).
+short last bar has none after it. Then (1.31.0) `/128`, ticks for 9 and 11 in a
+tuplet, and one key once in a chord (E#4 with F4). Result: all 103 import; 95 match;
+8 match every note but warn: a signature change or unmetered bars inside a block
+that ties hold together, cadenza bars longer than 32 beats, a few ties across lanes.
 

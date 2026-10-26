@@ -18,7 +18,9 @@ const LEVELS: [&str; 8] = ["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff"];
 /// Level before the first mark (the language's default, mf).
 const DEFAULT_LEVEL: usize = 4;
 /// Tuplets the language plays exactly (`tuplet(n)`, in the time of a power of two).
-const TUPLETS: [u32; 3] = [3, 5, 7];
+const TUPLETS: [u32; 5] = [3, 5, 7, 9, 11];
+/// Written lengths, `/1` .. `/128`.
+const DENOMS: [i64; 8] = [1, 2, 4, 8, 16, 32, 64, 128];
 /// Pieces longer than this many bars are cut into chunks of [`CHUNK`].
 const MAX_PIECE: usize = 32;
 const CHUNK: usize = 16;
@@ -33,7 +35,7 @@ fn trill_len() -> Q {
 
 /// `/n`, `/n.`, `/n..` for a written length in quarters.
 fn length_token(len: Q) -> Option<String> {
-    for d in [1, 2, 4, 8, 16, 32, 64] {
+    for d in DENOMS {
         let base = Q::new(4, d);
         if len == base {
             return Some(format!("/{d}"));
@@ -68,10 +70,10 @@ fn note_length(len: Q) -> Option<(Q, Option<u32>)> {
     })
 }
 
-/// Undotted lengths adding up to `len` (a multiple of a 64th).
+/// Undotted lengths adding up to `len` (a multiple of a 128th).
 fn binary(mut len: Q) -> Vec<Q> {
     let mut out = Vec::new();
-    for d in [1, 2, 4, 8, 16, 32, 64] {
+    for d in DENOMS {
         let t = Q::new(4, d);
         while len >= t {
             out.push(t);
@@ -81,8 +83,13 @@ fn binary(mut len: Q) -> Vec<Q> {
     out
 }
 
-fn is_64ths(len: Q) -> bool {
-    (len / grace_len()).is_integer()
+/// The shortest written length, a 128th.
+fn unit_len() -> Q {
+    Q::new(1, 32)
+}
+
+fn is_128ths(len: Q) -> bool {
+    (len / unit_len()).is_integer()
 }
 
 /// Rests filling `len` quarters: (written length, tuplet).
@@ -90,13 +97,13 @@ fn rest_lengths(len: Q) -> Option<Vec<(Q, Option<u32>)>> {
     if length_token(len).is_some() {
         return Some(vec![(len, None)]);
     }
-    if is_64ths(len) {
+    if is_128ths(len) {
         return Some(binary(len).into_iter().map(|t| (t, None)).collect());
     }
     let tuplet = |r: Q| {
         TUPLETS.iter().find_map(|&n| {
             let w = r / scale(n);
-            is_64ths(w).then(|| {
+            is_128ths(w).then(|| {
                 binary(w)
                     .into_iter()
                     .map(|t| (t, Some(n)))
@@ -108,9 +115,9 @@ fn rest_lengths(len: Q) -> Option<Vec<(Q, Option<u32>)>> {
         return Some(t);
     }
     // a plain part, then a tuplet part
-    let units = (len / grace_len()).floor();
+    let units = (len / unit_len()).floor();
     for k in (1..=units).rev() {
-        let x = grace_len() * Q::int(k);
+        let x = unit_len() * Q::int(k);
         if let Some(t) = tuplet(len - x) {
             let mut out: Vec<_> = binary(x).into_iter().map(|t| (t, None)).collect();
             out.extend(t);
@@ -368,7 +375,8 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
                             && last.len == ev.len
                             && last.tie == ev.tie =>
                     {
-                        if !last.notes.contains(&ev.notes[0]) {
+                        // One key once: E#4 and F4 in a chord are the same key.
+                        if !last.notes.iter().any(|n| n.0 == ev.notes[0].0) {
                             last.notes.push(ev.notes[0].clone());
                             last.notes.sort();
                         }
@@ -411,7 +419,7 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
     for g in graces {
         match merged.last_mut() {
             Some(last) if last.start == g.start => {
-                if !last.notes.contains(&g.notes[0]) {
+                if !last.notes.iter().any(|n| n.0 == g.notes[0].0) {
                     last.notes.push(g.notes[0].clone());
                     last.notes.sort();
                 }

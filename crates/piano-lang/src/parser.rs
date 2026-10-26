@@ -304,7 +304,7 @@ impl Parser<'_> {
         let Some(denom) = valid else {
             self.error(
                 span,
-                format!("invalid length `/{denom}`, use /1 /2 /4 /8 /16 /32 /64"),
+                format!("invalid length `/{denom}`, use /1 /2 /4 /8 /16 /32 /64 /128"),
             );
             return None;
         };

@@ -3,14 +3,15 @@
 /// A position or length in musical time.
 pub type Tick = u64;
 
-/// Divisible by 2^6, 3, 5 and 7, so `/64` notes and common tuplets stay exact.
-pub const TICKS_PER_QUARTER: Tick = 6720;
+/// Divisible by 2^7, 3^2, 5, 7 and 11, so double-dotted `/128` notes and tuplets of
+/// 3, 5, 6, 7, 9, 10 and 11 stay exact.
+pub const TICKS_PER_QUARTER: Tick = 443_520;
 
 /// Length of a whole note.
 pub const TICKS_PER_WHOLE: Tick = TICKS_PER_QUARTER * 4;
 
-/// Allowed length denominators (`/1` .. `/64`).
-pub const DENOMINATORS: [u8; 7] = [1, 2, 4, 8, 16, 32, 64];
+/// Allowed length denominators (`/1` .. `/128`).
+pub const DENOMINATORS: [u8; 8] = [1, 2, 4, 8, 16, 32, 64, 128];
 
 /// Maximum number of dots a length may carry.
 pub const MAX_DOTS: u8 = 2;
@@ -25,7 +26,7 @@ pub struct Duration {
 impl Duration {
     pub const QUARTER: Duration = Duration { denom: 4, dots: 0 };
 
-    /// Returns `None` if `denom` is not a power of two in `1..=64` or `dots > MAX_DOTS`.
+    /// Returns `None` if `denom` is not a power of two in `1..=128` or `dots > MAX_DOTS`.
     pub fn new(denom: u8, dots: u8) -> Option<Duration> {
         (DENOMINATORS.contains(&denom) && dots <= MAX_DOTS).then_some(Duration { denom, dots })
     }
@@ -44,9 +45,9 @@ impl Duration {
         (0..=self.dots).map(|i| base >> i).sum()
     }
 
-    /// Next shorter length (`/4` → `/8`), dots dropped; stays at `/64`.
+    /// Next shorter length (`/4` → `/8`), dots dropped; stays at `/128`.
     pub fn shorter(self) -> Duration {
-        let denom = (self.denom * 2).min(64);
+        let denom = self.denom.saturating_mul(2).min(128);
         Duration { denom, dots: 0 }
     }
 
@@ -125,20 +126,31 @@ mod tests {
     #[test]
     fn invalid_lengths() {
         assert!(Duration::new(3, 0).is_none());
-        assert!(Duration::new(128, 0).is_none());
+        assert!(Duration::new(255, 0).is_none());
         assert!(Duration::new(4, 3).is_none());
     }
 
     #[test]
     fn tuplets_are_exact() {
-        for n in [3, 5, 7] {
-            assert_eq!(TICKS_PER_QUARTER % n, 0);
+        // a tuplet note of n in the time of the power of two below, down to /128
+        for n in [3, 5, 6, 7, 9, 10, 11] {
+            let m: u32 = 1 << (31 - (n - 1u32).leading_zeros());
+            assert_eq!(
+                TICKS_PER_WHOLE / 128 * Tick::from(m) % Tick::from(n),
+                0,
+                "{n}"
+            );
         }
+        // a double-dotted /128
+        assert_eq!(
+            Duration::new(128, 2).unwrap().ticks(),
+            TICKS_PER_WHOLE * 7 / 512
+        );
     }
 
     #[test]
     fn shorter_longer_clamp() {
-        assert_eq!(Duration::new(64, 0).unwrap().shorter().denom(), 64);
+        assert_eq!(Duration::new(128, 0).unwrap().shorter().denom(), 128);
         assert_eq!(Duration::new(1, 0).unwrap().longer().denom(), 1);
         assert_eq!(Duration::QUARTER.shorter().denom(), 8);
     }

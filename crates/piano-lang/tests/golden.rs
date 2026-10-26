@@ -84,6 +84,19 @@ fn ties_cross_function_bodies() {
 }
 
 #[test]
+fn hundred_twenty_eighths_and_nonuplets_are_exact() {
+    let q = TICKS_PER_QUARTER;
+    let c = clean("C4/128 D E F G/4");
+    assert_eq!(c.score.notes[4].start, q / 8);
+    // nine sixteenths in the time of eight: each lasts 2/9 of a beat
+    let c = clean("tuplet(9){ C4/16 D E F G A B C D } E/4");
+    assert_eq!(c.score.notes[1].start, q * 2 / 9);
+    assert_eq!(c.score.notes[9].start, q * 2);
+    let c = clean("tuplet(11){ C4/16 D E F G A B C D E F } G/4");
+    assert_eq!(c.score.notes[1].start * 11, q * 2);
+}
+
+#[test]
 fn tie_to_other_pitch_warns() {
     let c = compile_piece("C4~ D");
     assert_eq!(notes(&c), "C4@0+2 D4@2+2");
