@@ -1233,3 +1233,10 @@ stopped at `voices`. Fixed in order:
   the bar is full, or is the pickup, or holds `free`; inside a bar it is not, so a bar
   split by a repeat sign is checked whole (`repeat_sign`). A longer bar warns there.
   Ties stop at the repeat signs but go from the shared part into an ending.
+- 1.40.0: import writes one block per bar. A block may end where no note sounds across
+  and every tie over it can be followed into the next block (`splittable`: one voice
+  ties each key out and only one voice starts it there; else the bars are joined as
+  before). The last note of a voice in a block takes its `~` from the voice's next
+  event after the block. Beethoven: multi-bar blocks 1824 → 2, notes unchanged; a
+  cresc/dim over such bars now ends on a mark at every bar (it cannot cross `voices`),
+  so 1.7 % of the notes have another velocity (at most 24).

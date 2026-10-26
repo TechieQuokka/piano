@@ -3,6 +3,15 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.40.0
+- `piano import` writes one block per bar: a tie over a bar line goes into the next
+  block (1.38.0) instead of joining the bars into one block. Bars are joined only
+  where the tie could go to the wrong voice (two voices start the same key there, or
+  two tie it out). Beethoven sonatas: multi-bar blocks 1824 → 2; all 103 still match,
+  with the same notes. A cresc or dim cannot cross a `voices` block, so over such bars
+  it now steps to a mark at each bar end: 1.7 % of the notes changed velocity (at most
+  24).
+
 ## 1.39.0
 - Language: bars are counted through repeats as heard. A repeat sign inside a bar is
   not a bar line, so a pickup at the start of a repeat and the short bar before `:|`

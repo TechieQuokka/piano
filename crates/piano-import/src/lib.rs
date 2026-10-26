@@ -262,9 +262,11 @@ mod tests {
         // the tie to nothing is not written; the short last bar keeps 2/4, closed
         assert!(text.ends_with("{ mf C3/4 } |\n"), "{text}");
         assert!(!text.contains("time 1/4"), "{text}");
-        // one chord: only D and A go on (`~` each), F is struck again
+        // one block per bar, the chord tied into the next one; there only D and A
+        // go on (`~` each), F is struck again
+        assert!(text.contains("{ mf {D3 F3 A3}/2~ } |"), "{text}");
         assert!(
-            text.contains("{D3 F3 A3}/2~ | {D3~ F3 A3~}/4 {D3 F3 A3}"),
+            text.contains("{ mf {D3~ F3 A3~}/4 {D3 F3 A3} } |"),
             "{text}"
         );
         // C C | D F A d | e (F) f | C c: D and A held over the bar, F struck again

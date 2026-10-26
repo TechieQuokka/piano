@@ -533,6 +533,31 @@ impl Ctx<'_> {
             .all(|e| !(e.start < t && t < e.end()) && !(!e.tied.is_empty() && e.end() == t))
     }
 
+    /// A block may end at `t`: no note sounds across it, and every tie over it can be
+    /// followed into the next block, where it goes to the first voice that starts
+    /// the key (so one voice ties each key out, and only one starts it at `t`).
+    fn splittable(&self, t: Q) -> bool {
+        let evs = || self.lanes.values().flatten();
+        if evs().any(|e| e.start < t && t < e.end()) {
+            return false;
+        }
+        let mut out: Vec<i32> = Vec::new();
+        for e in evs().filter(|e| e.end() == t) {
+            for &m in &e.tied {
+                if out.contains(&m) {
+                    return false;
+                }
+                out.push(m);
+            }
+        }
+        out.iter().all(|m| {
+            evs()
+                .filter(|e| e.start == t && e.notes.iter().any(|n| n.0 == *m))
+                .count()
+                <= 1
+        })
+    }
+
     /// Pieces as (first, last) measure indexes: double bars, rehearsal marks, and
     /// repeat jumps start one; long ones are cut every [`CHUNK`] bars.
     fn sections(&self) -> Vec<(usize, usize)> {
@@ -680,7 +705,7 @@ impl Ctx<'_> {
         let mut points = vec![lo];
         for m in &ms[first..=last] {
             let (mid, end) = (m.start + m.len / Q::int(2), m.start + m.len);
-            if self.free(mid)
+            if self.splittable(mid)
                 && self
                     .mean_tempo(m.start, mid)
                     .abs_diff(self.mean_tempo(mid, end))
@@ -688,7 +713,7 @@ impl Ctx<'_> {
             {
                 points.push(mid);
             }
-            if end == hi || self.free(end) {
+            if end == hi || self.splittable(end) {
                 points.push(end);
             }
         }
@@ -745,10 +770,15 @@ impl Ctx<'_> {
                 tempos += 1;
             }
             let mut texts = Vec::new();
-            for evs in self.lanes.values() {
-                let evs: Vec<&Ev> = evs.iter().filter(|e| a <= e.start && e.start < b).collect();
+            for lane in self.lanes.values() {
+                let evs: Vec<&Ev> = lane
+                    .iter()
+                    .filter(|e| a <= e.start && e.start < b)
+                    .collect();
+                // The event after the block, for a tie into the next one.
+                let next = lane.iter().find(|e| e.start >= b);
                 if !evs.is_empty() {
-                    texts.push(self.voice(&evs, a, b)?);
+                    texts.push(self.voice(&evs, next, a, b)?);
                 }
             }
             let mut ped: Vec<(Q, &str)> = self
@@ -878,7 +908,7 @@ impl Ctx<'_> {
         }
     }
 
-    fn voice(&self, evs: &[&Ev], a: Q, b: Q) -> Result<Vec<Item>, ImportError> {
+    fn voice(&self, evs: &[&Ev], next: Option<&Ev>, a: Q, b: Q) -> Result<Vec<Item>, ImportError> {
         let mut items = self.begin(a);
         let mut cur = a;
         let mut lvl = None;
@@ -916,8 +946,12 @@ impl Ctx<'_> {
             }
             // Tied notes that go on in the next event: all of them take one `~`
             // after the note or chord, some of them one each (`{C~ E}`).
-            let held: Vec<i32> = evs
-                .get(k + 1)
+            let after = if k + 1 == evs.len() {
+                next
+            } else {
+                evs.get(k + 1).copied()
+            };
+            let held: Vec<i32> = after
                 .filter(|n| n.start == e.end())
                 .map(|n| {
                     e.tied
