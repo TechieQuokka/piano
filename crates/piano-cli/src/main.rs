@@ -56,9 +56,20 @@ enum Cmd {
     },
     /// Create a project in any folder (existing files are kept)
     New { dir: PathBuf },
-    /// Import a MusicXML (.mxl, .musicxml, .xml) or Humdrum kern (.krn) score as a new project in DIR.
-    /// FILE may be a folder: each score in it becomes DIR/<file name>
-    Import { file: PathBuf, dir: PathBuf },
+    /// Import a score (MusicXML or Humdrum kern), or every score in a folder, as new projects
+    #[command(after_help = "Examples:\n  \
+        piano import score.mxl my_song\n  \
+        piano import sonata14-1.krn moonlight\n  \
+        piano import ~/Downloads/kern beethoven     \
+        # beethoven/sonata01-1/, beethoven/sonata01-2/, ...")]
+    Import {
+        /// A score file (.mxl, .musicxml, .xml, .krn), or a folder of them (not its subfolders)
+        #[arg(value_name = "SOURCE")]
+        file: PathBuf,
+        /// The new project's folder. For a folder of scores: the folder that gets one
+        /// project per score, named after its file
+        dir: PathBuf,
+    },
     /// Check SoundFont, audio device, and terminal keys
     Doctor,
 }

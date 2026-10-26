@@ -3,6 +3,11 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.30.1
+- Fix: `piano import --help` described neither argument and hid that the source may
+  be a folder. It now names them `SOURCE` and `DIR`, explains both, and shows
+  examples (a file, and a folder of scores).
+
 ## 1.30.0
 - `piano import <folder> <dir>` imports every score in a folder (`.mxl`, `.musicxml`,
   `.xml`, `.krn`) as its own project, `dir/<file name>`, named after the file.
