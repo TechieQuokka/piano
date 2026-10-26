@@ -380,7 +380,7 @@ voices{ p r/2. G#4/8. G#4/16 }                       // melody
 | Pedals | Shared by the whole piano; a pedal changed in any voice stays changed after the block |
 | Bars | Bar lines inside a voice continue the current bar; bars after the block follow the first voice |
 | Length | Different voice lengths → Warning; the block lasts as long as the longest voice |
-| Header | `tempo` / `time` inside a voice → Warning, ignored |
+| Header | `tempo` / `time` in any voice apply to every voice from that point and after the block; voices that differ at the same point → Warning, the first voice's is used |
 | Ties | A tie does not cross the block boundary (Warning) |
 | Chord after | A `{ }` right after the block is another voice, unless a length or `~` follows its `}` |
 
@@ -1165,3 +1165,22 @@ separate lanes and a tie chain could change lanes in the middle, where a tie can
 follow it; the note was struck again (op. 53 I, op. 106 IV, op. 111 II, one or two
 notes each). 74 of the 103 Beethoven movements are written with fewer lanes; their
 notes are unchanged.
+
+### 13.19 Tempo and time inside `voices` (1.34.0)
+
+`tempo` and `time` written in any voice apply to every voice from that point, and go
+on after the block; before, they were ignored with a warning. Tempo events of a voice
+already land on the piece's timeline. A time change also matters to the other
+voices' bar checks, so a block whose voices change `time` is laid out twice: once to
+collect the changes (alerts dropped), then with that schedule, which each voice
+follows by its own clock (a change at a bar line takes effect after that bar is
+checked) instead of its own `time` items. Changes are joined voice by voice; two
+voices that set a different value at the same point give a warning and the first
+voice's is used, and only the first voice keeps the joined events. Resolve takes the
+value after the block from the first voice that changed it.
+
+Import: in a block that ties hold together, a bar that changes the signature or the
+tempo gets `time` / `tempo` after its bar line in the first voice that has one; the
+block's head writes the tempo of its first bar, not the block's mean. The last three
+Beethoven movements with warnings (op. 27/1 IV, op. 106 IV, op. 109 III) import
+cleanly: 103 of 103.

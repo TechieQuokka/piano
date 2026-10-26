@@ -316,3 +316,24 @@ fn a_tie_inside_a_chord_holds_only_that_note() {
     assert_eq!(c.alerts.len(), 1, "{:?}", c.alerts);
     assert!(c.alerts[0].message.contains("not followed"));
 }
+
+#[test]
+fn time_inside_voices_applies_to_every_voice() {
+    clean("| time 2/4 voices{ C4/4 D~ | time 3/4 D/4 E F }{ E3/2 | G/2. } | C4/2. |");
+    // in the second voice too, and after the block
+    clean("| C4/1 | voices{ D4/2. }{ time 3/4 F3/2. } | E4/2. |");
+    let c = compile_piece("| voices{ C4/2. }{ time 3/4 E3/2. } | C4/1 |");
+    assert_eq!(c.alerts.len(), 1, "{:?}", c.alerts);
+    assert!(c.alerts[0].message.contains("3/4 expects 3"));
+}
+
+#[test]
+fn tempo_inside_voices_applies_to_every_voice() {
+    let c = clean("voices{ C4/1 }{ r/2 tempo 60 E4/2 } D");
+    let q = TICKS_PER_QUARTER;
+    assert!(c.score.tempos.iter().any(|t| t.at == 2 * q && t.bpm == 60));
+    let c = compile_piece("voices{ tempo 80 C4 }{ tempo 90 E4 }");
+    assert_eq!(c.alerts.len(), 1, "{:?}", c.alerts);
+    assert!(c.alerts[0].message.contains("`tempo` differently"));
+    assert!(c.score.tempos.iter().all(|t| t.bpm != 90));
+}

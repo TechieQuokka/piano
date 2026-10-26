@@ -197,7 +197,9 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     Bars     Bar lines inside a voice continue the current bar.
     Length   Voices of different lengths -> Warning; the block lasts
              as long as the longest voice.
-    Header   tempo and time inside a voice -> Warning, ignored.
+    Header   tempo and time in any voice apply to every voice from
+             that point, and after the block. Two voices that differ
+             at the same point -> Warning; the first voice's is used.
     Chord    A { } right after the block is another voice, unless a
              length follows it: voices{ C }{ E } {C E G}/2
     Example  voices{ p r/2 G4/8. G4/16 G4/4 }{ pp {C3 C4}/1 }

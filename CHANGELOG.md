@@ -3,6 +3,14 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.34.0
+- Language: `tempo` and `time` inside `voices` apply to every voice from that point
+  and go on after the block (they were ignored with a warning). Voices that set them
+  differently at the same point give a warning; the first voice's is used.
+- `piano import` writes signature and tempo changes at the bars inside a block that
+  ties hold together, where they happen. All 103 Beethoven movements now import
+  without warnings.
+
 ## 1.33.0
 - Language: a `~` right after a note inside a chord ties that note alone:
   `{C3~ E4 G}/2 {C3 F4 A}/2` holds C3 and strikes F4 and A over it. A `~` after `}`

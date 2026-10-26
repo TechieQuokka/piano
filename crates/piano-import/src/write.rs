@@ -716,7 +716,15 @@ impl Ctx<'_> {
                     last_sig = Some(sig);
                 }
             }
-            let tempo = self.mean_tempo(a, b);
+            // Tempo bar by bar: a block that ties hold together may span changes.
+            let bar_end = |t: Q| {
+                self.starts
+                    .iter()
+                    .copied()
+                    .find(|&s| s > t)
+                    .map_or(b, |s| s.min(b))
+            };
+            let tempo = self.mean_tempo(a, bar_end(a));
             if last_tempo != Some(tempo) {
                 head += &format!("tempo {tempo} ");
                 last_tempo = Some(tempo);
@@ -754,8 +762,38 @@ impl Ctx<'_> {
             if texts.is_empty() {
                 let mut items = self.begin(a);
                 self.rests(&mut items, a, b)?;
-                texts.push(emit(&mut items));
+                texts.push(items);
             }
+            // Changes at the bars inside the block go after the bar line of the first
+            // voice that has one; they apply to every voice.
+            for t in self.starts.iter().copied().filter(|&t| a < t && t < b) {
+                let sig = self.signature(self.measure_at(t));
+                let tempo = self.mean_tempo(t, bar_end(t));
+                let mut marks = Vec::new();
+                if last_sig != Some(sig) {
+                    marks.push(format!("time {}/{}", sig.0, sig.1));
+                }
+                if last_tempo != Some(tempo) {
+                    marks.push(format!("tempo {tempo}"));
+                }
+                if marks.is_empty() {
+                    continue;
+                }
+                let place = texts.iter_mut().find_map(|items| {
+                    let i = items
+                        .iter()
+                        .position(|x| matches!(x, Item::Bar(at) if *at == t))?;
+                    Some((items, i))
+                });
+                if let Some((items, i)) = place {
+                    items.insert(i + 1, Item::Raw(marks.join(" ")));
+                    if last_tempo != Some(tempo) {
+                        tempos += 1;
+                    }
+                    (last_sig, last_tempo) = (Some(sig), Some(tempo));
+                }
+            }
+            let texts: Vec<String> = texts.iter_mut().map(emit).collect();
             let opens = if self.starts.contains(&a) && !upbeat {
                 "| "
             } else {
@@ -820,10 +858,10 @@ impl Ctx<'_> {
     fn bar_line(&self, items: &mut Vec<Item>, t: Q) {
         if self.starts.contains(&t)
             && items.iter().any(|i| matches!(i, Item::Len(..)))
-            && !matches!(items.last(), Some(Item::Bar | Item::Free(true)))
+            && !matches!(items.last(), Some(Item::Bar(_) | Item::Free(true)))
         {
             close_free(items);
-            items.push(Item::Bar);
+            items.push(Item::Bar(t));
             let i = self.measure_at(t);
             if self.model.measures[i].start == t && self.unmetered(i) {
                 items.push(Item::Free(true));
@@ -831,7 +869,7 @@ impl Ctx<'_> {
         }
     }
 
-    fn voice(&self, evs: &[&Ev], a: Q, b: Q) -> Result<String, ImportError> {
+    fn voice(&self, evs: &[&Ev], a: Q, b: Q) -> Result<Vec<Item>, ImportError> {
         let mut items = self.begin(a);
         let mut cur = a;
         let mut lvl = None;
@@ -916,10 +954,10 @@ impl Ctx<'_> {
             items.push(Item::Raw(LEVELS[target].to_string()));
         }
         self.rests(&mut items, cur, b)?;
-        Ok(emit(&mut items))
+        Ok(items)
     }
 
-    fn pedal(&self, ped: &[(Q, &str)], a: Q, b: Q) -> Result<String, ImportError> {
+    fn pedal(&self, ped: &[(Q, &str)], a: Q, b: Q) -> Result<Vec<Item>, ImportError> {
         let mut items = self.begin(a);
         let mut cur = a;
         for &(at, text) in ped {
@@ -931,7 +969,7 @@ impl Ctx<'_> {
             cur = at;
         }
         self.rests(&mut items, cur, b)?;
-        Ok(emit(&mut items))
+        Ok(items)
     }
 
     /// The notes the written pieces play, ties merged per voice.
@@ -968,7 +1006,8 @@ impl Ctx<'_> {
 enum Item {
     /// (written length, tuplet, text before the length, text after it)
     Len(Q, Option<u32>, String, String),
-    Bar,
+    /// A bar line at a time.
+    Bar(Q),
     Raw(String),
     /// `free{` (true) or its `}`.
     Free(bool),
@@ -1026,7 +1065,7 @@ fn emit(items: &mut Vec<Item>) -> String {
                     }
                 }
             }
-            Item::Bar => {
+            Item::Bar(_) => {
                 flush(&mut out, &mut group, &mut group_n);
                 out.push("|".into());
             }

@@ -168,7 +168,6 @@ pub fn resolve(
         cresc: None,
         probe,
         probed: None,
-        in_voices: 0,
         alerts,
     };
     let items = r.seq(nodes);
@@ -196,8 +195,6 @@ struct Resolver<'a> {
     cresc: Option<Cresc>,
     probe: Option<(u32, u32)>,
     probed: Option<State>,
-    /// Depth of `voices` blocks around the current node.
-    in_voices: u32,
     alerts: &'a mut Vec<Alert>,
 }
 
@@ -301,13 +298,6 @@ impl Resolver<'_> {
                     span: *span,
                 })
             }
-            Node::Tempo(_, span) | Node::Time(_, span) if self.in_voices > 0 => {
-                self.alerts.push(Alert::warning(
-                    *span,
-                    "`tempo` and `time` inside `voices` are ignored, write them before it",
-                ));
-                None
-            }
             Node::Tempo(bpm, _) => {
                 self.state.tempo = *bpm;
                 Some(Item::Tempo(*bpm))
@@ -359,14 +349,15 @@ impl Resolver<'_> {
     }
 
     /// Each voice starts from the state before the block and keeps its own octave,
-    /// length, dynamic, and cresc. Pedals act on the whole piano: a pedal changed in
-    /// any voice stays changed after the block. Otherwise the first voice continues.
+    /// length, dynamic, and cresc. Pedals, tempo, and time belong to the whole piano:
+    /// one changed in any voice stays changed after the block (the first voice that
+    /// changes it wins). Otherwise the first voice continues.
     fn voices(&mut self, voices: &[Vec<Node>], span: SrcSpan) -> Item {
         let before = self.state;
         let outer = self.cresc.take();
         let mut pedals = before.pedals;
         let mut first_end = None;
-        self.in_voices += 1;
+        let (mut tempo, mut time) = (None, None);
         let voices = voices
             .iter()
             .map(|v| {
@@ -381,13 +372,20 @@ impl Resolver<'_> {
                         *p = *now;
                     }
                 }
+                if self.state.tempo != before.tempo {
+                    tempo.get_or_insert(self.state.tempo);
+                }
+                if self.state.time != before.time {
+                    time.get_or_insert(self.state.time);
+                }
                 first_end.get_or_insert(self.state);
                 items
             })
             .collect();
-        self.in_voices -= 1;
         self.state = first_end.unwrap_or(before);
         self.state.pedals = pedals;
+        self.state.tempo = tempo.unwrap_or(before.tempo);
+        self.state.time = time.unwrap_or(before.time);
         self.cresc = outer;
         Item::Voices { voices, span }
     }
@@ -588,10 +586,14 @@ mod tests {
     }
 
     #[test]
-    fn tempo_inside_voices_is_ignored() {
-        let (r, alerts) = run("voices{ tempo 90 C }{ E }");
-        assert_eq!(alerts.len(), 1);
-        assert!(matches!(&r.items[0], Item::Voices { voices, .. } if voices[0].len() == 1));
+    fn tempo_inside_voices_goes_on_after_the_block() {
+        let mut alerts = Vec::new();
+        let nodes = parse(&lex("voices{ C }{ tempo 90 time 3/4 E } G"), &mut alerts);
+        let (r, s) = resolve(&nodes, &CompileOptions::default(), None, &mut alerts);
+        assert!(alerts.is_empty(), "{alerts:?}");
+        assert!(matches!(&r.items[0], Item::Voices { voices, .. } if voices[1].len() == 3));
+        assert_eq!(s.tempo, 90);
+        assert_eq!(s.time.to_string(), "3/4");
     }
 
     #[test]

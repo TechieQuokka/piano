@@ -57,6 +57,9 @@ struct Ctx {
     lead: Tick,
     /// The current bar holds a `free` block: its length is not checked.
     free: bool,
+    /// In a voice: the block's time changes (from any voice), by time in the voice.
+    /// They replace the voice's own `time`.
+    schedule: Option<Vec<(Tick, TimeSig)>>,
     /// Notes waiting for a tie continuation: (note index, span of the tied sound).
     ties: Vec<(usize, SrcSpan)>,
 }
@@ -70,7 +73,19 @@ impl Ctx {
             bars_seen: 0,
             lead: 0,
             free: false,
+            schedule: None,
             ties: Vec::new(),
+        }
+    }
+
+    /// Takes the block's time changes before `now`, or at `now` too with `at`.
+    fn follow(&mut self, now: Tick, at: bool) {
+        if let Some(s) = &self.schedule {
+            for &(t, sig) in s {
+                if t < now || (at && t == now) {
+                    self.time = sig;
+                }
+            }
         }
     }
 
@@ -113,6 +128,7 @@ fn lay_item(
     alerts: &mut Vec<Alert>,
 ) {
     let now = track.len;
+    ctx.follow(now, false);
     match item {
         Item::Sound(idx) => {
             let sound = &resolved.sounds[*idx];
@@ -161,7 +177,9 @@ fn lay_item(
         }),
         Item::Tempo(bpm) => track.tempos.push(TempoEvent { at: now, bpm: *bpm }),
         Item::Time(sig) => {
-            ctx.time = *sig;
+            if ctx.schedule.is_none() {
+                ctx.time = *sig;
+            }
             track.time_sigs.push(TimeSigEvent { at: now, sig: *sig });
         }
         Item::Bar(span) => {
@@ -190,6 +208,7 @@ fn lay_item(
             ctx.bar_cur = now;
             ctx.bars_seen += 1;
             ctx.free = false;
+            ctx.follow(now, true);
         }
         Item::BarRepeat(span) => {
             let (from, to) = (ctx.bar_prev, ctx.bar_cur);
@@ -307,10 +326,55 @@ fn lay_item(
         }
         Item::Voices { voices, span } => {
             ctx.flush_ties(alerts);
-            let (tracks, ctxs): (Vec<Track>, Vec<Ctx>) = voices
-                .iter()
-                .map(|v| voice_track(v, resolved, ctx, now, alerts))
-                .unzip();
+            // `time` in any voice applies to all of them: lay the voices out once to
+            // find the changes, then again following them.
+            let mut first = Vec::new();
+            let (mut tracks, mut ctxs) = lay_voices(voices, resolved, ctx, now, None, &mut first);
+            let (sigs, sig_clash) = merge(tracks.iter().map(|t| {
+                t.time_sigs
+                    .iter()
+                    .map(|e| (e.at, e.sig))
+                    .collect::<Vec<_>>()
+            }));
+            if sigs.is_empty() {
+                alerts.extend(first);
+            } else {
+                (tracks, ctxs) = lay_voices(voices, resolved, ctx, now, Some(&sigs), alerts);
+            }
+            let (tempos, tempo_clash) = merge(
+                tracks
+                    .iter()
+                    .map(|t| t.tempos.iter().map(|e| (e.at, e.bpm)).collect::<Vec<_>>()),
+            );
+            for (clash, what) in [(sig_clash, "time"), (tempo_clash, "tempo")] {
+                if clash {
+                    alerts.push(
+                        Alert::warning(
+                            *span,
+                            format!("voices set `{what}` differently at the same point"),
+                        )
+                        .with_fix("(the first voice's is used)"),
+                    );
+                }
+            }
+            // The first voice carries the block's tempo and time changes.
+            for (k, t) in tracks.iter_mut().enumerate() {
+                t.time_sigs.clear();
+                t.tempos.clear();
+                if k == 0 {
+                    t.time_sigs = sigs
+                        .iter()
+                        .map(|&(at, sig)| TimeSigEvent { at, sig })
+                        .collect();
+                    t.tempos = tempos
+                        .iter()
+                        .map(|&(at, bpm)| TempoEvent { at, bpm })
+                        .collect();
+                }
+            }
+            if let Some(&(_, sig)) = sigs.last() {
+                ctx.time = sig;
+            }
             // Bar lines continue from those of the first voice.
             if let Some(v) = ctxs.first()
                 && v.bars_seen > ctx.bars_seen
@@ -345,6 +409,42 @@ fn lay_item(
     }
 }
 
+fn lay_voices(
+    voices: &[Vec<Item>],
+    resolved: &Resolved,
+    outer: &Ctx,
+    now: Tick,
+    schedule: Option<&[(Tick, TimeSig)]>,
+    alerts: &mut Vec<Alert>,
+) -> (Vec<Track>, Vec<Ctx>) {
+    voices
+        .iter()
+        .map(|v| voice_track(v, resolved, outer, now, schedule, alerts))
+        .unzip()
+}
+
+/// Joins the changes of each voice in order; at a time already taken the first
+/// voice's change stays. Also says whether two voices disagreed.
+fn merge<T: PartialEq + Copy>(
+    voices: impl Iterator<Item = Vec<(Tick, T)>>,
+) -> (Vec<(Tick, T)>, bool) {
+    let mut out: Vec<(Tick, T)> = Vec::new();
+    let mut clash = false;
+    for changes in voices {
+        let theirs = out.len();
+        for (at, v) in changes {
+            // Within one voice the last change at a time wins, as outside `voices`.
+            match out.iter().position(|e| e.0 == at) {
+                Some(i) if i >= theirs => out[i].1 = v,
+                Some(i) => clash |= out[i].1 != v,
+                None => out.push((at, v)),
+            }
+        }
+    }
+    out.sort_by_key(|e| e.0);
+    (out, clash)
+}
+
 /// Lays out one voice starting at `now`; its bar lines continue the current bar.
 /// Returns the voice's context too, for the bar lines after the block.
 fn voice_track(
@@ -352,9 +452,11 @@ fn voice_track(
     resolved: &Resolved,
     outer: &Ctx,
     now: Tick,
+    schedule: Option<&[(Tick, TimeSig)]>,
     alerts: &mut Vec<Alert>,
 ) -> (Track, Ctx) {
     let mut ctx = Ctx::new(outer.time);
+    ctx.schedule = schedule.map(<[_]>::to_vec);
     ctx.bars_seen = outer.bars_seen;
     ctx.lead = now - outer.bar_cur + outer.lead;
     ctx.free = outer.free;

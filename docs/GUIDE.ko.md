@@ -561,7 +561,8 @@ C4 D/2~ E   // Warning: D와 E는 다른 음, 붙임줄 무시
   기본값(100, `guide defaults`)을 씁니다.
 - 박자표가 무엇이든 한 박은 항상 4분음표입니다.
 - 점점 빠르게/느리게는 없습니다. 몇 단계로 나눠 바꾸세요.
-- `voices` 안의 tempo는 Warning과 함께 무시됩니다. 블록 앞에 쓰세요.
+- `voices` 안에서는 어느 성부에 쓴 tempo든 그 위치부터 모든 성부에 적용되고, 블록
+  뒤에도 이어집니다 (`guide voices`).
 - 곡(song)에서는 각 조각이 자기 템포로 시작합니다.
 
 #### Examples
@@ -606,7 +607,8 @@ tempo 500 C   // Error: tempo는 20-400
 - 쓰임은 두 가지뿐입니다: 마디 길이 검사(`guide bar`)와 `%`(`guide bar-repeat`).
   소리를 바꾸지 않고, 어떤 박도 저절로 강조하지 않습니다. 강조는 `accent`로 합니다
   (`guide fn.accent`).
-- `voices` 안의 time은 Warning과 함께 무시됩니다.
+- `voices` 안에서는 어느 성부에 쓴 time이든 그 위치부터 모든 성부에 적용되고, 블록
+  뒤에도 이어집니다 (`guide voices`).
 - `free` 블록이 든 마디는 박자표와 비교하지 않습니다 (`guide free`).
 
 #### Examples
@@ -903,7 +905,9 @@ C4/8 E G C5 {C4 E G C5}/2   // 펼쳐서, 그다음 한꺼번에
   뒤에도 그대로 유지됩니다.
 - 성부 안의 마디줄은 현재 마디에 이어서 셉니다.
 - 성부 길이가 다르면 Warning이고, 블록은 가장 긴 성부만큼 이어집니다.
-- 성부 안의 `tempo`, `time`은 Warning과 함께 무시됩니다.
+- `tempo`와 `time`은 피아노 전체의 것입니다: 어느 성부에 쓰든 그 위치부터 모든
+  성부에 적용되고 블록 뒤에도 이어집니다. 같은 위치에서 두 성부가 다르게 정하면
+  Warning이고, 첫 성부의 것을 씁니다.
 - 블록 바로 뒤의 `{ }`는 또 하나의 성부입니다. 단, 뒤에 길이나 `~`가 오면
   화음입니다.
 - 성부 안에는 무엇이든 쓸 수 있습니다: 화음, 함수, 반복.
@@ -924,6 +928,11 @@ C4/8 voices{ G4 E G E G E G E }{ p C3/1 } D   // D: E4 다음의 8분음표, mf
 
 ```piano
 voices{ E4/2 }{ C4/2 } {C4 E G}/2   // 마지막 { }는 길이가 있으니 화음
+```
+
+```piano
+| time 2/4 voices{ G4/4 A~ | time 3/4 A/4 B C5 }{ C3/2 | E3/2. } |
+// 박자가 바뀌는 곳에서 오른손 A가 이어짐: 3/4는 두 성부 모두에 적용
 ```
 
 ```piano warning
@@ -1738,7 +1747,8 @@ C 4 D   // Error: 예상치 못한 숫자, C4로 쓸 것
 
 - put the chord length after `}`; empty chord.
 - voices have different lengths (가장 긴 성부를 씀).
-- `tempo` and `time` inside `voices` are ignored: 블록 앞에 쓰세요.
+- voices set `tempo` (or `time`) differently at the same point: 첫 성부의 것을
+  씁니다.
 
 #### Repeats and dynamics
 

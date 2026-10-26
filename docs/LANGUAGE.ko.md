@@ -195,7 +195,9 @@ only descriptions are Korean.
              적용되고, 블록 뒤에도 그대로 유지됨.
     Bars     성부 안의 마디줄은 현재 마디에 이어서 셈.
     Length   성부 길이가 다르면 Warning. 블록 길이는 가장 긴 성부.
-    Header   성부 안의 tempo, time -> Warning, 무시됨.
+    Header   어느 성부의 tempo, time이든 그 위치부터 모든 성부에,
+             블록 뒤에도 적용됨. 같은 위치에서 성부끼리 다르면
+             Warning, 첫 성부의 것을 씀.
     Chord    블록 바로 뒤의 { }는 성부로 읽음. 뒤에 길이가 있으면
              화음: voices{ C }{ E } {C E G}/2
     Example  voices{ p r/2 G4/8. G4/16 G4/4 }{ pp {C3 C4}/1 }

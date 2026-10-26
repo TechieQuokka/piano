@@ -570,7 +570,8 @@ a second, at 120 half a second. Slow music is around 60–76, walking pace 90–
   Without it, the piece uses the default (100, see `guide defaults`).
 - The beat is always a quarter note, whatever the time signature.
 - There is no gradual change of tempo; slow down or speed up in steps.
-- Inside `voices`, tempo is ignored with a warning: write it before the block.
+- Inside `voices`, a tempo in any voice applies to every voice from that point, and
+  goes on after the block (`guide voices`).
 - In a song every piece starts at its own tempo.
 
 #### Examples
@@ -615,7 +616,8 @@ march), 6/8 six eighths felt as two groups of three.
 - It is used for two things only: checking bar lengths (`guide bar`) and `%`
   (`guide bar-repeat`). It does not change the sound and does not accent any beat by
   itself; for that, use `accent` (`guide fn.accent`).
-- Inside `voices`, time is ignored with a warning.
+- Inside `voices`, a time in any voice applies to every voice from that point, and
+  goes on after the block (`guide voices`).
 - A bar that holds a `free` block is not checked against it (`guide free`).
 
 #### Examples
@@ -915,7 +917,9 @@ together and are joined at the end.
   as set after the block.
 - Bar lines inside a voice continue the current bar.
 - Voices of different lengths give a warning; the block lasts as long as the longest.
-- `tempo` and `time` inside a voice are ignored with a warning.
+- `tempo` and `time` belong to the whole piano: written in any voice, they apply to
+  every voice from that point and go on after the block. Two voices that set them
+  differently at the same point give a warning; the first voice's is used.
 - A `{ }` right after the block is another voice, unless a length or `~` follows it:
   then it is a chord.
 - Anything can be inside a voice: chords, functions, repeats.
@@ -936,6 +940,11 @@ C4/8 voices{ G4 E G E G E G E }{ p C3/1 } D   // D: an eighth after E4, mf
 
 ```piano
 voices{ E4/2 }{ C4/2 } {C4 E G}/2   // the last { } has a length: a chord
+```
+
+```piano
+| time 2/4 voices{ G4/4 A~ | time 3/4 A/4 B C5 }{ C3/2 | E3/2. } |
+// the right hand holds A over the change; the 3/4 applies to both voices
 ```
 
 ```piano warning
@@ -1753,7 +1762,8 @@ C 4 D   // Error: unexpected number, write C4
 
 - put the chord length after `}`; empty chord.
 - voices have different lengths (the longest one is used).
-- `tempo` and `time` inside `voices` are ignored, write them before it.
+- voices set `tempo` (or `time`) differently at the same point (the first voice's is
+  used).
 
 #### Repeats and dynamics
 
