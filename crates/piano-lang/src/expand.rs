@@ -68,6 +68,8 @@ struct Ctx {
     schedule: Option<Vec<(Tick, TimeSig)>>,
     /// Notes waiting for a tie continuation: (note index, span of the tied sound).
     ties: Vec<(usize, SrcSpan)>,
+    /// Grace notes waiting for their note: (sound indexes, span of `grace`).
+    graces: Option<(Vec<usize>, SrcSpan)>,
     /// Bars shorter than the time signature, by the time they end: a warning once
     /// anything takes time after them (the last bar may be short).
     short: Vec<(Tick, Alert)>,
@@ -85,6 +87,7 @@ impl Ctx {
             free: false,
             schedule: None,
             ties: Vec::new(),
+            graces: None,
             short: Vec::new(),
         }
     }
@@ -143,6 +146,16 @@ impl Ctx {
         }
     }
 
+    /// Drops grace notes that found no note to lead to.
+    fn drop_graces(&mut self, alerts: &mut Vec<Alert>) {
+        if let Some((_, span)) = self.graces.take() {
+            alerts.push(Alert::warning(
+                span,
+                "`grace` needs a note right after it, dropped",
+            ));
+        }
+    }
+
     fn flush_ties(&mut self, alerts: &mut Vec<Alert>) {
         for (_, span) in self.ties.drain(..) {
             alerts.push(Alert::warning(
@@ -163,6 +176,7 @@ fn lay_seq(
     for item in items {
         lay_item(item, resolved, ctx, track, alerts);
     }
+    ctx.drop_graces(alerts);
 }
 
 fn lay_item(
@@ -175,13 +189,53 @@ fn lay_item(
     let now = track.len;
     ctx.follow(now, false);
     ctx.settle(now, alerts);
+    // Grace notes wait for a note; a bar line or a pedal may come between.
+    if !matches!(
+        item,
+        Item::Sound(_) | Item::Bar(_) | Item::Pedal { .. } | Item::Tempo(_) | Item::Time(_)
+    ) {
+        ctx.drop_graces(alerts);
+    }
     match item {
         Item::Sound(idx) => {
             let sound = &resolved.sounds[*idx];
             let mut pending = std::mem::take(&mut ctx.ties);
             let mut new_ties = Vec::new();
+            // Grace notes are played on the beat, in the note's time.
+            let mut lead = 0;
+            if let Some((graces, span)) = ctx.graces.take() {
+                let held = sound
+                    .pitches
+                    .iter()
+                    .any(|p| pending.iter().any(|(i, _)| track.notes[*i].pitch == *p));
+                if held {
+                    alerts.push(Alert::warning(
+                        span,
+                        "grace notes before a note tied on are dropped",
+                    ));
+                } else {
+                    let each = grace_len(graces.len() as Tick, sound.len);
+                    for (k, g) in graces.iter().enumerate() {
+                        let g = &resolved.sounds[*g];
+                        for &pitch in &g.pitches {
+                            track.notes.push(NoteEvent {
+                                pitch,
+                                start: now + each * k as Tick,
+                                len: each,
+                                velocity: crate::builtins::clamp_velocity(
+                                    i32::from(g.velocity) + g.marks.boost(),
+                                ),
+                                cut: each - each * g.marks.gate() / 100,
+                                src: g.span,
+                            });
+                        }
+                    }
+                    lead = each * graces.len() as Tick;
+                }
+            }
             // A staccato lets the key go early; a note tied on is held to its end.
-            let cut = sound.len - sound.len * sound.marks.gate() / 100;
+            let written = sound.len - lead;
+            let cut = written - written * sound.marks.gate() / 100;
             for (&pitch, &tie) in sound.pitches.iter().zip(&sound.ties) {
                 let cut = if tie { 0 } else { cut };
                 let continued = pending
@@ -198,8 +252,8 @@ fn lay_item(
                     None => {
                         track.notes.push(NoteEvent {
                             pitch,
-                            start: now,
-                            len: sound.len,
+                            start: now + lead,
+                            len: written,
                             velocity: crate::builtins::clamp_velocity(
                                 i32::from(
                                     sound
@@ -487,6 +541,11 @@ fn lay_item(
             }
             ctx.ties = tie_into(track, into, base, now, leaving, alerts);
         }
+        Item::Grace { sounds, span } => {
+            if !sounds.is_empty() {
+                ctx.graces = Some((sounds.clone(), *span));
+            }
+        }
         Item::Group(items) => lay_seq(items, resolved, ctx, track, alerts),
         Item::Free(items) => {
             lay_seq(items, resolved, ctx, track, alerts);
@@ -623,6 +682,19 @@ fn repeat_sign(ctx: &mut Ctx, now: Tick, span: SrcSpan, alerts: &mut Vec<Alert>)
     ctx.bars_seen += 1;
     ctx.free = false;
     ctx.follow(now, true);
+}
+
+/// Length of each of `count` grace notes before a note of `len`: a 32nd, halved
+/// until they take at most half of the note.
+pub fn grace_len(count: Tick, len: Tick) -> Tick {
+    let mut each = piano_core::TICKS_PER_WHOLE / 32;
+    for _ in 0..4 {
+        if count * each * 2 <= len {
+            break;
+        }
+        each /= 2;
+    }
+    each
 }
 
 /// The power of two that `tuplet(n)` plays its notes in the time of.

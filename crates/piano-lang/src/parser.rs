@@ -461,6 +461,9 @@ impl Parser<'_> {
         if lower == "free" && matches!(self.peek_tok(), Some(Tok::LBrace)) {
             return Some(self.free(span));
         }
+        if lower == "grace" && matches!(self.peek_tok(), Some(Tok::LBrace)) {
+            return Some(self.grace(span));
+        }
         if matches!(self.peek_tok(), Some(Tok::LParen)) {
             return self.func(w, span);
         }
@@ -629,6 +632,41 @@ impl Parser<'_> {
             return Node::Group(body);
         }
         Node::Free { body, span }
+    }
+
+    /// `grace{ ... }`: notes and chords only, without lengths or ties.
+    fn grace(&mut self, span: SrcSpan) -> Node {
+        self.bump(); // {
+        self.depth += 1;
+        let (body, end) = self.seq(Ctx::Func);
+        self.depth -= 1;
+        if end != End::RBrace {
+            self.error(span, "`grace{` has no matching `}`");
+        }
+        let mut notes = Vec::new();
+        for node in body {
+            match node {
+                Node::Note { len, tie, span, .. } | Node::Chord { len, tie, span, .. }
+                    if len.is_some() || tie =>
+                {
+                    self.warning(
+                        span,
+                        "grace notes are short and never tied, the length or `~` is ignored",
+                    );
+                    notes.push(node);
+                }
+                Node::Note { .. } | Node::Chord { .. } => notes.push(node),
+                other => {
+                    if let Some(s) = other.span() {
+                        self.error(s, "only notes and chords go in `grace`");
+                    }
+                }
+            }
+        }
+        if notes.is_empty() {
+            self.warning(span, "empty `grace`");
+        }
+        Node::Grace { body: notes, span }
     }
 
     /// Whether the `{` at the cursor closes with a `}` followed by a length or `~`.

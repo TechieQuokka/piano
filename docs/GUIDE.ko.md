@@ -1009,7 +1009,8 @@ voices{ G4/1 }{ C3 {E3 G}/4 G2 {E3 G}/4 }   // 베이스와 화음
 ## 5. Dynamics and expression {#expression}
 
 셈여림은 음악이 얼마나 센지 여린지입니다. 이 장에서는 ppp부터 fff까지의 기호,
-점점 세게/여리게, 스타카토와 악센트, 구간 전체의 세기 바꾸기를 다룹니다.
+점점 세게/여리게, 갑작스런 강세, 스타카토와 악센트, 꾸밈음, 구간 전체의 세기
+바꾸기를 다룹니다.
 
 ### Dynamic marks {#dynamic}
 
@@ -1215,6 +1216,58 @@ C4/4'~ C   // Warning: 이어지는 음은 계속 눌리므로 '가 무시됨
 #### See also
 
 `guide length` · `guide tie` · `guide fn.accent` · `man marks`
+
+### Grace notes {#grace}
+
+#### Concept
+
+꾸밈음은 본음으로 이끄는 짧은 장식음으로, 본음 앞에 살짝 "튕기는" 느낌입니다.
+모차르트와 베토벤 시대 음악에서는 박 위에서 연주합니다: 본음의 시간을 조금 빌리고,
+본음은 그 바로 뒤에 울립니다.
+
+#### Syntax
+
+`grace{ <음들> } <음>`: 안의 꾸밈음, 그다음 본음.
+
+#### Rules
+
+- 꾸밈음 하나는 32분음표입니다. 본음의 절반보다 길어지면 맞을 때까지 반으로 줄입니다
+  (최대 네 번).
+- 본음은 꾸밈음 뒤에 시작해서 적힌 자리에서 끝납니다. 마디에는 본음의 적힌 길이만
+  셉니다.
+- 안에는 음과 화음을 씁니다. 옥타브는 평소처럼 이어지고, 블록 뒤의 길이와 세기는
+  바뀌지 않습니다. 안에 길이를 쓰면 Warning이 납니다.
+- 블록과 본음 사이에는 마디선이나 페달이 와도 됩니다. 그 밖의 것이 오거나 아무것도
+  없으면 꾸밈음은 Warning과 함께 버려집니다.
+- 붙임줄로 이어져 다시 치지 않는 음 앞에서는 Warning과 함께 버려집니다.
+- 블록 앞의 `sf`는 본음에 적용됩니다.
+
+#### Examples
+
+```piano
+time 2/4 | C5/4 grace{ D5 } C5/4 | grace{ B4 C5 } D5/2 |
+```
+
+```piano
+p sf grace{ C5 } Ab5/4. G5/8 F5/4 r   // 힘준 음 앞의 짧은 튕김
+```
+
+```piano
+grace{ E5 F5 G5 } F5/4 E5 r/2   // 박으로 들어가는 빠른 세 음
+```
+
+```piano warning
+C4 D grace{ E }   // Warning: 뒤에 음이 없음
+```
+
+#### Common mistakes
+
+- 꾸밈음에 길이 주기: 꾸밈음은 항상 짧습니다. 본음의 길이만 쓰세요.
+- 블록을 본음 뒤에 쓰기: 블록은 그 뒤에 오는 음으로 이끕니다.
+
+#### See also
+
+`guide marks` · `guide length` · `man grace`
 
 ### Accents {#fn.accent}
 
@@ -1956,6 +2009,7 @@ pedal     ped|sos|soft on|off
 repeat    |: ... :| [x n]   |: ... [1 ... :| [2 ... |
 voices    voices{ ... }{ ... }
 free      free{ ... }
+grace     grace{ notes } note
 function  up down accent louder softer tuplet seq   name(args){ ... }
 ```
 
@@ -2026,6 +2080,7 @@ tempo 120 C D E   // 조각에 쓴 템포가 기본값보다 우선
 - chord (화음): 함께 치는 여러 건반.
 - crescendo / diminuendo (크레셴도 / 디미누엔도): 점점 세게 / 점점 여리게.
 - dynamics (셈여림): 소리의 세기, ppp부터 fff까지.
+- grace note (꾸밈음): 본음으로 이끄는 빠른 장식음. `grace{ }`.
 - octave (옥타브): 반음 12개. 이름이 같은 음의 위아래.
 - pickup, anacrusis (못갖춘마디, 여린내기): 첫 온전한 마디 앞의 음.
 - portato (포르타토): 레가토와 스타카토의 중간, `'_`.

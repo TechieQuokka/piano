@@ -1024,7 +1024,8 @@ voices{ G4/1 }{ C3 {E3 G}/4 G2 {E3 G}/4 }   // bass and chord
 ## 5. Dynamics and expression {#expression}
 
 Dynamics are how loud the music is. This chapter covers the marks from ppp to fff,
-gradual changes, staccato and accents, and changing the volume of a whole section.
+gradual changes, sudden accents, staccato and accents, grace notes, and changing
+the volume of a whole section.
 
 ### Dynamic marks {#dynamic}
 
@@ -1230,6 +1231,59 @@ C4/4'~ C   // Warning: a tied note is held on, its ' is ignored
 #### See also
 
 `guide length` · `guide tie` · `guide fn.accent` · `man marks`
+
+### Grace notes {#grace}
+
+#### Concept
+
+A grace note is a quick ornament note that leads into a main note, like a little
+"flick" before it. In music of Mozart's and Beethoven's time it is played on the beat:
+it takes a sliver of the main note's time, and the main note sounds right after.
+
+#### Syntax
+
+`grace{ <notes> } <note>`: the notes inside, then the main note.
+
+#### Rules
+
+- Each grace note is a 32nd. If they would take more than half of the main note,
+  they are halved (up to four times) until they fit.
+- The main note starts after them and ends where it is written; the bar counts only
+  its written length.
+- Inside go notes and chords. The octave flows through them as usual; the length and
+  the dynamic after the block are not changed. A length inside gives a warning.
+- A bar line or a pedal may stand between the block and its note. Anything else, or
+  nothing, drops the grace notes with a warning.
+- Before a note that is tied on (not struck again) they are dropped, with a warning.
+- `sf` before the block acts on the main note.
+
+#### Examples
+
+```piano
+time 2/4 | C5/4 grace{ D5 } C5/4 | grace{ B4 C5 } D5/2 |
+```
+
+```piano
+p sf grace{ C5 } Ab5/4. G5/8 F5/4 r   // a flick before a stressed note
+```
+
+```piano
+grace{ E5 F5 G5 } F5/4 E5 r/2   // three quick notes into the beat
+```
+
+```piano warning
+C4 D grace{ E }   // Warning: no note after it
+```
+
+#### Common mistakes
+
+- Giving the grace notes a length: they are always short; write the main note's
+  length only.
+- Putting the block after the main note: it leads into the note after it.
+
+#### See also
+
+`guide marks` · `guide length` · `man grace`
 
 ### Accents {#fn.accent}
 
@@ -1974,6 +2028,7 @@ pedal     ped|sos|soft on|off
 repeat    |: ... :| [x n]   |: ... [1 ... :| [2 ... |
 voices    voices{ ... }{ ... }
 free      free{ ... }
+grace     grace{ notes } note
 function  up down accent louder softer tuplet seq   name(args){ ... }
 ```
 
@@ -2044,6 +2099,7 @@ tempo 120 C D E   // the piece's own tempo wins over the default
 - chord: several keys struck together.
 - crescendo / diminuendo: gradually louder / softer.
 - dynamics: loudness, from ppp to fff.
+- grace note: a quick ornament note leading into a main note; `grace{ }`.
 - octave: twelve semitones; the same note name, higher or lower.
 - pickup (anacrusis): notes before the first full bar.
 - portato: between legato and staccato, `'_`.

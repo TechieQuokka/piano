@@ -493,3 +493,46 @@ fn sf_without_a_note_warns() {
         assert_eq!(c.alerts[0].severity, Severity::Warning, "{src}");
     }
 }
+
+/// Renders notes as `PITCH@start+len` in 64ths.
+fn fine(c: &Compiled) -> String {
+    let t = TICKS_PER_QUARTER / 16;
+    c.score
+        .notes
+        .iter()
+        .map(|n| format!("{}@{}+{}", n.pitch, n.start / t, n.len / t))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+#[test]
+fn grace_notes_take_the_time_of_their_note() {
+    // Each a 32nd, on the beat; the note starts after them. Bars do not change.
+    let c = clean("time 2/4 | C5/4 grace{ D5 } C5/4 | grace{ B4 C5 } D5/8 C5 B4/4 |");
+    assert_eq!(
+        fine(&c),
+        "C5@0+16 D5@16+2 C5@18+14 B4@32+2 C5@34+2 D5@36+4 C5@40+8 B4@48+16"
+    );
+    // Shortened to fit in half of a short note; a chord counts once.
+    let c = clean("grace{ C4 {D F} E } G/16 r/8.");
+    assert_eq!(fine(&c), "C4@0+0 D4@0+0 F4@0+0 E4@1+0 G4@1+2");
+    // The octave flows through them, the length does not.
+    let c = clean("C4/8 grace{ G } A B");
+    assert_eq!(fine(&c), "C4@0+8 G3@8+2 A3@10+6 B3@16+8");
+}
+
+#[test]
+fn grace_notes_out_of_place_warn() {
+    for src in [
+        "grace{ C4 }",
+        "grace{ C4 } r D",
+        "C4~ grace{ D } C",
+        "grace{ C4/8 } D",
+        "grace{ C4 | } D",
+    ] {
+        let c = compile_piece(src);
+        assert!(!c.alerts.is_empty(), "{src}");
+    }
+    // A bar line or a pedal may stand between them and their note.
+    clean("| C4/1 | grace{ D } | ped on C/1 ped off |");
+}

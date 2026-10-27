@@ -262,6 +262,21 @@ only descriptions are Korean.
     Example  p C4' D' E' F'' G/2^ C_
     See      length, tie, fn.accent
 
+### GRACE {#grace}
+
+    Syntax   grace{ <notes> } <note>        grace{ D5 } C5/4
+    Meaning  음 앞의 빠른 꾸밈음. 그 음의 박 위에서 연주: 그 음의
+             시간을 빌리고, 그 음은 꾸밈음 뒤에 시작.
+    Length   하나에 32분음표. 그 음의 절반 이하가 될 때까지 반으로
+             줄임 (최대 4번). 안에 길이를 쓰면 Warning.
+    Bars     그 음의 적힌 길이만 마디에 셈.
+    Inside   음과 화음. 옥타브는 이어지고, 길이와 세기는 바뀌지
+             않음.
+    Missing  바로 뒤에 음이 없으면 Warning, 버려짐. 마디선이나
+             페달은 사이에 와도 됨. 붙임줄로 이어지는 음 앞은 버려짐.
+    Example  | C5/4 grace{ D5 } C5/4 | grace{ B4 C5 } D5/2 |
+    See      marks, length
+
 ## PEDALS {#pedals}
 
 ### PEDAL {#pedal}
@@ -437,6 +452,7 @@ only descriptions are Korean.
     function up down accent louder softer tuplet seq  (name(args){ ... })
     voices   voices{ ... }{ ... }
     free     free{ ... }
+    grace    grace{ notes } note
     song     piece > piece   fade   r/n   ped
     Example  tempo 90 | p C4/8 D E F G/4 A | ped on {C E G}/1 ped off |
     See      file

@@ -166,6 +166,11 @@ pub enum Node {
         body: Vec<Node>,
         span: SrcSpan,
     },
+    /// `grace{ ... }`: quick notes played on the beat of the next note, in its time.
+    Grace {
+        body: Vec<Node>,
+        span: SrcSpan,
+    },
     /// Nodes kept for their content only (e.g. the body of an unknown function).
     Group(Vec<Node>),
 }
@@ -189,7 +194,8 @@ impl Node {
             | Node::Repeat { span, .. }
             | Node::Func { span, .. }
             | Node::Voices { span, .. }
-            | Node::Free { span, .. } => Some(*span),
+            | Node::Free { span, .. }
+            | Node::Grace { span, .. } => Some(*span),
             Node::Group(nodes) => nodes.first().and_then(Node::span),
         }
     }

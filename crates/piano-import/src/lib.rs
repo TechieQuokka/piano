@@ -254,6 +254,7 @@ mod tests {
         let i = imported(&(m1 + &m2));
         let text = &i.pieces[0].1;
         assert!(text.contains("time 3/4"), "{text}");
+        assert!(text.contains("grace{ B3 } C4/2"), "{text}");
         assert_eq!(i.stats.graces, 1);
     }
 

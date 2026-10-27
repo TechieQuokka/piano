@@ -1058,12 +1058,17 @@ overwritten.
 - **Pieces** (`write.rs`): a new piece at double bars, rehearsal marks, and repeat
   jumps; pieces longer than 32 bars are cut every 16. One block per bar, split at
   the half bar when the tempo changes there, merged across bar lines a tie crosses.
-  Each MusicXML voice is a voice (overlaps go to an extra voice); pedals and grace
-  notes have voices of their own.
+  Each MusicXML voice is a voice (overlaps go to an extra voice); pedals have a voice
+  of their own. Grace notes are written as `grace{ }` before their note (1.43.0).
+- **Marks** (1.41.0-1.43.0): staccato / staccatissimo / accent / tenuto become
+  `'` `''` `^` `_` (a chord is short only if every note is; a whole tie drops the
+  staccato); sf / fp / sfp / ffp (kern `**dynam` and `z`, MusicXML dynamics) go
+  before the notes of their staff struck then or next in the bar.
 - **Lengths**: written lengths are `/1`-`/64` with up to two dots; other lengths go
   into `tuplet(3|5|7)` (e.g. 5 in the time of 6 = dotted 32nds in `tuplet(5)`).
   Rests are split into plain and tuplet parts.
-- **Approximations**: grace notes are 64ths just before their note; trills
+- **Approximations**: grace notes are played on the beat in their note's time
+  (graces before a note tied on are dropped); trills
   alternate with the upper neighbor (key or marked accidental) in 32nds; arpeggios
   are struck together; wedges become `cresc` / `dim` from the level reached so far
   to the mark at their end, or one level on (a swell `<` `>` returns to its level;

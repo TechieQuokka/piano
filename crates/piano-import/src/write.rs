@@ -25,8 +25,21 @@ const DENOMS: [i64; 8] = [1, 2, 4, 8, 16, 32, 64, 128];
 const MAX_PIECE: usize = 32;
 const CHUNK: usize = 16;
 
-fn grace_len() -> Q {
-    Q::new(1, 16) // a 64th
+fn sixty_fourth() -> Q {
+    Q::new(1, 16)
+}
+
+/// Length of each of `count` grace notes before a note of `len`, as the language
+/// plays them: a 32nd, halved (at most 4 times) until they take half of the note.
+fn grace_len(count: usize, len: Q) -> Q {
+    let mut each = Q::new(1, 8);
+    for _ in 0..4 {
+        if each * Q::int(2 * count as i64) <= len {
+            break;
+        }
+        each = each / Q::int(2);
+    }
+    each
 }
 
 fn trill_len() -> Q {
@@ -127,6 +140,9 @@ fn rest_lengths(len: Q) -> Option<Vec<(Q, Option<u32>)>> {
     None
 }
 
+/// (MIDI, name) of the notes struck together, sorted by pitch.
+type Chord = Vec<(i32, String)>;
+
 #[derive(Debug, Clone)]
 struct Ev {
     start: Q,
@@ -139,6 +155,8 @@ struct Ev {
     marks: Marks,
     /// `sf`, `fp`, ... written before it.
     sudden: Option<Sudden>,
+    /// Grace notes before it, one entry (a note or chord) each.
+    graces: Vec<Chord>,
 }
 
 impl Ev {
@@ -286,6 +304,7 @@ fn move_tied(
                 staff,
                 marks,
                 sudden: None,
+                graces: Vec::new(),
             },
         );
     }
@@ -301,9 +320,8 @@ fn full((beats, unit): (u32, u32)) -> Q {
     Q::new(4 * i64::from(beats), i64::from(unit))
 }
 
-/// A voice of the output: a MusicXML voice, an extra lane of it, or the grace voice.
+/// A voice of the output: a MusicXML voice, or an extra lane of it.
 type Lane = (usize, u32, u32);
-const GRACE_LANE: Lane = (usize::MAX, 0, 0);
 
 /// Spreads the notes of each voice over lanes so that nothing overlaps.
 fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
@@ -328,7 +346,7 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
         let tie = n.tie && starts.contains(&(n.voice, n.midi, n.start + n.len));
         let (part, voice): VoiceId = n.voice;
         let expanded = n.trill.as_ref().and_then(|(upper, umidi)| {
-            let step = [trill_len(), grace_len()]
+            let step = [trill_len(), sixty_fourth()]
                 .into_iter()
                 .find(|s| (n.len / *s).is_integer() && n.len / *s >= Q::int(2))?;
             let count = (n.len / step).floor();
@@ -346,6 +364,7 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
                         staff: n.staff,
                         marks: Marks::default(),
                         sudden: None,
+                        graces: Vec::new(),
                     })
                     .collect::<Vec<_>>(),
             )
@@ -359,6 +378,7 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
                 staff: n.staff,
                 marks: n.marks,
                 sudden: None,
+                graces: Vec::new(),
             }]
         });
         let single = evs.len() == 1;
@@ -415,46 +435,47 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
             }
         }
     }
-    // Grace notes: just before their note (on the beat if that leaves the bar).
-    let mut graces = Vec::new();
-    for g in &model.graces {
-        let before = g.principal - grace_len() * Q::int((g.count - g.index) as i64);
-        let bar = |t: Q| model.measures.iter().rposition(|m| m.start <= t);
-        let start = if before >= Q::ZERO && bar(before) == bar(g.principal) {
-            before
-        } else {
-            g.principal + grace_len() * Q::int(g.index as i64)
-        };
-        graces.push(Ev {
-            start,
-            len: grace_len(),
-            notes: vec![(g.midi, g.name.clone())],
-            tied: Vec::new(),
-            staff: g.staff,
-            marks: Marks::default(),
-            sudden: None,
-        });
-    }
-    graces.sort_by_key(|e| e.start);
-    let mut merged: Vec<Ev> = Vec::new();
-    for g in graces {
-        match merged.last_mut() {
-            Some(last) if last.start == g.start => {
-                if !last.notes.iter().any(|n| n.0 == g.notes[0].0) {
-                    last.notes.push(g.notes[0].clone());
-                    last.notes.sort();
-                }
-            }
-            Some(last) if last.end() > g.start => {} // overlapping graces: keep the first
-            _ => merged.push(g),
-        }
-    }
+    attach_graces(model, &mut out);
     place_suddens(model, &mut out);
-    if !merged.is_empty() {
-        out.insert(GRACE_LANE, merged);
-    }
     out.retain(|_, v| !v.is_empty());
     out
+}
+
+/// Puts each group of grace notes before its note: the first lane of the voice
+/// that strikes a note then. A note tied on is not struck, so its graces are
+/// dropped.
+fn attach_graces(model: &Model, lanes: &mut BTreeMap<Lane, Vec<Ev>>) {
+    let mut groups: BTreeMap<(VoiceId, Q), Vec<Chord>> = BTreeMap::new();
+    for g in &model.graces {
+        let group = groups.entry((g.voice, g.principal)).or_default();
+        if group.len() <= g.index {
+            group.resize(g.index + 1, Vec::new());
+        }
+        let entry = &mut group[g.index];
+        if !entry.iter().any(|n| n.0 == g.midi) {
+            entry.push((g.midi, g.name.clone()));
+            entry.sort();
+        }
+    }
+    for (((part, voice), at), group) in groups {
+        let group: Vec<_> = group.into_iter().filter(|g| !g.is_empty()).collect();
+        for (&(p, v, _), list) in lanes.iter_mut() {
+            if (p, v) != (part, voice) {
+                continue;
+            }
+            let Some(k) = list.iter().position(|e| e.start == at) else {
+                continue;
+            };
+            let held = k > 0 && {
+                let prev = &list[k - 1];
+                prev.end() == at && list[k].notes.iter().any(|n| prev.tied.contains(&n.0))
+            };
+            if !held {
+                list[k].graces = group;
+                break;
+            }
+        }
+    }
 }
 
 /// Gives each `sf`, `fp`, ... to the notes of its staff struck then, or the next
@@ -543,8 +564,11 @@ pub fn write(model: &Model, source: &str) -> Result<Written, ImportError> {
         .join(" > ");
     let graces = ctx
         .lanes
-        .get(&GRACE_LANE)
-        .map_or(0, |g| g.iter().map(|e| e.notes.len()).sum());
+        .values()
+        .flatten()
+        .flat_map(|e| &e.graces)
+        .map(Vec::len)
+        .sum();
     let trills = model.notes.iter().filter(|n| n.trill.is_some()).count();
     Ok(Written {
         pieces,
@@ -757,7 +781,7 @@ impl Ctx<'_> {
                 ms[first].number, ms[last].number
             ),
             format!("// Imported from {source}."),
-            "// One voice per voice of the score, plus pedal and grace-note voices.".to_string(),
+            "// One voice per voice of the score, plus a pedal voice.".to_string(),
             String::new(),
         ];
         let (mut last_tempo, mut last_sig, mut tempos) = (None, None, 0);
@@ -985,6 +1009,20 @@ impl Ctx<'_> {
                     lvl = Some(crate::musicxml::SOFT);
                 }
             }
+            if !e.graces.is_empty() {
+                let g: Vec<String> = e
+                    .graces
+                    .iter()
+                    .map(|c| match c.as_slice() {
+                        [one] => one.1.clone(),
+                        _ => format!(
+                            "{{{}}}",
+                            c.iter().map(|n| n.1.as_str()).collect::<Vec<_>>().join(" ")
+                        ),
+                    })
+                    .collect();
+                text += &format!("grace{{ {} }} ", g.join(" "));
+            }
             // Tied notes that go on in the next event: all of them take one `~`
             // after the note or chord, some of them one each (`{C~ E}`).
             let after = if k + 1 == evs.len() {
@@ -1067,6 +1105,16 @@ impl Ctx<'_> {
         for evs in self.lanes.values() {
             let mut open: BTreeMap<i32, usize> = BTreeMap::new();
             for e in evs {
+                // Grace notes on the beat, then the note in the time left. Inside a
+                // tuplet they are measured on the written length, then squeezed.
+                let written = note_length(e.len).map_or(e.len, |(w, _)| w);
+                let each = grace_len(e.graces.len(), written) * e.len / written;
+                for (k, g) in e.graces.iter().enumerate() {
+                    for &(midi, _) in g {
+                        out.push((e.start + each * Q::int(k as i64), midi, each));
+                    }
+                }
+                let lead = each * Q::int(e.graces.len() as i64);
                 for &(midi, _) in &e.notes {
                     if let Some(&k) = open.get(&midi)
                         && out
@@ -1081,7 +1129,7 @@ impl Ctx<'_> {
                         continue;
                     }
                     open.remove(&midi);
-                    out.push((e.start, midi, e.len));
+                    out.push((e.start + lead, midi, e.len - lead));
                     if e.tied.contains(&midi) {
                         open.insert(midi, out.len() - 1);
                     }

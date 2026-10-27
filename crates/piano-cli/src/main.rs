@@ -368,7 +368,10 @@ fn report(imp: &piano_import::Import, dir: &Path) -> Result<(), String> {
     );
     let mut approx = Vec::new();
     if s.graces > 0 {
-        approx.push(format!("{} (64ths)", count(s.graces, "grace note")));
+        approx.push(format!(
+            "{} (32nds on the beat)",
+            count(s.graces, "grace note")
+        ));
     }
     if s.trills > 0 {
         approx.push(format!("{} (32nds)", count(s.trills, "trill")));

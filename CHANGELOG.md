@@ -3,6 +3,19 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.43.0
+- Language: `grace{ <notes> } <note>`. Grace notes are played on the beat of the
+  note after them and take their time from it: each a 32nd, halved (up to 4 times)
+  until they take at most half of the note. The bar counts only the note's written
+  length. Notes and chords inside; the octave flows through, the length and dynamic
+  do not change. A bar line or pedal may stand between; otherwise, with no note
+  after it or before a note tied on, they are dropped with a warning.
+- Import: grace notes are written as `grace{ }` before their note instead of in a
+  voice of their own as 64ths before it, or on the beat together with the note when
+  that left the bar (they sounded like a wrong chord). Graces before a note tied on
+  are dropped (3 notes in the Beethoven sonatas). 103/103 still match.
+- Docs: `man grace`, `guide grace`, both languages.
+
 ## 1.42.0
 - Language: one-note dynamics before a note or chord. `sf` (also `sfz` `sffz` `fz`
   `rf` `rfz`) plays the next note two levels above the current dynamic, at least f;

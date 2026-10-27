@@ -152,6 +152,11 @@ pub enum Item {
     },
     /// An unmetered stretch (`free`).
     Free(Vec<Item>),
+    /// Grace notes (indexes into [`Resolved::sounds`]), for the next sound.
+    Grace {
+        sounds: Vec<usize>,
+        span: SrcSpan,
+    },
     Group(Vec<Item>),
 }
 
@@ -360,6 +365,7 @@ impl Resolver<'_> {
             }
             Node::Voices { voices, span } => Some(self.voices(voices, *span)),
             Node::Free { body, .. } => Some(Item::Free(self.seq(body))),
+            Node::Grace { body, span } => Some(self.grace(body, *span)),
             Node::Group(nodes) => Some(Item::Group(self.seq(nodes))),
         }
     }
@@ -405,6 +411,24 @@ impl Resolver<'_> {
         self.state.time = time.unwrap_or(before.time);
         self.cresc = outer;
         Item::Voices { voices, span }
+    }
+
+    /// Grace notes take the octave flow but not the length; they stay out of a cresc.
+    fn grace(&mut self, body: &[Node], span: SrcSpan) -> Item {
+        let len = self.state.len;
+        let cresc = self.cresc.take();
+        let sudden = self.state.sudden.take();
+        let mut sounds = Vec::new();
+        for node in body {
+            if let Some(Item::Sound(i)) = self.node(node) {
+                self.sounds[i].ties.iter_mut().for_each(|t| *t = false);
+                sounds.push(i);
+            }
+        }
+        self.state.len = len;
+        self.cresc = cresc;
+        self.state.sudden = sudden;
+        Item::Grace { sounds, span }
     }
 
     /// Warns about an `sf` (or its kin) with no note after it.

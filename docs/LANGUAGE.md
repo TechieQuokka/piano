@@ -265,6 +265,21 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     Example  p C4' D' E' F'' G/2^ C_
     See      length, tie, fn.accent
 
+### GRACE {#grace}
+
+    Syntax   grace{ <notes> } <note>        grace{ D5 } C5/4
+    Meaning  Quick notes before a note, played on its beat: they take
+             their time from it, and the note starts after them.
+    Length   Each a 32nd; halved (up to 4 times) until they take at
+             most half of the note. Lengths inside -> Warning.
+    Bars     Only the note's written length counts.
+    Inside   Notes and chords. The octave flows through them; the
+             length and the dynamic do not change.
+    Missing  No note right after -> Warning, dropped. A bar line or
+             pedal may come between. Before a note tied on -> dropped.
+    Example  | C5/4 grace{ D5 } C5/4 | grace{ B4 C5 } D5/2 |
+    See      marks, length
+
 ## PEDALS {#pedals}
 
 ### PEDAL {#pedal}
@@ -441,6 +456,7 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     function up down accent louder softer tuplet seq  (name(args){ ... })
     voices   voices{ ... }{ ... }
     free     free{ ... }
+    grace    grace{ notes } note
     song     piece > piece   fade   r/n   ped
     Example  tempo 90 | p C4/8 D E F G/4 A | ped on {C E G}/1 ped off |
     See      file
