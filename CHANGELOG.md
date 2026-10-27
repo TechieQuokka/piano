@@ -3,6 +3,11 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.40.3
+- Fix: the audio thread waited while playback was being scheduled or a SoundFont
+  loaded, which could make the sound drop out on long pieces. Both are now prepared
+  first and only swapped in. A panic elsewhere no longer silences the audio for good.
+
 ## 1.40.2
 - Fix: the song kept the pieces as they were when it was last compiled. Editing a piece
   in another buffer (or a command that changed one on disk) and going back to the song

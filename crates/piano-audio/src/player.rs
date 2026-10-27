@@ -201,9 +201,10 @@ impl Player {
     }
 
     pub fn set_soundfont(&mut self, sf: Arc<SoundFont>) -> Result<(), AudioError> {
-        let mut engine = self.lock();
-        engine.synth = Some(PianoSynth::new(&sf, engine.sample_rate)?);
-        drop(engine);
+        // Built outside the lock: the audio thread waits for it.
+        let synth = PianoSynth::new(&sf, self.lock().sample_rate)?;
+        let old = self.lock().synth.replace(synth);
+        drop(old);
         self.sound_font = Some(sf);
         Ok(())
     }
@@ -240,12 +241,9 @@ impl Player {
     }
 
     fn start(&self, score: Arc<Score>, from: Tick, to: Option<Tick>, looping: bool) {
-        let mut engine = self.lock();
-        let (msgs, end) = schedule(&score, from, to, engine.sample_rate);
-        if let Some(synth) = &mut engine.synth {
-            synth.reset();
-        }
-        engine.playback = Some(Playback {
+        // Scheduled outside the lock: the audio thread waits for it.
+        let (msgs, end) = schedule(&score, from, to, self.lock().sample_rate);
+        let playback = Playback {
             score,
             from,
             to,
@@ -254,16 +252,25 @@ impl Player {
             pos: 0,
             end,
             looping,
-        });
+        };
+        let mut engine = self.lock();
+        if let Some(synth) = &mut engine.synth {
+            synth.reset();
+        }
+        let old = engine.playback.replace(playback);
+        drop(engine);
+        drop(old);
     }
 
     pub fn stop(&self) {
         let mut engine = self.lock();
-        engine.playback = None;
+        let old = engine.playback.take();
         engine.preview.clear();
         if let Some(synth) = &mut engine.synth {
             synth.silence();
         }
+        drop(engine);
+        drop(old);
     }
 
     /// Strikes `pitches` now for a short time.
@@ -409,10 +416,11 @@ where
             config,
             move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
                 buf.resize(data.len(), 0.0);
-                match engine.lock() {
-                    Ok(mut e) => e.fill(&mut buf, channels),
-                    Err(_) => buf.fill(0.0),
-                }
+                // A panic elsewhere must not silence playback for good.
+                engine
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .fill(&mut buf, channels);
                 for (d, s) in data.iter_mut().zip(&buf) {
                     *d = T::from_sample(*s);
                 }
