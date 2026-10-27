@@ -181,6 +181,7 @@ pub fn resolve(
         state: State::new(opts),
         sounds: Vec::new(),
         cresc: None,
+        carry: Vec::new(),
         probe,
         probed: None,
         alerts,
@@ -209,6 +210,9 @@ struct Resolver<'a> {
     state: State,
     sounds: Vec<Sound>,
     cresc: Option<Cresc>,
+    /// The cresc/dim each voice of the last `voices` block left open: it goes on in
+    /// the same voice of the next block, or the first one after the block.
+    carry: Vec<Option<Cresc>>,
     probe: Option<(u32, u32)>,
     probed: Option<State>,
     alerts: &'a mut Vec<Alert>,
@@ -216,7 +220,30 @@ struct Resolver<'a> {
 
 impl Resolver<'_> {
     fn seq(&mut self, nodes: &[Node]) -> Vec<Item> {
-        nodes.iter().filter_map(|n| self.node(n)).collect()
+        let mut items = Vec::new();
+        for n in nodes {
+            // Only bar lines may stand between two blocks a cresc goes on through.
+            if !matches!(n, Node::Bar(_) | Node::Voices { .. }) {
+                self.settle_carry();
+            }
+            items.extend(self.node(n));
+        }
+        self.settle_carry();
+        items
+    }
+
+    /// No `voices` block follows: the first voice's cresc goes on after the block,
+    /// the others never reach a target.
+    fn settle_carry(&mut self) {
+        let mut carry = std::mem::take(&mut self.carry).into_iter();
+        if let Some(Some(first)) = carry.next()
+            && let Some(outer) = self.cresc.replace(first)
+        {
+            self.unreached(outer);
+        }
+        for c in carry.flatten() {
+            self.unreached(c);
+        }
     }
 
     fn check_probe(&mut self, span: Option<SrcSpan>) {
@@ -386,6 +413,8 @@ impl Resolver<'_> {
     fn voices(&mut self, voices: &[Vec<Node>], span: SrcSpan) -> Item {
         let before = self.state;
         let outer = self.cresc.take();
+        let mut incoming = std::mem::take(&mut self.carry).into_iter();
+        let mut carry = Vec::new();
         let mut pedals = before.pedals;
         let mut first_end = None;
         let (mut tempo, mut time) = (None, None);
@@ -393,8 +422,10 @@ impl Resolver<'_> {
             .iter()
             .map(|v| {
                 self.state = before;
+                // A cresc left open by this voice in the block before goes on.
+                self.cresc = incoming.next().flatten();
                 let items = self.seq(v);
-                self.end_cresc();
+                carry.push(self.cresc.take());
                 self.unused_sudden();
                 for (p, (now, was)) in pedals
                     .iter_mut()
@@ -418,7 +449,11 @@ impl Resolver<'_> {
         self.state.pedals = pedals;
         self.state.tempo = tempo.unwrap_or(before.tempo);
         self.state.time = time.unwrap_or(before.time);
+        for c in incoming.flatten() {
+            self.unreached(c);
+        }
         self.cresc = outer;
+        self.carry = carry;
         Item::Voices { voices, span }
     }
 
@@ -451,11 +486,15 @@ impl Resolver<'_> {
     /// Warns about a cresc/dim that never reached its target.
     fn end_cresc(&mut self) {
         if let Some(c) = self.cresc.take() {
-            self.alerts.push(Alert::warning(
-                c.span,
-                "cresc/dim has no target dynamic, e.g. `p cresc C D E f`",
-            ));
+            self.unreached(c);
         }
+    }
+
+    fn unreached(&mut self, c: Cresc) {
+        self.alerts.push(Alert::warning(
+            c.span,
+            "cresc/dim has no target dynamic, e.g. `p cresc C D E f`",
+        ));
     }
 
     /// Resolves a note name; returns the folded pitch and the raw MIDI number.

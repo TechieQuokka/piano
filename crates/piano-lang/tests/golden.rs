@@ -574,3 +574,28 @@ fn arp_rolls_a_chord_from_the_bottom() {
     let c = clean("arp{C4 E G}/4' r");
     assert_eq!(notes(&c), "C4@0+2 E4@0+2 G4@0+2");
 }
+
+#[test]
+fn a_cresc_goes_on_into_the_same_voice_of_the_next_block() {
+    // Each voice's cresc crosses the bar line into the next block, note by note.
+    let c = clean(
+        "| voices{ p cresc C5 D E F }{ pp cresc C3 D E F } \
+         | voices{ G A f B/2 }{ G3 A p B/2 } |",
+    );
+    let v = |octave: &str| -> Vec<u8> {
+        c.score
+            .notes
+            .iter()
+            .filter(|n| n.pitch.to_string().ends_with(octave))
+            .map(|n| n.velocity)
+            .collect()
+    };
+    assert_eq!(v("5"), [49, 56, 64, 72, 80, 88, 96]);
+    assert_eq!(v("3"), [33, 35, 38, 41, 43, 46, 49]);
+    // After the last block, the first voice's cresc goes on in the main line.
+    let c = clean("voices{ p cresc C4 D }{ E3/2 } E F f G");
+    assert_eq!(velocities(&c), [80, 49, 60, 72, 84, 96]);
+    // A voice whose cresc meets no block and no mark warns.
+    let c = compile_piece("voices{ C4 }{ p cresc E3 } G");
+    assert_eq!(c.alerts.len(), 1, "{:?}", c.alerts);
+}

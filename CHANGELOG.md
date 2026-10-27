@@ -3,6 +3,14 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.46.0
+- Language: a cresc or dim that a voice leaves open at the end of a `voices` block
+  goes on in the same voice of the next block (only bar lines between), so each hand
+  can grow over several bars. With no block after it, the first voice's cresc goes
+  on after the block; the others warn as before. Imported scores are unchanged (the
+  importer closes every ramp in its block). Beethoven sonatas: 103/103 still match.
+- CI on GitHub Actions: format, clippy with the audio feature, tests.
+
 ## 1.45.2
 - Fix (import): a hairpin with no mark right at its end looks for one up to the end of
   the next bar, as meant; it measured "a bar" by the first bar of the score, so after

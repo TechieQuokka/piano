@@ -1080,6 +1080,9 @@ mf C4 E G pp C5/2   // 갑자기 여린 맨 윗음
   목표로 바뀝니다.
 - `voices` 블록 밖의 cresc는 블록 안의 음을 세지 않습니다. 성부마다 따로 cresc를
   쓸 수 있습니다.
+- 블록이 끝날 때 아직 목표에 닿지 않은 성부의 cresc는 다음 블록의 같은 성부로
+  이어집니다(사이에는 마디선만). 그래서 여러 마디에 걸칠 수 있습니다. 뒤에 블록이
+  없으면 첫 성부의 cresc는 블록 뒤로 이어지고, 나머지는 Warning이 납니다.
 
 #### Examples
 
@@ -1094,6 +1097,11 @@ ff dim C5 B A G F E D pp C   // 음계를 내려가며 사라짐
 ```piano
 mp cresc | C4 D E F |
 G A B C | ff D/1 |   // 두 줄에 걸친 크레셴도
+```
+
+```piano
+| voices{ p cresc C5 D E F }{ pp cresc C3 D E F }
+| voices{ G A f B/2 }{ G3 A p B/2 } |   // 양손이 마디선을 넘어 커짐
 ```
 
 ```piano warning

@@ -1094,6 +1094,9 @@ Both lead to the next dynamic mark.
   still move to the target.
 - A cresc outside a `voices` block does not count the notes inside it; each voice can
   have its own.
+- A voice's cresc that has not reached its mark when the block ends goes on in the
+  same voice of the next block (only bar lines between), so it can span bars. With no
+  block after it, the first voice's cresc goes on after the block; the others warn.
 
 #### Examples
 
@@ -1108,6 +1111,11 @@ ff dim C5 B A G F E D pp C   // fading down the scale
 ```piano
 mp cresc | C4 D E F |
 G A B C | ff D/1 |   // a crescendo over two lines
+```
+
+```piano
+| voices{ p cresc C5 D E F }{ pp cresc C3 D E F }
+| voices{ G A f B/2 }{ G3 A p B/2 } |   // each hand grows across the bar line
 ```
 
 ```piano warning

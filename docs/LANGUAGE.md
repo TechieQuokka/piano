@@ -227,6 +227,9 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
              reaching the next dynamic mark.
     Target   No mark after it -> Warning.
              cresc toward a softer mark (or dim toward louder) -> Warning.
+    Voices   Left open at the end of a voice, it goes on in the same
+             voice of the next block (only | between); otherwise the
+             first voice's goes on after the block.
     Example  p cresc C4 D E F f G
     See      dynamic
 

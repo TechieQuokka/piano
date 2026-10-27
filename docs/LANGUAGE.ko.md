@@ -224,6 +224,9 @@ only descriptions are Korean.
              또는 점점 여리게(dim).
     Target   뒤에 세기 기호가 없으면 Warning.
              cresc인데 더 여린 기호로 가면(dim은 반대) Warning.
+    Voices   성부 끝에서 아직 열려 있으면 다음 블록의 같은 성부로
+             이어짐 (사이에는 | 만). 그렇지 않으면 첫 성부의 것이
+             블록 뒤로 이어짐.
     Example  p cresc C4 D E F f G
     See      dynamic
 
