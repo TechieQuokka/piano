@@ -230,6 +230,7 @@ fn lay_item(
                                     i32::from(g.velocity) + g.marks.boost(),
                                 ),
                                 cut: each - each * g.marks.gate() / 100,
+                                roll_ms: 0,
                                 src: g.span,
                             });
                         }
@@ -266,6 +267,11 @@ fn lay_item(
                                 ) + sound.marks.boost(),
                             ),
                             cut,
+                            roll_ms: if sound.roll {
+                                roll_ms(&sound.pitches, pitch)
+                            } else {
+                                0
+                            },
                             src: sound.span,
                         });
                         track.notes.len() - 1
@@ -698,6 +704,15 @@ fn repeat_sign(ctx: &mut Ctx, now: Tick, span: SrcSpan, alerts: &mut Vec<Alert>)
     ctx.bars_seen += 1;
     ctx.free = false;
     ctx.follow(now, true);
+}
+
+/// Milliseconds between the keys of an arpeggio.
+pub const ROLL_STEP_MS: u16 = 30;
+
+/// When `pitch` of a rolled chord goes down: the lowest first.
+fn roll_ms(pitches: &[piano_core::Pitch], pitch: piano_core::Pitch) -> u16 {
+    let below = pitches.iter().filter(|p| **p < pitch).count();
+    ROLL_STEP_MS * below as u16
 }
 
 /// Length of each of `count` grace notes before a note of `len`: a 32nd, halved

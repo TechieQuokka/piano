@@ -1053,6 +1053,9 @@ impl Ctx<'_> {
             if e.notes.len() == 1 {
                 text += &e.notes[0].1;
             } else {
+                if e.marks.arp {
+                    text += "arp";
+                }
                 let names: Vec<String> = e
                     .notes
                     .iter()

@@ -193,6 +193,7 @@ mod tests {
                 len: piano_core::TICKS_PER_QUARTER,
                 velocity: 90,
                 cut: 0,
+                roll_ms: 0,
                 src: Default::default(),
             }],
             end: piano_core::TICKS_PER_QUARTER,
@@ -215,6 +216,7 @@ mod tests {
                     len: piano_core::TICKS_PER_QUARTER,
                     velocity: 100,
                     cut: 0,
+                    roll_ms: 0,
                     src: Default::default(),
                 }],
                 pedals: if soft {

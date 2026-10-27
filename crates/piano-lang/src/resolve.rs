@@ -113,6 +113,8 @@ pub struct Sound {
     pub marks: Marks,
     /// `sf`, `fp`, ... written just before it.
     pub sudden: Option<Sudden>,
+    /// Rolled (`arp`).
+    pub roll: bool,
     /// Per pitch: tied to the next sound.
     pub ties: Vec<bool>,
     pub span: SrcSpan,
@@ -249,6 +251,7 @@ impl Resolver<'_> {
                 len,
                 marks,
                 tie,
+                roll,
                 span,
             } => {
                 let before = self.state.reference;
@@ -270,7 +273,11 @@ impl Resolver<'_> {
                     }
                 }
                 self.state.reference = first.unwrap_or(before);
-                Some(self.sound(pitches, *len, *marks, ties, *span))
+                let item = self.sound(pitches, *len, *marks, ties, *span);
+                if let Some(s) = self.sounds.last_mut() {
+                    s.roll = *roll;
+                }
+                Some(item)
             }
             Node::Rest { len, hold, span } => {
                 if let Some(l) = len {
@@ -498,6 +505,7 @@ impl Resolver<'_> {
             velocity: self.state.dynamic.velocity(),
             marks,
             sudden,
+            roll: false,
             ties,
             span,
         });

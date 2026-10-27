@@ -57,10 +57,20 @@ pub fn midi_bytes(score: &Score) -> Vec<u8> {
             TrackEventKind::Meta(MetaMessage::TimeSignature(t.sig.beats, denom_pow, 24, 8)),
         ));
     }
+    let clock = score.clock();
     for n in &score.notes {
         let key = u7::new(n.pitch.midi());
+        // An arpeggio's keys go down one after another, each before it is let go.
+        let on = if n.roll_ms == 0 {
+            n.start
+        } else {
+            let secs = clock.seconds_at(n.start) + f64::from(n.roll_ms) / 1000.0;
+            clock
+                .tick_at_seconds(secs)
+                .min(n.release().saturating_sub(1))
+        };
         events.push((
-            n.start,
+            on,
             4,
             midi(MidiMessage::NoteOn {
                 key,

@@ -1327,6 +1327,39 @@ C4 D grace{ E }   // Warning: no note after it
 
 `guide marks` · `guide length` · `man grace`
 
+### Arpeggios {#arpeggio}
+
+#### Concept
+
+An arpeggiated (rolled) chord is played like a harp: the keys go down quickly one
+after another, from the bottom up, instead of all at once. It softens big chords and
+is marked with a wavy line in scores.
+
+#### Syntax
+
+`arp{ <notes> }/<n>`: a chord with `arp` in front.
+
+#### Rules
+
+- The keys go down from the lowest, 30 ms apart; they are let go together, at the
+  chord's end.
+- Everything else is as for a chord: one length after `}`, marks, `~`.
+- The roll does not take time from the beat: the chord starts on the beat.
+
+#### Examples
+
+```piano
+arp{C3 G C4 E}/1   // a wide chord rolled upward
+```
+
+```piano
+| p arp{F3 C4 Ab C5}/2 arp{G3 B D4 G}/2 | arp{C3 G C4 E}/1@ |
+```
+
+#### See also
+
+`guide chord` · `guide marks` · `man arpeggio`
+
 ### Accents {#fn.accent}
 
 #### Concept
@@ -2062,6 +2095,7 @@ music terms used in this guide.
 note      C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [' '' ^ _ @]  [~]
 rest      r [/n [. ..]] [@]
 chord     { note [~] ... } [/n [. ..]] [' '' ^ _ @] [~]
+arpeggio  arp{ note ... } [/n] ...
 comment   // ...
 header    tempo <20-400>   time <beats>/<unit>
 bar       |   %
@@ -2133,7 +2167,7 @@ tempo 120 C D E   // the piece's own tempo wins over the default
 #### Terms
 
 - accent: one note played louder than its neighbors.
-- arpeggio, broken chord: the notes of a chord played one after another.
+- arpeggio, broken chord: the notes of a chord played one after another; `arp{ }`.
 - bar, measure: a group of beats, ended by `|`.
 - beat: the unit of musical time; in piano a quarter note.
 - cadenza: a free passage, often a run of small notes, played without a strict beat;

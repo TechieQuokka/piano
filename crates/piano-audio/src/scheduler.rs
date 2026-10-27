@@ -72,15 +72,19 @@ pub fn schedule(score: &Score, from: Tick, to: Option<Tick>, sample_rate: u32) -
         .filter(|n| n.start < to && n.end() > from)
     {
         let key = n.pitch.midi();
+        let off = sample(n.release().min(to));
+        // An arpeggio's keys go down one after another, each before it is let go.
+        let roll = (f64::from(n.roll_ms) / 1000.0 * f64::from(sample_rate)).round() as u64;
+        let on = sample(n.start.max(from)) + if n.start >= from { roll } else { 0 };
         msgs.push(Msg {
-            at: sample(n.start.max(from)),
+            at: on.min(off.saturating_sub(1)),
             kind: MsgKind::On {
                 key,
                 velocity: n.velocity,
             },
         });
         msgs.push(Msg {
-            at: sample(n.release().min(to)),
+            at: off,
             kind: MsgKind::Off { key },
         });
     }
@@ -108,6 +112,7 @@ mod tests {
             len,
             velocity: 80,
             cut: 0,
+            roll_ms: 0,
             src: SrcSpan::default(),
         };
         let mut s = Score {
@@ -221,5 +226,18 @@ mod tests {
             .map(|m| m.at);
         // Struck at 1 s, a quarter (1 s) long, half of it cut.
         assert_eq!(off, Some(150));
+    }
+
+    #[test]
+    fn an_arpeggio_strikes_its_keys_one_after_another() {
+        let mut s = score();
+        s.notes[1].roll_ms = 30;
+        let (msgs, _) = schedule(&s, 0, None, 1000);
+        let on = msgs
+            .iter()
+            .find(|m| matches!(m.kind, MsgKind::On { key: 60, .. }))
+            .map(|m| m.at);
+        // Struck at 1 s, 30 ms late.
+        assert_eq!(on, Some(1030));
     }
 }

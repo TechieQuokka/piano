@@ -165,6 +165,7 @@ fn token(s: &str) -> Option<Token> {
         accent: s.contains('^'),
         tenuto: s.contains('~'),
         fermata: s.contains(';'),
+        arp: s.contains(':'),
     };
     Some(Token {
         len,
@@ -779,6 +780,15 @@ mod tests {
         for want in ["C4/2@", "C3/2@", "D4/4 r@", "| r/2@ |"] {
             assert!(text.contains(want), "{want} in\n{text}");
         }
+    }
+
+    #[test]
+    fn arpeggios_are_rolled() {
+        let k = format!("{HEAD}=1\t=1\t=1\n2C: 2E: 2G:\t2c\t.\n==\t==\t==\n");
+        let i = crate::import(&k, "test.krn").unwrap();
+        let text: String = i.pieces.iter().map(|p| p.1.as_str()).collect();
+        assert!(i.check.ok(), "{:?}\n{text}", i.check);
+        assert!(text.contains("arp{C3 E3 G3}/2"), "{text}");
     }
 
     #[test]

@@ -432,6 +432,7 @@ impl Parser<'_> {
             len,
             marks,
             tie,
+            roll: false,
             span,
         }
     }
@@ -469,6 +470,14 @@ impl Parser<'_> {
         }
         if lower == "grace" && matches!(self.peek_tok(), Some(Tok::LBrace)) {
             return Some(self.grace(span));
+        }
+        if lower == "arp" && matches!(self.peek_tok(), Some(Tok::LBrace)) {
+            self.bump();
+            let mut chord = self.chord(span);
+            if let Node::Chord { roll, .. } = &mut chord {
+                *roll = true;
+            }
+            return Some(chord);
         }
         if matches!(self.peek_tok(), Some(Tok::LParen)) {
             return self.func(w, span);

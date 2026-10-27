@@ -289,6 +289,15 @@ only descriptions are Korean.
     Example  | C5/4 grace{ D5 } C5/4 | grace{ B4 C5 } D5/2 |
     See      marks, length
 
+### ARPEGGIO {#arpeggio}
+
+    Syntax   arp{ <notes> }/<n>             arp{C3 E G C4}/2
+    Meaning  펼친 화음: 가장 낮은 음부터 30 ms 간격으로 하나씩
+             누르고, 놓을 때는 함께 놓음.
+    Else     다른 점은 화음과 같음: } 뒤에 길이, 기호, ~.
+    Example  arp{C3 G C4 E}/1
+    See      chord, marks
+
 ## PEDALS {#pedals}
 
 ### PEDAL {#pedal}
@@ -455,6 +464,7 @@ only descriptions are Korean.
     note     C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [' '' ^ _ @]  [~]
     rest     r [/n [. ..]] [@]
     chord    { note [~] ... } [/n] [' '' ^ _ @] [~]
+    arpeggio arp{ note ... } [/n] ...
     comment  // ...
     header   tempo <bpm>   time <a>/<b>
     bar      |   %

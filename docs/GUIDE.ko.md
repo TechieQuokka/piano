@@ -1310,6 +1310,37 @@ C4 D grace{ E }   // Warning: 뒤에 음이 없음
 
 `guide marks` · `guide length` · `man grace`
 
+### Arpeggios {#arpeggio}
+
+#### Concept
+
+아르페지오(펼친 화음)는 하프처럼 칩니다: 한꺼번에 누르지 않고, 아래에서 위로 빠르게
+하나씩 누릅니다. 큰 화음을 부드럽게 만들며, 악보에는 물결선으로 표시됩니다.
+
+#### Syntax
+
+`arp{ <음들> }/<n>`: 앞에 `arp`를 붙인 화음.
+
+#### Rules
+
+- 가장 낮은 음부터 30 ms 간격으로 누르고, 화음이 끝날 때 함께 놓습니다.
+- 나머지는 화음과 같습니다: `}` 뒤에 길이 하나, 기호, `~`.
+- 펼치는 시간은 박에서 빼지 않습니다: 화음은 박 위에서 시작합니다.
+
+#### Examples
+
+```piano
+arp{C3 G C4 E}/1   // 넓은 화음을 위로 펼침
+```
+
+```piano
+| p arp{F3 C4 Ab C5}/2 arp{G3 B D4 G}/2 | arp{C3 G C4 E}/1@ |
+```
+
+#### See also
+
+`guide chord` · `guide marks` · `man arpeggio`
+
 ### Accents {#fn.accent}
 
 #### Concept
@@ -2042,6 +2073,7 @@ voices{ C4 D E F }   // Hint: 성부가 하나뿐
 note      C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [' '' ^ _ @]  [~]
 rest      r [/n [. ..]] [@]
 chord     { note [~] ... } [/n [. ..]] [' '' ^ _ @] [~]
+arpeggio  arp{ note ... } [/n] ...
 comment   // ...
 header    tempo <20-400>   time <beats>/<unit>
 bar       |   %
@@ -2113,7 +2145,7 @@ tempo 120 C D E   // 조각에 쓴 템포가 기본값보다 우선
 #### Terms
 
 - accent (악센트): 이웃한 음보다 세게 치는 음.
-- arpeggio, broken chord (펼침화음): 화음의 음을 하나씩 차례로 치는 것.
+- arpeggio, broken chord (펼침화음): 화음의 음을 하나씩 차례로 치는 것. `arp{ }`.
 - bar, measure (마디): 박의 묶음, `|`로 끝남.
 - beat (박): 음악 시간의 단위. piano에서는 4분음표.
 - cadenza (카덴차): 대개 작은 음표의 흐름으로, 엄격한 박 없이 자유롭게 연주하는

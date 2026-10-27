@@ -1070,7 +1070,7 @@ overwritten.
 - **Approximations**: grace notes are played on the beat in their note's time
   (graces before a note tied on are dropped); trills
   alternate with the upper neighbor (key or marked accidental) in 32nds; arpeggios
-  are struck together; wedges become `cresc` / `dim` from the level reached so far
+  are rolled with `arp{ }` (1.45.0); fermatas become `@` (1.44.0); wedges become `cresc` / `dim` from the level reached so far
   to the mark at their end, or one level on (a swell `<` `>` returns to its level;
   1.29.1); rubato becomes one tempo per block (harmonic mean, so durations are kept). Before
   the first mark the level is mf, like the language and MuseScore.

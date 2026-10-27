@@ -558,3 +558,19 @@ fn a_fermata_holds_twice_as_long() {
     // Other marks on a rest warn.
     assert_eq!(compile_piece("r'@").alerts.len(), 1);
 }
+
+#[test]
+fn arp_rolls_a_chord_from_the_bottom() {
+    let c = clean("arp{G4 C4 E}/2 {C4 E}/2");
+    let rolls: Vec<(String, u16)> = c
+        .score
+        .notes
+        .iter()
+        .map(|n| (n.pitch.to_string(), n.roll_ms))
+        .collect();
+    let want = [("C4", 0), ("E4", 30), ("G4", 60), ("C4", 0), ("E4", 0)];
+    assert_eq!(rolls, want.map(|(p, r)| (p.to_string(), r)));
+    // Written start, length, and marks as any chord.
+    let c = clean("arp{C4 E G}/4' r");
+    assert_eq!(notes(&c), "C4@0+2 E4@0+2 G4@0+2");
+}

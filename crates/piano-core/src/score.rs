@@ -120,6 +120,8 @@ pub struct NoteEvent {
     pub velocity: u8,
     /// How much earlier than the written end the key is let go (staccato).
     pub cut: Tick,
+    /// How many milliseconds after its start the key goes down (arpeggio).
+    pub roll_ms: u16,
     pub src: SrcSpan,
 }
 

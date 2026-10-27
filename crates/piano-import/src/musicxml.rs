@@ -41,6 +41,8 @@ pub struct Marks {
     pub accent: bool,
     pub tenuto: bool,
     pub fermata: bool,
+    /// The chord is rolled (`arp{ }`).
+    pub arp: bool,
 }
 
 impl Marks {
@@ -52,9 +54,11 @@ impl Marks {
             accent: self.accent || other.accent,
             tenuto: self.tenuto || other.tenuto,
             fermata: self.fermata || other.fermata,
+            arp: self.arp || other.arp,
         }
     }
 
+    /// The marks written after the note or chord (`arp` goes before it).
     pub fn text(self) -> String {
         let mut s = "'".repeat(usize::from(self.staccato));
         if self.accent {
@@ -135,7 +139,6 @@ pub struct Model {
 pub struct Notices {
     pub cue: usize,
     pub unpitched: usize,
-    pub arpeggios: usize,
     /// Repeats that never ended (unrolling stopped).
     pub runaway_repeats: usize,
 }
@@ -566,11 +569,9 @@ fn read_part(part: Node, notices: &mut Notices) -> Vec<RawMeasure> {
                     let tie = el
                         .children()
                         .any(|t| t.has_tag_name("tie") && t.attribute("type") == Some("start"));
-                    if notations.is_some_and(|n| child(n, "arpeggiate").is_some()) {
-                        notices.arpeggios += 1;
-                    }
                     let marks = Marks {
                         fermata,
+                        arp: notations.is_some_and(|n| child(n, "arpeggiate").is_some()),
                         ..notations
                             .and_then(|n| child(n, "articulations"))
                             .map(articulations)
@@ -615,6 +616,7 @@ fn articulations(a: Node) -> Marks {
         accent: has("accent") || has("strong-accent"),
         tenuto: has("tenuto") || has("detached-legato"),
         fermata: false,
+        arp: false,
     }
 }
 

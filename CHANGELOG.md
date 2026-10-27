@@ -3,6 +3,14 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.45.0
+- Language: `arp{ <notes> }/<n>` rolls a chord: the keys go down from the lowest,
+  30 ms apart, and are let go together. Otherwise it is a chord (length, marks, `~`).
+- Playback and MIDI export strike the keys one after another.
+- Import: kern `:` and MusicXML `<arpeggiate/>` are written as `arp{ }` (before, they
+  were struck together). Beethoven sonatas: 103/103 still match.
+- Docs: `man arpeggio`, `guide arpeggio`, both languages.
+
 ## 1.44.0
 - Language: `@` fermata after a note, chord, or rest (`G/2@`, `r/4@`): it lasts twice
   as long; every voice waits, the tempo is halved while it sounds. The bar still

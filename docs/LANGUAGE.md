@@ -292,6 +292,15 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     Example  | C5/4 grace{ D5 } C5/4 | grace{ B4 C5 } D5/2 |
     See      marks, length
 
+### ARPEGGIO {#arpeggio}
+
+    Syntax   arp{ <notes> }/<n>             arp{C3 E G C4}/2
+    Meaning  A rolled chord: the keys go down one after another, from
+             the lowest, 30 ms apart; all are let go together.
+    Else     Like any chord: length, marks, ~ after }.
+    Example  arp{C3 G C4 E}/1
+    See      chord, marks
+
 ## PEDALS {#pedals}
 
 ### PEDAL {#pedal}
@@ -459,6 +468,7 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     note     C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [' '' ^ _ @]  [~]
     rest     r [/n [. ..]] [@]
     chord    { note [~] ... } [/n] [' '' ^ _ @] [~]
+    arpeggio arp{ note ... } [/n] ...
     comment  // ...
     header   tempo <bpm>   time <a>/<b>
     bar      |   %

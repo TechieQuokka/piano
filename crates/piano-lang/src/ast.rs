@@ -133,6 +133,8 @@ pub enum Node {
         len: Option<Duration>,
         marks: Marks,
         tie: bool,
+        /// `arp{ }`: rolled from the lowest note up.
+        roll: bool,
         span: SrcSpan,
     },
     Dynamic(Dynamic, SrcSpan),
