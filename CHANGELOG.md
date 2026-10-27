@@ -3,6 +3,16 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.47.1
+- Fix: the first second of the first playback could break up. The audio output (HDMI
+  here) wakes from standby when the program opens it and drops roughly its first
+  second; `piano play` started the music about 0.4 s after opening it. Playback now
+  starts no earlier than 1.5 s after the device opened (silence until then, the play
+  position held at the start); the editor keeps the device open, so later plays start
+  at once. Measured before the fix: the program fed the device without a gap or an
+  underrun, so the loss was after it.
+- `piano play` prints audio stream errors (underruns) as the editor already did.
+
 ## 1.47.0
 - Language: `slur{ ... }` plays its notes legato, each to its full length (`'` inside is
   portato, 75 %); bar lines may stand inside. `touch <10-100>` sets how much of its

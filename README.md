@@ -60,6 +60,12 @@ A piano `.sf2` SoundFont is needed for sound; set it with `font <path>`.
 | `Shift+PgUp` `Shift+PgDn` | scroll the Display from any area |
 | `Esc` | cancel a question |
 
+## Sound output
+
+The first playback waits until the audio output has run for 1.5 s: an output woken from
+standby (HDMI monitors above all) drops about its first second. After that, playback
+starts at once. Audio errors such as underruns are shown in Output (and by `piano play`).
+
 ## Terminal
 
 For exact note lengths when you press and release keys, use a terminal with the kitty

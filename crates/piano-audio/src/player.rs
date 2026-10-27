@@ -17,6 +17,9 @@ use crate::synth::PianoSynth;
 
 /// How long a previewed note sounds.
 const PREVIEW_SECS: f64 = 0.9;
+/// Playback waits until the device has run this long. An output woken from
+/// standby (HDMI above all) drops roughly its first second of sound.
+pub const WARMUP_SECS: f64 = 1.5;
 /// Render in slices of at most this many frames so message timing stays tight.
 #[cfg_attr(not(feature = "device"), allow(dead_code))]
 const MAX_SLICE: usize = 256;
@@ -42,6 +45,8 @@ struct Engine {
     /// Absolute-time preview messages (sample clock = `clock`).
     preview: Vec<Msg>,
     clock: u64,
+    /// Playback starts no earlier than this sample clock (device warm-up).
+    warmup: u64,
     left: Vec<f32>,
     right: Vec<f32>,
     /// Peak level sent to the device since last read (diagnostics).
@@ -59,6 +64,7 @@ impl Engine {
         let mut done = 0;
         while done < frames {
             let slice = (frames - done).min(MAX_SLICE);
+            let waiting = self.clock < self.warmup;
             let slice = self.dispatch(slice);
             if let Some(synth) = &mut self.synth {
                 synth.render(
@@ -70,7 +76,9 @@ impl Engine {
                 self.right[done..done + slice].fill(0.0);
             }
             self.clock += slice as u64;
-            if let Some(p) = &mut self.playback {
+            if let Some(p) = &mut self.playback
+                && !waiting
+            {
                 p.pos += slice as u64;
             }
             done += slice;
@@ -99,6 +107,10 @@ impl Engine {
             if let Some(next) = self.preview.iter().map(|m| m.at - self.clock).min() {
                 limit = limit.min(next);
             }
+        }
+        if self.playback.is_some() && self.clock < self.warmup {
+            // Silence until the device is warm; the playback has not begun.
+            return (limit.min(self.warmup - self.clock).max(1) as usize).min(max);
         }
         if let Some(p) = &mut self.playback {
             if let Some(synth) = &mut self.synth {
@@ -168,6 +180,7 @@ impl Player {
             playback: None,
             preview: Vec::new(),
             clock: 0,
+            warmup: 0,
             left: Vec::new(),
             right: Vec::new(),
             peak: 0.0,
@@ -380,7 +393,11 @@ fn open_stream(
         "{name} · {} Hz · {} ch · {format}",
         config.sample_rate, config.channels
     );
-    engine.lock().unwrap_or_else(|e| e.into_inner()).sample_rate = config.sample_rate;
+    {
+        let mut e = engine.lock().unwrap_or_else(|e| e.into_inner());
+        e.sample_rate = config.sample_rate;
+        e.warmup = (WARMUP_SECS * f64::from(config.sample_rate)) as u64;
+    }
     let stream = match format {
         SampleFormat::F32 => build::<f32>(&device, config, engine, errors),
         SampleFormat::I16 => build::<i16>(&device, config, engine, errors),
@@ -540,5 +557,49 @@ mod tests {
         assert!(!p.is_playing());
         p.preview(&[Pitch::MIDDLE_C], 80);
         assert!(pull(&p, 0.2) > 0.01);
+    }
+
+    #[test]
+    fn playback_waits_for_a_warm_device() {
+        let p = player();
+        p.lock().warmup = 44_100;
+        let score = Arc::new(piano_core::Score {
+            notes: vec![piano_core::NoteEvent {
+                pitch: Pitch::MIDDLE_C,
+                start: 0,
+                len: piano_core::TICKS_PER_QUARTER,
+                velocity: 80,
+                cut: 0,
+                roll_ms: 0,
+                src: Default::default(),
+            }],
+            end: piano_core::TICKS_PER_QUARTER,
+            ..Default::default()
+        });
+        p.play(score, 0, None);
+        // Silent and at the start for the first second, then it plays.
+        assert_eq!(p.pull_peak(0.9), 0.0);
+        assert_eq!(p.position(), Some(0));
+        assert!(p.pull_peak(0.3) > 0.01);
+        // Once warm, a new playback starts at once.
+        p.stop();
+        p.play(
+            Arc::new(piano_core::Score {
+                notes: vec![piano_core::NoteEvent {
+                    pitch: Pitch::MIDDLE_C,
+                    start: 0,
+                    len: piano_core::TICKS_PER_QUARTER,
+                    velocity: 80,
+                    cut: 0,
+                    roll_ms: 0,
+                    src: Default::default(),
+                }],
+                end: piano_core::TICKS_PER_QUARTER,
+                ..Default::default()
+            }),
+            0,
+            None,
+        );
+        assert!(p.pull_peak(0.2) > 0.01);
     }
 }

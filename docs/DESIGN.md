@@ -980,6 +980,12 @@ Where the implementation differs from or adds to the design above.
 - Without it, everything else works (editing, MIDI export, WAV rendering with a
   SoundFont); the app reports that there is no audio output.
 - `Player::silent()` never opens a device (tests, headless tools).
+- Warm-up (1.47.1): playback starts no earlier than 1.5 s after the device opened
+  (`WARMUP_SECS`, counted on the device's sample clock; the engine sends silence and
+  holds the playback at its start meanwhile). An output woken from standby, HDMI above
+  all, drops about its first second; the editor keeps the device open, so only a play
+  right after start waits. Stream errors (underruns) show in Output and on `piano
+  play`'s stderr.
 
 ### 13.2 Pedals in the synthesizer
 

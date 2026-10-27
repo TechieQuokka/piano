@@ -494,11 +494,18 @@ fn play(target: &Path, lines: Option<&str>) -> Result<(), String> {
     let total = score.seconds_at(to.unwrap_or(score.end)) - score.seconds_at(from);
     println!("▶ {name} ({})", piano_app::app::clock(total));
     app.player.play(Arc::clone(&score), from, to);
+    let report = || {
+        for e in app.player.take_errors() {
+            eprintln!("audio: {e}");
+        }
+    };
     while app.player.is_playing() {
         std::thread::sleep(Duration::from_millis(100));
+        report();
     }
     // Let the last notes ring.
     std::thread::sleep(Duration::from_millis(1500));
+    report();
     Ok(())
 }
 
