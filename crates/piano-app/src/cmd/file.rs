@@ -62,7 +62,7 @@ impl App {
             return;
         }
         if let Some(i) = self.buffers.iter().position(|b| b.path == path) {
-            self.active = i;
+            self.activate(i);
             return;
         }
         let text = match std::fs::read_to_string(&path) {
@@ -124,7 +124,7 @@ impl App {
                 self.recompile(0);
             }
         }
-        self.active = self.active.min(self.buffers.len() - 1);
+        self.activate(self.active.min(self.buffers.len() - 1));
         self.output.info(format!("closed {name}"));
     }
 

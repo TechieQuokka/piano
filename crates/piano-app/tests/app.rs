@@ -250,6 +250,35 @@ fn song_and_playback_without_audio() {
     a.tick();
 }
 
+fn pitches(a: &App) -> Vec<String> {
+    let notes = &a.buf().compiled.score.notes;
+    notes.iter().map(|n| n.pitch.to_string()).collect()
+}
+
+#[test]
+fn song_follows_its_pieces() {
+    let tmp = Tmp::new("song-follows");
+    let mut a = app(&tmp);
+    type_line(&mut a, "C");
+    run(&mut a, "open song");
+    a.buf_mut().lines = vec!["p1".to_string()];
+    a.recompile(a.active);
+    assert_eq!(pitches(&a), ["C4"]);
+    // Edit p1 while the song stays open, then go back to the song.
+    run(&mut a, "open p1");
+    type_line(&mut a, "E");
+    run(&mut a, "open song");
+    assert_eq!(pitches(&a), ["C4", "E4"]);
+    // A command that changes p1 on disk while the song is active.
+    run(&mut a, "open p1");
+    run(&mut a, "save");
+    run(&mut a, "open song");
+    run(&mut a, "close p1");
+    std::fs::write(tmp.0.join("song/p1.piano"), "G4").unwrap();
+    run(&mut a, "ls");
+    assert_eq!(pitches(&a), ["G4"]);
+}
+
 #[test]
 fn completion() {
     let tmp = Tmp::new("complete");

@@ -3,6 +3,12 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.40.2
+- Fix: the song kept the pieces as they were when it was last compiled. Editing a piece
+  in another buffer (or a command that changed one on disk) and going back to the song
+  played and showed the old notes. The song is compiled again when it becomes the
+  active buffer, after each command, and when an open piece is reloaded.
+
 ## 1.40.1
 - Fix (docs): the guide said only how alerts look in the editor; it now also shows the
   terminal form `⚠ p2 line 3: ...` (since 1.35.0).

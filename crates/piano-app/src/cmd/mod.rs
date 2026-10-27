@@ -57,6 +57,8 @@ impl App {
         }
         self.output.push(OutKind::Cmd, format!("> {line}"));
         self.execute(&line);
+        // A command may have changed a piece on disk (rm, mv, cp, import).
+        self.refresh_song();
     }
 
     pub fn history_prev(&mut self) {

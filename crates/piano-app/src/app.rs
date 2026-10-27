@@ -306,7 +306,7 @@ impl App {
     /// Opens (or switches to) a project piece by name. Returns `false` if missing.
     pub fn open_piece(&mut self, name: &str) -> bool {
         if let Some(i) = self.buffer_index(name) {
-            self.active = i;
+            self.activate(i);
             return true;
         }
         let path = self.project.piece_path(name);
@@ -365,6 +365,20 @@ impl App {
             piano_lang::compile_song(text, &|n| self.piece_source(n), &opts)
         } else {
             piano_lang::compile_piece_with(text, &opts)
+        }
+    }
+
+    /// Makes buffer `i` the active one. A song is compiled again: its pieces may
+    /// have changed since (edited in another buffer, or on disk).
+    pub(crate) fn activate(&mut self, i: usize) {
+        self.active = i;
+        self.refresh_song();
+    }
+
+    /// Compiles the active buffer again if it is the song.
+    pub(crate) fn refresh_song(&mut self) {
+        if self.buf().is_song() {
+            self.recompile(self.active);
         }
     }
 
@@ -648,6 +662,7 @@ impl App {
                 Ok(text) => {
                     self.buffers[i].set_text(&text);
                     self.recompile(i);
+                    self.refresh_song();
                     self.output
                         .info(format!("{name} reloaded (changed outside)"));
                 }
