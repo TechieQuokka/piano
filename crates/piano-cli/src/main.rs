@@ -376,6 +376,12 @@ fn report(imp: &piano_import::Import, dir: &Path) -> Result<(), String> {
     if s.trills > 0 {
         approx.push(format!("{} (32nds)", count(s.trills, "trill")));
     }
+    if s.ornaments > 0 {
+        approx.push(format!(
+            "{} (mordents and turns, in 32nds)",
+            count(s.ornaments, "ornament")
+        ));
+    }
     if !approx.is_empty() {
         println!("  approximated: {}", approx.join(", "));
     }

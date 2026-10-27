@@ -3,6 +3,14 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.45.1
+- Fix (import): mordents and turns were dropped, so the note sounded plain. They are
+  played out: the note and its neighbor (a mordent) or the neighbors around it (a
+  turn) in 32nds (64ths on a short note), then the note for the rest of its time,
+  tied in parts that can be written. kern `M` `m` `W` `w` `S` `$` (with `S` / `s`
+  steps), MusicXML `<mordent/>` `<inverted-mordent/>` `<turn/>` `<inverted-turn/>`.
+  The report counts them. Beethoven sonatas: 103/103 still match.
+
 ## 1.45.0
 - Language: `arp{ <notes> }/<n>` rolls a chord: the keys go down from the lowest,
   30 ms apart, and are let go together. Otherwise it is a chord (length, marks, `~`).

@@ -1070,7 +1070,10 @@ overwritten.
 - **Approximations**: grace notes are played on the beat in their note's time
   (graces before a note tied on are dropped); trills
   alternate with the upper neighbor (key or marked accidental) in 32nds; arpeggios
-  are rolled with `arp{ }` (1.45.0); fermatas become `@` (1.44.0); wedges become `cresc` / `dim` from the level reached so far
+  are rolled with `arp{ }` (1.45.0); fermatas become `@` (1.44.0); mordents and
+  turns are played out (1.45.1): the note and its neighbor(s) in 32nds (64ths on a
+  short note), then the note for the rest of its time, tied in parts that can be
+  written; wedges become `cresc` / `dim` from the level reached so far
   to the mark at their end, or one level on (a swell `<` `>` returns to its level;
   1.29.1); rubato becomes one tempo per block (harmonic mean, so durations are kept). Before
   the first mark the level is mf, like the language and MuseScore.
@@ -1101,7 +1104,9 @@ told by the content: MusicXML starts with `<`, kern has a `**kern` spine.
 - **Time**: a line starts when the first note of the line before ends; grace notes
   (`q`) and lines of marks only last no time.
 - **Tokens**: lengths `4.`, `12` (triplets), `3%2`, `0` / `00`; ties `[ _ ]`; trills
-  `t` (half step) / `T` (whole step); `*M`, `*MM` (quarters per minute), `*ped` /
+  `t` (half step) / `T` (whole step); mordents `M` / `m` (below), `W` / `w` (above),
+  turns `S` / `$` (a following `S` / `s`: upper, then lower step); marks `'` `` ` ``
+  `^` `~` `;` `:` `z`; `*M`, `*MM` (quarters per minute), `*ped` /
   `*Xped`. Cue-size notes (`*cue`, e.g. a cadenza) are played; invisible notes and
   rests (`y`) are kept. Accents, slurs, stems, beams, and fermatas are ignored, as
   are `sf` / `fp` and tempo words without `*MM`.

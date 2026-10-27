@@ -30,7 +30,22 @@ pub struct Note {
     pub tie: bool,
     /// Trill: the upper neighbor (name, MIDI).
     pub trill: Option<(String, i32)>,
+    pub ornament: Option<Ornament>,
     pub marks: Marks,
+}
+
+/// A mordent or turn, played out as notes; neighbors as (name, MIDI).
+#[derive(Debug, Clone, PartialEq)]
+pub enum Ornament {
+    /// The note, its neighbor (below for a mordent, above for an inverted one), the
+    /// note again.
+    Mordent((String, i32)),
+    /// `first`, the note, `second`, the note: upper then lower for a turn, the other
+    /// way for an inverted turn.
+    Turn {
+        first: (String, i32),
+        second: (String, i32),
+    },
 }
 
 /// Articulations, as the language writes them after a note: `'` `''` `^` `_`.
@@ -235,6 +250,7 @@ enum Event {
         name: String,
         tie: bool,
         trill: Option<(String, i32)>,
+        ornament: Option<Ornament>,
         marks: Marks,
     },
     Grace {
@@ -348,6 +364,7 @@ fn place(model: &mut Model, part: usize, m: &RawMeasure, start: Q) {
                 name,
                 tie,
                 trill,
+                ornament,
                 marks,
             } => {
                 if let Some(gs) = pending.remove(voice) {
@@ -381,6 +398,7 @@ fn place(model: &mut Model, part: usize, m: &RawMeasure, start: Q) {
                     name: name.clone(),
                     tie: *tie,
                     trill: trill.clone(),
+                    ornament: ornament.clone(),
                     marks: *marks,
                 });
             }
@@ -577,10 +595,11 @@ fn read_part(part: Node, notices: &mut Notices) -> Vec<RawMeasure> {
                             .map(articulations)
                             .unwrap_or_default()
                     };
-                    let trill = notations
-                        .and_then(|n| child(n, "ornaments"))
+                    let ornaments = notations.and_then(|n| child(n, "ornaments"));
+                    let trill = ornaments
                         .filter(|orn| child(*orn, "trill-mark").is_some())
                         .map(|orn| upper_neighbor(l, o, fifths, marked_accidental(orn)));
+                    let ornament = ornaments.and_then(|orn| ornament(orn, l, o, fifths));
                     rm.events.push((
                         onset,
                         Event::Note {
@@ -591,6 +610,7 @@ fn read_part(part: Node, notices: &mut Notices) -> Vec<RawMeasure> {
                             name: spell(l, a, o),
                             tie,
                             trill,
+                            ornament,
                             marks,
                         },
                     ));
@@ -622,20 +642,60 @@ fn articulations(a: Node) -> Marks {
 
 /// Accidental written for a trill's upper note.
 fn marked_accidental(ornaments: Node) -> Option<i32> {
-    match text(ornaments, "accidental-mark") {
-        Some("sharp") => Some(1),
-        Some("natural") => Some(0),
-        Some("flat") => Some(-1),
-        Some("double-sharp") => Some(2),
-        Some("flat-flat") => Some(-2),
+    text(ornaments, "accidental-mark").and_then(marked_accidental_text)
+}
+
+/// A mordent or turn in `<ornaments>`. An accidental mark goes on the neighbor
+/// its placement names (`above` / `below`), else on the only neighbor.
+fn ornament(orn: Node, letter: char, octave: i32, fifths: i32) -> Option<Ornament> {
+    let mark = |place: &str| {
+        orn.children()
+            .filter(|c| c.has_tag_name("accidental-mark"))
+            .find(|c| c.attribute("placement").is_none_or(|p| p == place))
+            .and_then(|c| marked_accidental_text(c.text()?.trim()))
+    };
+    let up = || upper_neighbor(letter, octave, fifths, mark("above"));
+    let down = || lower_neighbor(letter, octave, fifths, mark("below"));
+    let has = |tag: &str| child(orn, tag).is_some();
+    if has("inverted-mordent") {
+        Some(Ornament::Mordent(up()))
+    } else if has("mordent") {
+        Some(Ornament::Mordent(down()))
+    } else if has("turn") || has("delayed-turn") {
+        Some(Ornament::Turn {
+            first: up(),
+            second: down(),
+        })
+    } else if has("inverted-turn") || has("delayed-inverted-turn") {
+        Some(Ornament::Turn {
+            first: down(),
+            second: up(),
+        })
+    } else {
+        None
+    }
+}
+
+fn marked_accidental_text(t: &str) -> Option<i32> {
+    match t {
+        "sharp" => Some(1),
+        "natural" => Some(0),
+        "flat" => Some(-1),
+        "double-sharp" => Some(2),
+        "flat-flat" => Some(-2),
         _ => None,
     }
 }
 
-/// Diatonic step above `letter` in the key of `fifths`, or with the marked accidental.
-fn upper_neighbor(letter: char, octave: i32, fifths: i32, marked: Option<i32>) -> (String, i32) {
-    let i = LETTERS.iter().position(|c| *c == letter).unwrap_or(0) + 1;
-    let (l, o) = (LETTERS[i % 7], octave + (i / 7) as i32);
+/// Diatonic step below `letter` in the key of `fifths`, or with the marked accidental.
+fn lower_neighbor(letter: char, octave: i32, fifths: i32, marked: Option<i32>) -> (String, i32) {
+    let i = LETTERS.iter().position(|c| *c == letter).unwrap_or(0) + 6;
+    let (l, o) = (LETTERS[i % 7], octave - i32::from(letter == 'C'));
+    in_key(l, o, fifths, marked)
+}
+
+/// `letter` in the key of `fifths`, or with the marked accidental.
+fn in_key(l: char, o: i32, fifths: i32, marked: Option<i32>) -> (String, i32) {
     let sharps = &"FCGDAEB"[..fifths.clamp(0, 7) as usize];
     let flats = &"BEADGCF"[..(-fifths).clamp(0, 7) as usize];
     let alter = marked.unwrap_or(if sharps.contains(l) {
@@ -646,6 +706,13 @@ fn upper_neighbor(letter: char, octave: i32, fifths: i32, marked: Option<i32>) -
         0
     });
     (spell(l, alter, o), midi_of(l, alter, o))
+}
+
+/// Diatonic step above `letter` in the key of `fifths`, or with the marked accidental.
+fn upper_neighbor(letter: char, octave: i32, fifths: i32, marked: Option<i32>) -> (String, i32) {
+    let i = LETTERS.iter().position(|c| *c == letter).unwrap_or(0) + 1;
+    let (l, o) = (LETTERS[i % 7], octave + (i / 7) as i32);
+    in_key(l, o, fifths, marked)
 }
 
 fn direction(el: Node, staff: u32, at: Q, rm: &mut RawMeasure) {

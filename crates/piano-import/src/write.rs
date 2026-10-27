@@ -369,6 +369,59 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
                     .collect::<Vec<_>>(),
             )
         });
+        let expanded = expanded.or_else(|| {
+            let orn = n.ornament.as_ref()?;
+            let main = (n.midi, n.name.clone());
+            let flip = |(name, midi): &(String, i32)| (*midi, name.clone());
+            let lead = match orn {
+                crate::musicxml::Ornament::Mordent(nb) => vec![main.clone(), flip(nb)],
+                crate::musicxml::Ornament::Turn { first, second } => {
+                    vec![flip(first), main.clone(), flip(second)]
+                }
+            };
+            // Quick notes, then the note for the rest of its time.
+            let k = Q::int(lead.len() as i64);
+            let step = [trill_len(), sixty_fourth()]
+                .into_iter()
+                .find(|s| n.len >= *s * (k + Q::int(1)))?;
+            let mut evs: Vec<Ev> = lead
+                .into_iter()
+                .enumerate()
+                .map(|(i, note)| Ev {
+                    start: n.start + step * Q::int(i as i64),
+                    len: step,
+                    notes: vec![note],
+                    tied: Vec::new(),
+                    staff: n.staff,
+                    marks: Marks::default(),
+                    sudden: None,
+                    graces: Vec::new(),
+                })
+                .collect();
+            // The rest of the note, tied in parts that can be written.
+            let parts = rest_lengths(n.len - step * k)?;
+            let mut at = n.start + step * k;
+            for (i, (w, t)) in parts.iter().enumerate() {
+                let len = t.map_or(*w, |t| *w * scale(t));
+                let last = i + 1 == parts.len();
+                evs.push(Ev {
+                    start: at,
+                    len,
+                    notes: vec![main.clone()],
+                    tied: if !last || tie {
+                        vec![n.midi]
+                    } else {
+                        Vec::new()
+                    },
+                    staff: n.staff,
+                    marks: if last { n.marks } else { Marks::default() },
+                    sudden: None,
+                    graces: Vec::new(),
+                });
+                at = at + len;
+            }
+            Some(evs)
+        });
         let evs = expanded.unwrap_or_else(|| {
             vec![Ev {
                 start: n.start,
@@ -508,6 +561,7 @@ pub struct Written {
     pub tempos: usize,
     pub graces: usize,
     pub trills: usize,
+    pub ornaments: usize,
 }
 
 struct Ctx<'a> {
@@ -570,6 +624,11 @@ pub fn write(model: &Model, source: &str) -> Result<Written, ImportError> {
         .map(Vec::len)
         .sum();
     let trills = model.notes.iter().filter(|n| n.trill.is_some()).count();
+    let ornaments = model
+        .notes
+        .iter()
+        .filter(|n| n.trill.is_none() && n.ornament.is_some())
+        .count();
     Ok(Written {
         pieces,
         song: song + "\n",
@@ -578,6 +637,7 @@ pub fn write(model: &Model, source: &str) -> Result<Written, ImportError> {
         tempos,
         graces,
         trills,
+        ornaments,
     })
 }
 

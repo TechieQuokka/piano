@@ -54,6 +54,8 @@ pub struct Stats {
     pub tempos: usize,
     pub graces: usize,
     pub trills: usize,
+    /// Mordents and turns, played out as notes.
+    pub ornaments: usize,
     pub pedals: usize,
     pub notices: Notices,
 }
@@ -173,6 +175,7 @@ pub fn import(text: &str, source: &str) -> Result<Import, ImportError> {
             tempos: written.tempos,
             graces: written.graces,
             trills: written.trills,
+            ornaments: written.ornaments,
             pedals: model.pedals.len(),
             notices: model.notices.clone(),
         },

@@ -9,8 +9,8 @@ use std::collections::HashMap;
 
 use crate::ImportError;
 use crate::musicxml::{
-    self, Grace, LETTERS, Marks, Measure, Model, Note, Pedal, SOFT, Sudden, Wedge, level, midi_of,
-    spell,
+    self, Grace, LETTERS, Marks, Measure, Model, Note, Ornament, Pedal, SOFT, Sudden, Wedge, level,
+    midi_of, spell,
 };
 use crate::rational::Q;
 
@@ -40,6 +40,7 @@ enum Event {
         name: String,
         tie: bool,
         trill: Option<(String, i32)>,
+        ornament: Option<Ornament>,
         marks: Marks,
     },
     Grace {
@@ -56,6 +57,16 @@ enum Event {
     Wedge(u32, Wedge),
     Pedal(Pedal),
     Tempo(f64),
+}
+
+/// A mordent or turn as written: the semitones to its neighbors.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Orn {
+    /// `M` / `m` below (2 / 1 semitones), `W` / `w` above.
+    Mordent { above: bool, semis: i32 },
+    /// `S` (upper, lower), `$` inverted (lower, upper); a following `S` / `s` sets
+    /// the upper then the lower step to 2 / 1 semitones.
+    Turn { inverted: bool, up: i32, down: i32 },
 }
 
 /// One written bar; event times are from the start of the score as written.
@@ -95,6 +106,7 @@ struct Token {
     tie: bool,
     /// Semitones to the trill's upper note.
     trill: Option<i32>,
+    ornament: Option<Orn>,
     marks: Marks,
     /// `z`: sforzando.
     sf: bool,
@@ -130,6 +142,7 @@ fn token(s: &str) -> Option<Token> {
             grace,
             tie: false,
             trill: None,
+            ornament: None,
             marks: Marks {
                 fermata: s.contains(';'),
                 ..Marks::default()
@@ -155,6 +168,36 @@ fn token(s: &str) -> Option<Token> {
     } else {
         None
     };
+    let ornament = if let Some(i) = s.find(['S', '$']) {
+        let step = |c: Option<char>| if c == Some('s') { 1 } else { 2 };
+        let mut after = s[i + 1..].chars().filter(|c| matches!(c, 'S' | 's'));
+        let (up, down) = (step(after.next()), step(after.next()));
+        Some(Orn::Turn {
+            inverted: s.as_bytes()[i] == b'$',
+            up,
+            down,
+        })
+    } else {
+        s.chars().find_map(|c| match c {
+            'M' => Some(Orn::Mordent {
+                above: false,
+                semis: 2,
+            }),
+            'm' => Some(Orn::Mordent {
+                above: false,
+                semis: 1,
+            }),
+            'W' => Some(Orn::Mordent {
+                above: true,
+                semis: 2,
+            }),
+            'w' => Some(Orn::Mordent {
+                above: true,
+                semis: 1,
+            }),
+            _ => None,
+        })
+    };
     // `'` staccato, `` ` `` staccatissimo, `^` accent (`^^` heavy), `~` tenuto.
     let marks = Marks {
         staccato: if s.contains('`') {
@@ -173,9 +216,18 @@ fn token(s: &str) -> Option<Token> {
         grace,
         tie,
         trill,
+        ornament,
         marks,
         sf: s.contains('z'),
     })
+}
+
+/// The lower neighbor: the letter before, `semis` below.
+fn lower(letter: char, alter: i32, octave: i32, semis: i32) -> (String, i32) {
+    let i = LETTERS.iter().position(|c| *c == letter).unwrap_or(0) + 6;
+    let (l, o) = (LETTERS[i % 7], octave - i32::from(letter == 'C'));
+    let midi = midi_of(letter, alter, octave) - semis;
+    (spell(l, midi - midi_of(l, 0, o), o), midi)
 }
 
 /// The trill's upper note: the next letter, `semis` above.
@@ -330,6 +382,20 @@ pub fn parse(text: &str) -> Result<Model, ImportError> {
                                 name,
                                 tie: n.tie,
                                 trill: n.trill.map(|s| upper(l, a, o, s)),
+                                ornament: n.ornament.map(|orn| match orn {
+                                    Orn::Mordent { above: true, semis } => {
+                                        Ornament::Mordent(upper(l, a, o, semis))
+                                    }
+                                    Orn::Mordent { semis, .. } => {
+                                        Ornament::Mordent(lower(l, a, o, semis))
+                                    }
+                                    Orn::Turn { inverted, up, down } => {
+                                        let (u, d) = (upper(l, a, o, up), lower(l, a, o, down));
+                                        let (first, second) =
+                                            if inverted { (d, u) } else { (u, d) };
+                                        Ornament::Turn { first, second }
+                                    }
+                                }),
                                 marks: n.marks,
                             }
                         };
@@ -576,6 +642,7 @@ fn place(model: &mut Model, bars: &[Bar], order: &[usize]) {
                     name,
                     tie,
                     trill,
+                    ornament,
                     marks,
                 } => {
                     if let Some(gs) = pending.remove(voice) {
@@ -609,6 +676,7 @@ fn place(model: &mut Model, bars: &[Bar], order: &[usize]) {
                         name: name.clone(),
                         tie: *tie,
                         trill: trill.clone(),
+                        ornament: ornament.clone(),
                         marks: *marks,
                     });
                 }
@@ -789,6 +857,27 @@ mod tests {
         let text: String = i.pieces.iter().map(|p| p.1.as_str()).collect();
         assert!(i.check.ok(), "{:?}\n{text}", i.check);
         assert!(text.contains("arp{C3 E3 G3}/2"), "{text}");
+    }
+
+    #[test]
+    fn mordents_and_turns_are_played_out() {
+        // A mordent (whole step below), an inverted one (half step above), a turn
+        // with a half step below, on a dotted quarter whose rest is tied in parts.
+        let k = format!(
+            "{HEAD}=1\t=1\t=1\n2C\t4dM\t.\n.\t4ew\t.\n=2\t=2\t=2\n2C\t4.gSSs\t.\n.\t8a\t.\n==\t==\t==\n"
+        );
+        let i = crate::import(&k, "test.krn").unwrap();
+        let text: String = i.pieces.iter().map(|p| p.1.as_str()).collect();
+        assert!(i.check.ok(), "{:?}\n{text}", i.check);
+        for want in [
+            "D4/32 C4 D4/8.",
+            "E4/32 F4 E4/8.",
+            "A4/32 G4 F#4 G4/4~ G4/32",
+            "A4/8",
+        ] {
+            assert!(text.contains(want), "{want} in\n{text}");
+        }
+        assert_eq!(i.stats.ornaments, 3);
     }
 
     #[test]
