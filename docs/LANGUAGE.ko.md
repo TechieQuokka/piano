@@ -135,7 +135,8 @@ only descriptions are Korean.
 
 ### DEFAULTS {#defaults}
 
-    Values   tempo 100, time 4/4, length /4, dynamic mf, reference C4
+    Values   tempo 100, time 4/4, length /4, dynamic mf, reference C4,
+             touch 100
     Change   piano.toml [defaults] 또는 ~/.config/piano/config.toml.
     Order    조각 머리말 > piano.toml > 전역 설정 > 내장 기본값
     Example  tempo 120 C D E
@@ -264,6 +265,28 @@ only descriptions are Korean.
              음의 기호가 적용됨. ~ 앞의 ' -> Warning.
     Example  p C4' D' E' F'' G/2^ C_
     See      length, tie, fn.accent
+
+### SLUR {#slur}
+
+    Syntax   slur{ ... }                    slur{ C4 D E F | G/1 }
+    Meaning  레가토: 안의 모든 음이 touch와 상관없이 적힌 길이
+             끝까지 울림. 안의 ' 는 포르타토(75 %).
+    Bars     안에 마디선을 써도 됨. 마디는 평소처럼 셈.
+    Inside   조각에 쓰는 것은 모두: 기호, 화음, voices, grace.
+    Example  touch 90 slur{ C4 D E F } G A B C
+    See      touch, marks
+
+### TOUCH {#touch}
+
+    Syntax   touch <10-100>                 touch 90
+    Meaning  슬러 밖에서 기호 없는 음이 길이의 몇 퍼센트만큼
+             울리는지. 100(기본): 끝까지. 90: 슬러 없는 음을
+             피아니스트가 치듯 살짝 떨어지게.
+    Where    어디서나; 그 지점부터 적용; voices에서는 성부마다.
+    Default  100; piano.toml [defaults] touch = 90.
+    Import   가져온 조각은 touch 90으로 시작.
+    Example  touch 90 C4 D E F slur{ G A B C }
+    See      slur, marks, defaults
 
 ### FERMATA {#fermata}
 
@@ -469,7 +492,7 @@ only descriptions are Korean.
     chord    { note [~] ... } [/n] [' '' ^ _ @] [~]
     arpeggio arp{ note ... } [/n] ...
     comment  // ...
-    header   tempo <bpm>   time <a>/<b>
+    header   tempo <bpm>   time <a>/<b>   touch <10-100>
     bar      |   %
     dynamic  ppp pp p mp mf f ff fff   cresc   dim   sf fp sfp ffp
     pedal    ped|sos|soft on|off
@@ -478,6 +501,7 @@ only descriptions are Korean.
     voices   voices{ ... }{ ... }
     free     free{ ... }
     grace    grace{ notes } note
+    slur     slur{ ... }
     song     piece > piece   fade   r/n   ped
     Example  tempo 90 | p C4/8 D E F G/4 A | ped on {C E G}/1 ped off |
     See      file

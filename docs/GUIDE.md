@@ -1240,6 +1240,86 @@ C4/4'~ C   // Warning: a tied note is held on, its ' is ignored
 
 `guide length` · `guide tie` · `guide fn.accent` · `man marks`
 
+### Slurs {#slur}
+
+#### Concept
+
+A slur, the curved line over a group of notes, means legato: play them connected,
+each key held until the next one goes down. Outside slurs a pianist lifts a little
+between notes. That contrast, connected phrases against detached notes, is much of
+what makes classical music sound alive.
+
+#### Syntax
+
+`slur{ ... }` around the connected notes.
+
+#### Rules
+
+- Every note inside sounds to its full length, whatever the `touch` (see below).
+- `'` inside a slur is portato: 75 % of the length, as staccato dots under a slur
+  mean in scores. `''` stays 25 %.
+- Bar lines may stand inside; the bars count as usual.
+- Anything a piece holds may go inside: marks, chords, `voices`, `grace`.
+- With the default `touch 100` every note already sounds to its end, so a slur
+  changes nothing until `touch` is lower.
+
+#### Examples
+
+```piano
+touch 90 slur{ C4 D E F } G A B C5   // a connected phrase, then detached steps
+```
+
+```piano
+touch 90 | slur{ E5/4 D C D | E E E/2 } |   // a slur over the bar line
+```
+
+```piano
+touch 90 slur{ C4/4' D' E' F' } G/1   // portato: short, but leaning on each note
+```
+
+#### See also
+
+`guide touch` · `guide marks` · `man slur`
+
+### Touch {#touch}
+
+#### Concept
+
+`touch` sets how long an ordinary note sounds against its written length. A real
+pianist rarely holds a note to the very end unless it is slurred; a slightly detached
+touch makes the slurs, staccatos, and accents stand out.
+
+#### Syntax
+
+`touch <10-100>`: percent of the length. In `piano.toml`: `touch = 90` under
+`[defaults]`.
+
+#### Rules
+
+- It applies to notes with no `'` `''` `_` mark and outside a slur, from that point on.
+- 100 (the default) is to the end: pieces without `touch` sound as before.
+- Inside `voices` each voice keeps its own; the first voice's goes on after the block.
+- The bars count the written length.
+- Imported pieces start with `touch 90`; change that line to taste.
+
+#### Examples
+
+```piano
+touch 90 C4 D E F G/1   // gently detached
+```
+
+```piano
+touch 70 C4 D E F touch 100 G A B C5   // crisper, then to the end again
+```
+
+```piano error
+touch 5 C4   // Error: touch must be 10-100
+```
+
+#### See also
+
+`guide slur` · `guide marks` · `guide defaults` · `man touch`
+
 ### Fermata {#fermata}
 
 #### Concept
@@ -2105,7 +2185,7 @@ rest      r [/n [. ..]] [@]
 chord     { note [~] ... } [/n [. ..]] [' '' ^ _ @] [~]
 arpeggio  arp{ note ... } [/n] ...
 comment   // ...
-header    tempo <20-400>   time <beats>/<unit>
+header    tempo <20-400>   time <beats>/<unit>   touch <10-100>
 bar       |   %
 dynamic   ppp pp p mp mf f ff fff   cresc   dim   sf fp sfp ffp
 pedal     ped|sos|soft on|off
@@ -2113,6 +2193,7 @@ repeat    |: ... :| [x n]   |: ... [1 ... :| [2 ... |
 voices    voices{ ... }{ ... }
 free      free{ ... }
 grace     grace{ notes } note
+slur      slur{ ... }
 function  up down accent louder softer tuplet seq   name(args){ ... }
 ```
 
@@ -2139,7 +2220,7 @@ cresc | up(12){ C4 D E } | f G5/2. |
 
 #### Builtin defaults
 
-tempo 100, time 4/4, length `/4`, dynamic `mf`, octave reference C4.
+tempo 100, time 4/4, length `/4`, dynamic `mf`, octave reference C4, touch 100.
 
 #### Changing them
 
@@ -2153,6 +2234,7 @@ time = "3/4"
 length = "1/8"
 dynamic = "mp"
 octave = 3        # the starting reference is C3
+touch = 90        # notes outside slurs a little detached
 ```
 
 #### Order
@@ -2188,7 +2270,9 @@ tempo 120 C D E   // the piece's own tempo wins over the default
 - octave: twelve semitones; the same note name, higher or lower.
 - pickup (anacrusis): notes before the first full bar.
 - portato: between legato and staccato, `'_`.
+- legato / non legato: connected / slightly detached; `slur{ }` / `touch`.
 - semitone: the step from one key to the very next.
+- slur: a curved line meaning legato; `slur{ }`.
 - sforzando (sf), forte-piano (fp): one note forced loud; one note loud, then soft.
 - staccato / staccatissimo: short / very short, the key let go early; `'` / `''`.
 - sequence: a motif repeated at a shifted pitch.

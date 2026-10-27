@@ -15,6 +15,8 @@ use crate::musicxml::{Marks, Model, Pedal, StaffId, Sudden, VoiceId, Wedge};
 use crate::rational::Q;
 
 const LEVELS: [&str; 8] = ["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff"];
+/// `touch` written at the start of every imported piece.
+const IMPORT_TOUCH: u8 = 90;
 /// Level before the first mark (the language's default, mf).
 const DEFAULT_LEVEL: usize = 4;
 /// Tuplets the language plays exactly (`tuplet(n)`, in the time of a power of two).
@@ -873,6 +875,10 @@ impl Ctx<'_> {
             // A short first bar (an upbeat) is written under the bar's own
             // signature without a bar line before it, as the language allows.
             let upbeat = a == lo && short(&ms[first]);
+            // Notes outside a slur are played a little detached, as written.
+            if a == lo {
+                head += &format!("touch {IMPORT_TOUCH} ");
+            }
             if self.starts.contains(&a) {
                 let sig = if upbeat {
                     ms[first].sig
@@ -1050,12 +1056,18 @@ impl Ctx<'_> {
         let mut items = self.begin(a);
         let mut cur = a;
         let mut lvl = None;
+        let mut slur = false;
         // An open cresc/dim: (start of its wedge, level it ends on).
         let mut open: Option<(Q, usize)> = None;
         for (k, e) in evs.iter().enumerate() {
             self.rests(&mut items, cur, e.start)?;
             if e.start > a {
                 self.bar_line(&mut items, e.start);
+            }
+            // A run of notes under a slur goes in one `slur{ }`.
+            if e.marks.slur != slur {
+                slur = e.marks.slur;
+                items.push(Item::Slur(slur));
             }
             let seg = self.seg(e.staff, e.start);
             let ramp = seg.ramp.filter(|r| e.start < r.0);
@@ -1164,6 +1176,9 @@ impl Ctx<'_> {
         if let Some((_, target)) = open {
             items.push(Item::Raw(LEVELS[target].to_string()));
         }
+        if slur {
+            items.push(Item::Slur(false));
+        }
         self.rests(&mut items, cur, b)?;
         Ok(items)
     }
@@ -1232,6 +1247,38 @@ enum Item {
     Raw(String),
     /// `free{` (true) or its `}`.
     Free(bool),
+    /// `slur{` (true) or its `}`.
+    Slur(bool),
+}
+
+/// Closes a `slur{` around the start or end of a `free{ }`, and opens it again
+/// after, so the blocks nest.
+fn nest_slurs(items: Vec<Item>) -> Vec<Item> {
+    let mut out = Vec::with_capacity(items.len());
+    let mut slur = false;
+    for item in items {
+        match item {
+            Item::Free(_) if slur => {
+                out.push(Item::Slur(false));
+                out.push(item);
+                out.push(Item::Slur(true));
+            }
+            Item::Slur(open) => {
+                slur = open;
+                // An empty slur (closed right after it opened) is dropped.
+                if !open && matches!(out.last(), Some(Item::Slur(true))) {
+                    out.pop();
+                } else {
+                    out.push(item);
+                }
+            }
+            other => out.push(other),
+        }
+    }
+    if slur {
+        out.push(Item::Slur(false));
+    }
+    out
 }
 
 /// Closes an open `free{`; one with nothing in it is dropped.
@@ -1252,6 +1299,7 @@ fn close_free(items: &mut Vec<Item>) {
 /// Joins items: tuplets grouped, lengths written only when they change.
 fn emit(items: &mut Vec<Item>) -> String {
     close_free(items);
+    *items = nest_slurs(std::mem::take(items));
     let mut out: Vec<String> = Vec::new();
     let mut group: Vec<String> = Vec::new();
     let mut group_n = None;
@@ -1297,6 +1345,10 @@ fn emit(items: &mut Vec<Item>) -> String {
             Item::Free(open) => {
                 flush(&mut out, &mut group, &mut group_n);
                 out.push(if *open { "free{" } else { "}" }.into());
+            }
+            Item::Slur(open) => {
+                flush(&mut out, &mut group, &mut group_n);
+                out.push(if *open { "slur{" } else { "}" }.into());
             }
         }
     }

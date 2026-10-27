@@ -136,7 +136,8 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
 
 ### DEFAULTS {#defaults}
 
-    Values   tempo 100, time 4/4, length /4, dynamic mf, reference C4
+    Values   tempo 100, time 4/4, length /4, dynamic mf, reference C4,
+             touch 100
     Change   piano.toml [defaults], or ~/.config/piano/config.toml.
     Order    piece header > piano.toml > global config > builtin
     Example  tempo 120 C D E
@@ -267,6 +268,28 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
              mark on its last note decides. ' before ~ -> Warning.
     Example  p C4' D' E' F'' G/2^ C_
     See      length, tie, fn.accent
+
+### SLUR {#slur}
+
+    Syntax   slur{ ... }                    slur{ C4 D E F | G/1 }
+    Meaning  Legato: every note inside sounds to its full length,
+             whatever the touch. ' inside is portato (75 %).
+    Bars     Bar lines may stand inside; bars count as usual.
+    Inside   Anything a piece holds: marks, chords, voices, grace.
+    Example  touch 90 slur{ C4 D E F } G A B C
+    See      touch, marks
+
+### TOUCH {#touch}
+
+    Syntax   touch <10-100>                 touch 90
+    Meaning  Percent of its length an unmarked note outside a slur
+             sounds. 100 (default): to its end. 90: a little detached,
+             as a pianist plays notes without a slur.
+    Where    Anywhere; applies from that point; in voices, per voice.
+    Default  100; piano.toml [defaults] touch = 90.
+    Import   Imported pieces start with touch 90.
+    Example  touch 90 C4 D E F slur{ G A B C }
+    See      slur, marks, defaults
 
 ### FERMATA {#fermata}
 
@@ -473,7 +496,7 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     chord    { note [~] ... } [/n] [' '' ^ _ @] [~]
     arpeggio arp{ note ... } [/n] ...
     comment  // ...
-    header   tempo <bpm>   time <a>/<b>
+    header   tempo <bpm>   time <a>/<b>   touch <10-100>
     bar      |   %
     dynamic  ppp pp p mp mf f ff fff   cresc   dim   sf fp sfp ffp
     pedal    ped|sos|soft on|off
@@ -482,6 +505,7 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     voices   voices{ ... }{ ... }
     free     free{ ... }
     grace    grace{ notes } note
+    slur     slur{ ... }
     song     piece > piece   fade   r/n   ped
     Example  tempo 90 | p C4/8 D E F G/4 A | ped on {C E G}/1 ped off |
     See      file

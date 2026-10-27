@@ -20,6 +20,8 @@ pub struct CompileOptions {
     pub dynamic: Dynamic,
     /// Octave of the starting reference note C.
     pub octave: i32,
+    /// Percent of its length an unmarked note outside a slur sounds.
+    pub touch: u8,
 }
 
 impl Default for CompileOptions {
@@ -30,6 +32,7 @@ impl Default for CompileOptions {
             len: Duration::QUARTER,
             dynamic: Dynamic::Mf,
             octave: 4,
+            touch: 100,
         }
     }
 }
@@ -46,6 +49,8 @@ pub struct State {
     pub time: TimeSig,
     /// `sf`, `fp`, ... waiting for its note.
     pub sudden: Option<(Sudden, SrcSpan)>,
+    /// `touch`: percent of its length an unmarked note sounds.
+    pub touch: u8,
 }
 
 impl State {
@@ -58,6 +63,7 @@ impl State {
             tempo: opts.tempo,
             time: opts.time,
             sudden: None,
+            touch: opts.touch,
         }
     }
 
@@ -115,6 +121,8 @@ pub struct Sound {
     pub sudden: Option<Sudden>,
     /// Rolled (`arp`).
     pub roll: bool,
+    /// Percent of its length that sounds (marks, slur, touch).
+    pub gate: u64,
     /// Per pitch: tied to the next sound.
     pub ties: Vec<bool>,
     pub span: SrcSpan,
@@ -182,6 +190,7 @@ pub fn resolve(
         sounds: Vec::new(),
         cresc: None,
         carry: Vec::new(),
+        slur: 0,
         probe,
         probed: None,
         alerts,
@@ -213,6 +222,8 @@ struct Resolver<'a> {
     /// The cresc/dim each voice of the last `voices` block left open: it goes on in
     /// the same voice of the next block, or the first one after the block.
     carry: Vec<Option<Cresc>>,
+    /// Depth of `slur` blocks around the cursor.
+    slur: usize,
     probe: Option<(u32, u32)>,
     probed: Option<State>,
     alerts: &'a mut Vec<Alert>,
@@ -402,6 +413,16 @@ impl Resolver<'_> {
             Node::Voices { voices, span } => Some(self.voices(voices, *span)),
             Node::Free { body, .. } => Some(Item::Free(self.seq(body))),
             Node::Grace { body, span } => Some(self.grace(body, *span)),
+            Node::Slur { body, .. } => {
+                self.slur += 1;
+                let items = self.seq(body);
+                self.slur -= 1;
+                Some(Item::Group(items))
+            }
+            Node::Touch(t, _) => {
+                self.state.touch = *t;
+                None
+            }
             Node::Group(nodes) => Some(Item::Group(self.seq(nodes))),
         }
     }
@@ -545,6 +566,7 @@ impl Resolver<'_> {
             marks,
             sudden,
             roll: false,
+            gate: marks.gate(self.slur > 0, self.state.touch),
             ties,
             span,
         });

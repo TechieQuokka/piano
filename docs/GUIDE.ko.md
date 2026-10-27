@@ -1225,6 +1225,85 @@ C4/4'~ C   // Warning: 이어지는 음은 계속 눌리므로 '가 무시됨
 
 `guide length` · `guide tie` · `guide fn.accent` · `man marks`
 
+### Slurs {#slur}
+
+#### Concept
+
+슬러, 곧 여러 음 위에 그린 곡선은 레가토라는 뜻입니다: 음을 이어서, 다음 건반을
+누를 때까지 앞 건반을 누르고 칩니다. 슬러 밖에서는 피아니스트가 음 사이에 손을 살짝
+뗍니다. 이어지는 악구와 떨어지는 음의 대비가 클래식 음악을 살아 있게 만드는 큰
+부분입니다.
+
+#### Syntax
+
+이어 칠 음을 `slur{ ... }`로 감쌉니다.
+
+#### Rules
+
+- 안의 모든 음은 `touch`(아래 참고)와 상관없이 적힌 길이 끝까지 울립니다.
+- 슬러 안의 `'`는 포르타토입니다: 악보에서 슬러 아래 스타카토 점의 뜻대로 길이의
+  75 %. `''`는 그대로 25 %.
+- 안에 마디선을 써도 되고, 마디는 평소처럼 셉니다.
+- 조각에 쓰는 것은 모두 안에 넣을 수 있습니다: 기호, 화음, `voices`, `grace`.
+- 기본값 `touch 100`에서는 모든 음이 이미 끝까지 울리므로, `touch`를 낮추기 전까지는
+  슬러가 아무것도 바꾸지 않습니다.
+
+#### Examples
+
+```piano
+touch 90 slur{ C4 D E F } G A B C5   // 이어지는 악구, 그다음 떨어지는 음
+```
+
+```piano
+touch 90 | slur{ E5/4 D C D | E E E/2 } |   // 마디선을 넘는 슬러
+```
+
+```piano
+touch 90 slur{ C4/4' D' E' F' } G/1   // 포르타토: 짧지만 음마다 기대어
+```
+
+#### See also
+
+`guide touch` · `guide marks` · `man slur`
+
+### Touch {#touch}
+
+#### Concept
+
+`touch`는 보통 음이 적힌 길이에 비해 얼마나 울리는지 정합니다. 실제 피아니스트는
+슬러가 없으면 음을 끝까지 누르고 있는 일이 드뭅니다. 살짝 떨어지는 터치가 있어야
+슬러, 스타카토, 악센트가 살아납니다.
+
+#### Syntax
+
+`touch <10-100>`: 길이의 퍼센트. `piano.toml`에서는 `[defaults]` 아래 `touch = 90`.
+
+#### Rules
+
+- `'` `''` `_` 기호가 없고 슬러 밖에 있는 음에, 그 지점부터 적용됩니다.
+- 100(기본값)은 끝까지입니다: `touch`가 없는 조각은 예전과 똑같이 울립니다.
+- `voices` 안에서는 성부마다 따로 가지고, 블록 뒤로는 첫 성부의 것이 이어집니다.
+- 마디는 적힌 길이로 셉니다.
+- 가져온 조각은 `touch 90`으로 시작합니다. 원하면 그 줄을 바꾸세요.
+
+#### Examples
+
+```piano
+touch 90 C4 D E F G/1   // 부드럽게 떨어짐
+```
+
+```piano
+touch 70 C4 D E F touch 100 G A B C5   // 더 또렷하게, 그리고 다시 끝까지
+```
+
+```piano error
+touch 5 C4   // Error: touch는 10-100
+```
+
+#### See also
+
+`guide slur` · `guide marks` · `guide defaults` · `man touch`
+
 ### Fermata {#fermata}
 
 #### Concept
@@ -2083,7 +2162,7 @@ rest      r [/n [. ..]] [@]
 chord     { note [~] ... } [/n [. ..]] [' '' ^ _ @] [~]
 arpeggio  arp{ note ... } [/n] ...
 comment   // ...
-header    tempo <20-400>   time <beats>/<unit>
+header    tempo <20-400>   time <beats>/<unit>   touch <10-100>
 bar       |   %
 dynamic   ppp pp p mp mf f ff fff   cresc   dim   sf fp sfp ffp
 pedal     ped|sos|soft on|off
@@ -2091,6 +2170,7 @@ repeat    |: ... :| [x n]   |: ... [1 ... :| [2 ... |
 voices    voices{ ... }{ ... }
 free      free{ ... }
 grace     grace{ notes } note
+slur      slur{ ... }
 function  up down accent louder softer tuplet seq   name(args){ ... }
 ```
 
@@ -2117,7 +2197,7 @@ cresc | up(12){ C4 D E } | f G5/2. |
 
 #### Builtin defaults
 
-tempo 100, time 4/4, 길이 `/4`, 세기 `mf`, 옥타브 기준음 C4.
+tempo 100, time 4/4, 길이 `/4`, 세기 `mf`, 옥타브 기준음 C4, touch 100.
 
 #### Changing them
 
@@ -2131,6 +2211,7 @@ time = "3/4"
 length = "1/8"
 dynamic = "mp"
 octave = 3        # 시작 기준음이 C3
+touch = 90        # 슬러 밖의 음을 살짝 떨어지게
 ```
 
 #### Order
@@ -2166,7 +2247,9 @@ tempo 120 C D E   // 조각에 쓴 템포가 기본값보다 우선
 - octave (옥타브): 반음 12개. 이름이 같은 음의 위아래.
 - pickup, anacrusis (못갖춘마디, 여린내기): 첫 온전한 마디 앞의 음.
 - portato (포르타토): 레가토와 스타카토의 중간, `'_`.
+- legato / non legato (레가토 / 논레가토): 이어서 / 살짝 떨어지게. `slur{ }` / `touch`.
 - semitone (반음): 한 건반에서 바로 옆 건반까지의 걸음.
+- slur (슬러, 이음줄): 레가토를 뜻하는 곡선. `slur{ }`.
 - sforzando (sf, 스포르찬도), forte-piano (fp, 포르테피아노): 한 음만 힘주어 세게;
   한 음을 세게 치고 곧 여리게.
 - staccato / staccatissimo (스타카토 / 스타카티시모): 짧게 / 아주 짧게, 일찍 손을

@@ -449,6 +449,7 @@ impl Parser<'_> {
             "cresc" => return Some(Node::Cresc(span)),
             "dim" => return Some(Node::Dim(span)),
             "tempo" => return self.tempo(span),
+            "touch" => return self.touch(span),
             "time" => return self.time(span),
             _ => {}
         }
@@ -467,6 +468,19 @@ impl Parser<'_> {
         }
         if lower == "free" && matches!(self.peek_tok(), Some(Tok::LBrace)) {
             return Some(self.free(span));
+        }
+        if lower == "slur" && matches!(self.peek_tok(), Some(Tok::LBrace)) {
+            self.bump();
+            self.depth += 1;
+            let (body, end) = self.seq(Ctx::Func);
+            self.depth -= 1;
+            if end != End::RBrace {
+                self.error(span, "`slur{` has no matching `}`");
+            }
+            if body.is_empty() {
+                self.warning(span, "empty `slur`");
+            }
+            return Some(Node::Slur { body, span });
         }
         if lower == "grace" && matches!(self.peek_tok(), Some(Tok::LBrace)) {
             return Some(self.grace(span));
@@ -503,6 +517,28 @@ impl Parser<'_> {
             }
             _ => {
                 self.error(span, "`tempo` needs a number, e.g. `tempo 100`");
+                None
+            }
+        }
+    }
+
+    fn touch(&mut self, span: SrcSpan) -> Option<Node> {
+        match self.peek().cloned() {
+            Some(Token {
+                tok: Tok::Number(n),
+                span: s,
+                ..
+            }) => {
+                self.bump();
+                if (10..=100).contains(&n) {
+                    Some(Node::Touch(n as u8, span))
+                } else {
+                    self.error(s, "touch must be 10-100 (percent of the length)");
+                    None
+                }
+            }
+            _ => {
+                self.error(span, "`touch` needs a percent, e.g. `touch 90`");
                 None
             }
         }

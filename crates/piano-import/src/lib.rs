@@ -272,7 +272,10 @@ mod tests {
         let text: String = i.pieces.iter().map(|p| p.1.as_str()).collect();
         assert!(i.check.ok(), "{:?}\n{text}", i.check);
         // the upbeat: the piece's signature, no bar line before it
-        assert!(text.contains("\ntime 2/4 tempo 60 voices{"), "{text}");
+        assert!(
+            text.contains("\ntouch 90 time 2/4 tempo 60 voices{"),
+            "{text}"
+        );
         // the tie to nothing is not written; the short last bar keeps 2/4, closed
         assert!(text.ends_with("{ mf C3/4 } |\n"), "{text}");
         assert!(!text.contains("time 1/4"), "{text}");

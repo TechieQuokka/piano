@@ -229,7 +229,7 @@ fn lay_item(
                                 velocity: crate::builtins::clamp_velocity(
                                     i32::from(g.velocity) + g.marks.boost(),
                                 ),
-                                cut: each - each * g.marks.gate() / 100,
+                                cut: each - each * g.gate / 100,
                                 roll_ms: 0,
                                 src: g.span,
                             });
@@ -240,7 +240,7 @@ fn lay_item(
             }
             // A staccato lets the key go early; a note tied on is held to its end.
             let written = sound.len - lead;
-            let cut = written - written * sound.marks.gate() / 100;
+            let cut = written - written * sound.gate / 100;
             for (&pitch, &tie) in sound.pitches.iter().zip(&sound.ties) {
                 let cut = if tie { 0 } else { cut };
                 let continued = pending

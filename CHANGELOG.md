@@ -3,6 +3,17 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.47.0
+- Language: `slur{ ... }` plays its notes legato, each to its full length (`'` inside is
+  portato, 75 %); bar lines may stand inside. `touch <10-100>` sets how much of its
+  length an unmarked note outside a slur sounds; default 100, so pieces without it
+  sound as before. `piano.toml` / global `[defaults] touch = 90`.
+- Import: slurs (kern `(` `)`, MusicXML `<slur>`) are written as `slur{ }`, a run per
+  block, and every imported piece starts with `touch 90`: notes outside slurs are a
+  little detached, as a pianist plays them. Beethoven sonatas: 103/103 still match,
+  about 29,500 slurred runs.
+- Docs: `man slur`, `man touch`, `guide slur`, `guide touch`, both languages.
+
 ## 1.46.0
 - Language: a cresc or dim that a voice leaves open at the end of a `voices` block
   goes on in the same voice of the next block (only bar lines between), so each hand

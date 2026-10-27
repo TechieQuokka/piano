@@ -599,3 +599,23 @@ fn a_cresc_goes_on_into_the_same_voice_of_the_next_block() {
     let c = compile_piece("voices{ C4 }{ p cresc E3 } G");
     assert_eq!(c.alerts.len(), 1, "{:?}", c.alerts);
 }
+
+#[test]
+fn touch_detaches_and_slur_connects() {
+    // touch 90: unmarked notes sound 90 %; under a slur, to the end; `'` under a
+    // slur is portato (75 %). Marks outside keep their own length.
+    let c = clean("touch 90 C4 slur{ D E' | F G } A' B_ C");
+    let pct: Vec<u64> = c
+        .score
+        .notes
+        .iter()
+        .map(|n| (n.release() - n.start) * 100 / n.len)
+        .collect();
+    assert_eq!(pct, [90, 100, 75, 100, 100, 50, 100, 90]);
+    // The default touch is 100: nothing changes without it.
+    let c = clean("C4 D slur{ E F }");
+    assert!(c.score.notes.iter().all(|n| n.cut == 0));
+    for src in ["touch 5 C", "touch C", "slur{ }"] {
+        assert!(!compile_piece(src).alerts.is_empty(), "{src}");
+    }
+}

@@ -394,7 +394,7 @@ voices{ p r/2. G#4/8. G#4/16 }                       // melody
 The syntax extends the function form (`name{ ... }`) instead of adding symbols; line
 breaks between the bodies are free.
 
-### 5.9 Expression (1.41.0 – 1.45.0)
+### 5.9 Expression (1.41.0 – 1.47.0)
 
 How a note is played, beyond its length and dynamic. Added because imported classical
 scores sounded "not classical": every note rang its full length, and sforzandi, grace
@@ -408,6 +408,8 @@ notes, and fermatas were lost. Each is something a composer writes by hand.
 | `@` | Fermata (notes, chords, rests) | Twice as long: the tempo is halved under it, for every voice |
 | `grace{ ... } note` | Grace notes | On the beat, a 32nd each (halved, up to 4 times, to take at most half the note); the note starts after them |
 | `arp{ ... }/n` | Rolled chord | Keys go down from the lowest, 30 ms apart |
+| `slur{ ... }` | Legato (1.47.0) | Every note to its full length; `'` inside is portato (75 %); bar lines may stand inside |
+| `touch n` | Detached touch (1.47.0) | Unmarked notes outside a slur sound n % (10-100; default 100, `[defaults] touch`); imports start with `touch 90` |
 
 Rules shared by the marks: not inherited; written after the length and dots, before
 `~` (another order warns); a chord takes them after `}`. The written length always
@@ -513,7 +515,7 @@ Chapters:
 3. Inheritance   octave (nearest), length, dynamic, pedals, defaults
 4. Structure     bars, time, tempo
 5. Dynamics      marks, cresc, dim, sf / fp, velocity table
-   Articulation  ' '' ^ _, @ fermata, grace{ }, arp{ } (1.41.0 – 1.45.0)
+   Articulation  ' '' ^ _, slur{ }, touch, @ fermata, grace{ }, arp{ } (1.41.0 – 1.47.0)
 6. Pedals        ped, sos, soft
 7. Repeats       |: :|, x n, %, voltas
 8. Functions     syntax, nesting, folding, one section per builtin
@@ -914,6 +916,7 @@ time    = "4/4"
 length  = "1/4"
 dynamic = "mf"
 octave  = 4
+touch   = 100   # percent an unmarked note outside a slur sounds (1.47.0)
 
 [editor]
 autosave_secs = 30
@@ -1310,5 +1313,11 @@ stopped at `voices`. Fixed in order:
   `voices` block. Import output is unchanged: the importer closes every ramp in its
   block, and its per-bar steps were already continuous.
 - Import (1.41.0 – 1.45.2): see 13.13 and 13.15; Beethoven 103/103 match after
-  each version. A slur (`(` `)`) is not in the language: every note already sounds to
-  its end, so it would only matter with a detached default touch.
+  each version.
+- 1.47.0 `slur{ }` and `touch`: a slur only matters if notes outside it are detached,
+  so both came together. `touch` is a state value (default 100, so pieces without it
+  sound as before); `Marks::gate(slurred, touch)` gives each sound its `gate` in
+  resolve, and layout cuts by it. `slur{ }` resolves to a group (bars go on through
+  it). Import: slurs per voice in written order (kern `(` `)`, MusicXML `<slur>`), a
+  run of slurred notes per block in one `slur{ }` (closed and reopened around
+  `free{ }`), and `touch 90` at the start of every piece.

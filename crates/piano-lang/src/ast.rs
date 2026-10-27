@@ -29,13 +29,16 @@ impl Marks {
         self == Marks::default()
     }
 
-    /// Percent of the written length that sounds: `'` 50, `''` 25, `'_` 75.
-    pub fn gate(self) -> u64 {
-        match (self.staccato, self.tenuto) {
+    /// Percent of the written length that sounds: `'` 50, `''` 25, `'_` 75; under a
+    /// slur `'` is 75 (portato) and an unmarked note sounds to its end; otherwise an
+    /// unmarked note sounds `touch` percent.
+    pub fn gate(self, slurred: bool, touch: u8) -> u64 {
+        match (self.staccato, self.tenuto || slurred) {
             (2, _) => 25,
             (1, true) => 75,
             (1, false) => 50,
-            _ => 100,
+            (_, true) => 100,
+            _ => u64::from(touch),
         }
     }
 
@@ -172,6 +175,13 @@ pub enum Node {
         body: Vec<Node>,
         span: SrcSpan,
     },
+    /// `slur{ ... }`: notes played connected, each to its full length.
+    Slur {
+        body: Vec<Node>,
+        span: SrcSpan,
+    },
+    /// `touch n`: how much of its length an unmarked note outside a slur sounds.
+    Touch(u8, SrcSpan),
     /// `grace{ ... }`: quick notes played on the beat of the next note, in its time.
     Grace {
         body: Vec<Node>,
@@ -201,6 +211,8 @@ impl Node {
             | Node::Func { span, .. }
             | Node::Voices { span, .. }
             | Node::Free { span, .. }
+            | Node::Slur { span, .. }
+            | Node::Touch(_, span)
             | Node::Grace { span, .. } => Some(*span),
             Node::Group(nodes) => nodes.first().and_then(Node::span),
         }

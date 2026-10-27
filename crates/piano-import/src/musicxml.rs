@@ -58,6 +58,8 @@ pub struct Marks {
     pub fermata: bool,
     /// The chord is rolled (`arp{ }`).
     pub arp: bool,
+    /// Under a slur (`slur{ }`).
+    pub slur: bool,
 }
 
 impl Marks {
@@ -70,6 +72,7 @@ impl Marks {
             tenuto: self.tenuto || other.tenuto,
             fermata: self.fermata || other.fermata,
             arp: self.arp || other.arp,
+            slur: self.slur || other.slur,
         }
     }
 
@@ -490,6 +493,8 @@ fn read_part(part: Node, notices: &mut Notices) -> Vec<RawMeasure> {
     let mut out = Vec::new();
     let mut div = Q::int(1); // divisions per quarter
     let mut fifths = 0;
+    // Slurs open in each voice, as written (before repeats are unrolled).
+    let mut slurs: HashMap<u32, usize> = HashMap::new();
     for m in part.children().filter(|c| c.has_tag_name("measure")) {
         let mut rm = RawMeasure {
             number: m.attribute("number").unwrap_or("").to_string(),
@@ -587,8 +592,21 @@ fn read_part(part: Node, notices: &mut Notices) -> Vec<RawMeasure> {
                     let tie = el
                         .children()
                         .any(|t| t.has_tag_name("tie") && t.attribute("type") == Some("start"));
+                    let slur_marks = |kind: &str| {
+                        notations.map_or(0, |n| {
+                            n.children()
+                                .filter(|c| {
+                                    c.has_tag_name("slur") && c.attribute("type") == Some(kind)
+                                })
+                                .count()
+                        })
+                    };
+                    let open = slurs.entry(voice).or_default();
+                    let slurred = *open > 0 || slur_marks("start") > 0;
+                    *open = (*open + slur_marks("start")).saturating_sub(slur_marks("stop"));
                     let marks = Marks {
                         fermata,
+                        slur: slurred,
                         arp: notations.is_some_and(|n| child(n, "arpeggiate").is_some()),
                         ..notations
                             .and_then(|n| child(n, "articulations"))
@@ -637,6 +655,7 @@ fn articulations(a: Node) -> Marks {
         tenuto: has("tenuto") || has("detached-legato"),
         fermata: false,
         arp: false,
+        slur: false,
     }
 }
 

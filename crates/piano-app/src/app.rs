@@ -348,6 +348,9 @@ impl App {
         if let Some(oct) = d.octave {
             o.octave = oct.clamp(0, 8);
         }
+        if let Some(t) = d.touch {
+            o.touch = t.clamp(10, 100);
+        }
         o
     }
 

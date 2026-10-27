@@ -209,6 +209,7 @@ fn token(s: &str) -> Option<Token> {
         tenuto: s.contains('~'),
         fermata: s.contains(';'),
         arp: s.contains(':'),
+        slur: false,
     };
     Some(Token {
         len,
@@ -256,6 +257,8 @@ pub fn parse(text: &str) -> Result<Model, ImportError> {
     let mut sig = (4, 4);
     let mut t = Q::ZERO;
     let mut bars = vec![Bar::new("0".into(), Q::ZERO, sig, false)];
+    // Slurs open in each voice, as written (before sections are expanded).
+    let mut slurs: std::collections::HashMap<(u32, u32), usize> = Default::default();
     for line in text.lines() {
         let line = line.trim_end_matches('\r');
         if line.is_empty() {
@@ -350,6 +353,12 @@ pub fn parse(text: &str) -> Result<Model, ImportError> {
             match col.kind {
                 Kind::Kern => {
                     let (v, staff) = voice(&cols, c);
+                    // `(` opens a slur, `)` closes one; the notes from the one
+                    // that opens it to the one that closes it are under it.
+                    let open = slurs.entry((v, staff)).or_default();
+                    let slurred = *open > 0 || tok.contains('(');
+                    *open =
+                        (*open + tok.matches('(').count()).saturating_sub(tok.matches(')').count());
                     let mut len = Q::ZERO;
                     for (i, sub) in tok.split(' ').enumerate() {
                         let Some(n) = token(sub) else { continue };
@@ -396,7 +405,10 @@ pub fn parse(text: &str) -> Result<Model, ImportError> {
                                         Ornament::Turn { first, second }
                                     }
                                 }),
-                                marks: n.marks,
+                                marks: Marks {
+                                    slur: slurred,
+                                    ..n.marks
+                                },
                             }
                         };
                         bar.events.push((t, ev));
@@ -878,6 +890,24 @@ mod tests {
             assert!(text.contains(want), "{want} in\n{text}");
         }
         assert_eq!(i.stats.ornaments, 3);
+    }
+
+    #[test]
+    fn slurs_are_written_as_blocks_over_bar_lines() {
+        // A slur from bar 1 into bar 2 closes at each block and opens again.
+        let k = format!(
+            "{HEAD}=1\t=1\t=1\n2C\t4c\t.\n.\t(4d\t.\n=2\t=2\t=2\n2E\t4e\t.\n.\t4f')\t.\n==\t==\t==\n"
+        );
+        let i = crate::import(&k, "test.krn").unwrap();
+        let text: String = i.pieces.iter().map(|p| p.1.as_str()).collect();
+        assert!(i.check.ok(), "{:?}\n{text}", i.check);
+        for want in [
+            "touch 90 time 2/4",
+            "C4/4 slur{ D4 }",
+            "slur{ mf E4/4 F4' }",
+        ] {
+            assert!(text.contains(want), "{want} in\n{text}");
+        }
     }
 
     #[test]

@@ -56,6 +56,9 @@ pub struct Defaults {
     pub dynamic: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub octave: Option<i32>,
+    /// Percent of its length an unmarked note outside a slur sounds, e.g. 90.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub touch: Option<u8>,
 }
 
 impl Defaults {
@@ -67,6 +70,7 @@ impl Defaults {
             length: self.length.clone().or_else(|| fallback.length.clone()),
             dynamic: self.dynamic.clone().or_else(|| fallback.dynamic.clone()),
             octave: self.octave.or(fallback.octave),
+            touch: self.touch.or(fallback.touch),
         }
     }
 }
