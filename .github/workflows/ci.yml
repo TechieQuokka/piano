@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ALSA headers (audio feature)
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      # rust-toolchain.toml selects stable with rustfmt and clippy.
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --features piano-cli/audio -- -D warnings
+      - name: Test
+        run: cargo test --workspace
