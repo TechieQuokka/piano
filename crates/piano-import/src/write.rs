@@ -209,7 +209,19 @@ fn curves(model: &Model) -> BTreeMap<StaffId, Vec<Seg>> {
         };
         staves.entry(s).or_default().push(m);
     }
-    let bar = model.measures.first().map_or(Q::int(4), |m| m.len);
+    // A wedge's mark may come up to the end of the bar after the one it stops in.
+    let reach = |t: Q| {
+        let i = model
+            .measures
+            .iter()
+            .rposition(|m| m.start <= t)
+            .unwrap_or(0);
+        model
+            .measures
+            .get(i + 1)
+            .or(model.measures.get(i))
+            .map_or(t + Q::int(4), |m| m.start + m.len)
+    };
     let mut out = BTreeMap::new();
     for (staff, mut marks) in staves {
         marks.sort_by_key(|m| (m.0, m.1));
@@ -224,7 +236,7 @@ fn curves(model: &Model) -> BTreeMap<StaffId, Vec<Seg>> {
                     // The mark just after the stop, if no wedge comes first.
                     Mark::Stop => marks[i + 1..]
                         .iter()
-                        .take_while(|m| m.0 <= at + bar && !matches!(m.2, Mark::Start(_)))
+                        .take_while(|m| m.0 < reach(at) && !matches!(m.2, Mark::Start(_)))
                         .find_map(|m| match m.2 {
                             Mark::Level(l) => Some(l),
                             _ => None,
@@ -1333,6 +1345,28 @@ mod tests {
         model.dynamics.push((Q::int(2), s, 5));
         let c = &curves(&model)[&s];
         assert_eq!(c[1].ramp, Some((Q::int(2), 5)));
+    }
+
+    #[test]
+    fn a_wedge_finds_its_mark_in_the_next_bar() {
+        // A pickup of one quarter, then 2/2 bars: the wedge stops at quarter 3 and
+        // the mark comes at the next bar (quarter 5), more than a pickup later.
+        let s = (0, 1);
+        let bar = |start: i64, len: i64| crate::musicxml::Measure {
+            number: String::new(),
+            start: Q::int(start),
+            len: Q::int(len),
+            sig: (2, 2),
+            break_before: false,
+        };
+        let model = Model {
+            dynamics: vec![(Q::ZERO, s, 2), (Q::int(5), s, 6)],
+            wedges: vec![(Q::int(1), s, Wedge::Cresc), (Q::int(3), s, Wedge::Stop)],
+            measures: vec![bar(0, 1), bar(1, 4), bar(5, 4)],
+            ..Model::default()
+        };
+        let c = &curves(&model)[&s];
+        assert_eq!(c[1].ramp, Some((Q::int(3), 6)));
     }
 
     #[test]

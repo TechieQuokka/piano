@@ -1074,7 +1074,7 @@ overwritten.
   turns are played out (1.45.1): the note and its neighbor(s) in 32nds (64ths on a
   short note), then the note for the rest of its time, tied in parts that can be
   written; wedges become `cresc` / `dim` from the level reached so far
-  to the mark at their end, or one level on (a swell `<` `>` returns to its level;
+  to the mark at their end (or up to the end of the next bar, 1.45.2), or one level on (a swell `<` `>` returns to its level;
   1.29.1); rubato becomes one tempo per block (harmonic mean, so durations are kept). Before
   the first mark the level is mf, like the language and MuseScore.
 - **Check** (`check.rs`): the song is compiled and its notes (start, pitch, length)

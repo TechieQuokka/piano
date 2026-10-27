@@ -3,6 +3,13 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.45.2
+- Fix (import): a hairpin with no mark right at its end looks for one up to the end of
+  the next bar, as meant; it measured "a bar" by the first bar of the score, so after
+  a pickup it looked only a beat ahead and went one level up instead (sonata 1/1,
+  bar 6: `cresc` to `mp`, now to `ff` as the next bar says). Beethoven sonatas:
+  103/103 still match.
+
 ## 1.45.1
 - Fix (import): mordents and turns were dropped, so the note sounded plain. They are
   played out: the note and its neighbor (a mordent) or the neighbors around it (a
