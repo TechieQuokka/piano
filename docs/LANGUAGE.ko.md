@@ -227,6 +227,27 @@ only descriptions are Korean.
     Example  p cresc C4 D E F f G
     See      dynamic
 
+## ARTICULATION {#articulation}
+
+### MARKS {#marks}
+
+    Syntax   <note>'  ''  ^  _              C'  C''  C^  C_
+    '        스타카토: 길이의 절반만 울리고 나머지는 쉼.
+    ''       스타카티시모: 길이의 4분의 1만 울림.
+    ^        악센트: 더 세게 (세기 +20).
+    _        테누토: 끝까지 충분히, 조금 더 세게 (+8).
+    Mix      함께 쓸 수 있음: C'^ 짧고 세게, C'_ (포르타토)는
+             4분의 3만큼 울림.
+    Order    길이와 점 뒤, ~ 앞: C/8.'~
+             순서가 다르면 Warning, 그래도 읽음.
+    Chord    } 뒤에: {C E G}/2^ 는 모든 음에 적용.
+    Inherit  상속되지 않음: 기호는 그 음에만 적용.
+    Bars     적힌 길이로 셈: 마디 길이는 그대로.
+    Ties     붙임줄로 이어지는 음은 끝까지 누르고 있음; 마지막
+             음의 기호가 적용됨. ~ 앞의 ' -> Warning.
+    Example  p C4' D' E' F'' G/2^ C_
+    See      length, tie, fn.accent
+
 ## PEDALS {#pedals}
 
 ### PEDAL {#pedal}
@@ -390,9 +411,9 @@ only descriptions are Korean.
 
 ### GRAMMAR {#grammar}
 
-    note     C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [~]
+    note     C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [' '' ^ _]  [~]
     rest     r [/n [. ..]]
-    chord    { note [~] ... } [/n] [~]
+    chord    { note [~] ... } [/n] [' '' ^ _] [~]
     comment  // ...
     header   tempo <bpm>   time <a>/<b>
     bar      |   %

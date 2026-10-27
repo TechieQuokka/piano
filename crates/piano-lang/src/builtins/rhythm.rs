@@ -11,6 +11,7 @@ pub fn tuplet(mut track: Track, n: u32) -> Track {
     for note in &mut track.notes {
         note.start = scale(note.start);
         note.len = scale(note.len);
+        note.cut = scale(note.cut);
     }
     for p in &mut track.pedals {
         p.at = scale(p.at);

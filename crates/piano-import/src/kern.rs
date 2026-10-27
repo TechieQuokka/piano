@@ -9,7 +9,7 @@ use std::collections::HashMap;
 
 use crate::ImportError;
 use crate::musicxml::{
-    self, Grace, LETTERS, Measure, Model, Note, Pedal, Wedge, level, midi_of, spell,
+    self, Grace, LETTERS, Marks, Measure, Model, Note, Pedal, Wedge, level, midi_of, spell,
 };
 use crate::rational::Q;
 
@@ -39,6 +39,7 @@ enum Event {
         name: String,
         tie: bool,
         trill: Option<(String, i32)>,
+        marks: Marks,
     },
     Grace {
         voice: u32,
@@ -90,6 +91,7 @@ struct Token {
     tie: bool,
     /// Semitones to the trill's upper note.
     trill: Option<i32>,
+    marks: Marks,
 }
 
 fn token(s: &str) -> Option<Token> {
@@ -122,6 +124,7 @@ fn token(s: &str) -> Option<Token> {
             grace,
             tie: false,
             trill: None,
+            marks: Marks::default(),
         });
     }
     let letter = s
@@ -142,12 +145,23 @@ fn token(s: &str) -> Option<Token> {
     } else {
         None
     };
+    // `'` staccato, `` ` `` staccatissimo, `^` accent (`^^` heavy), `~` tenuto.
+    let marks = Marks {
+        staccato: if s.contains('`') {
+            2
+        } else {
+            u8::from(s.contains('\''))
+        },
+        accent: s.contains('^'),
+        tenuto: s.contains('~'),
+    };
     Some(Token {
         len,
         pitch: Some((letter.to_ascii_uppercase(), alter, octave)),
         grace,
         tie,
         trill,
+        marks,
     })
 }
 
@@ -295,6 +309,7 @@ pub fn parse(text: &str) -> Result<Model, ImportError> {
                                 name,
                                 tie: n.tie,
                                 trill: n.trill.map(|s| upper(l, a, o, s)),
+                                marks: n.marks,
                             }
                         };
                         bar.events.push((t, ev));
@@ -535,6 +550,7 @@ fn place(model: &mut Model, bars: &[Bar], order: &[usize]) {
                     name,
                     tie,
                     trill,
+                    marks,
                 } => {
                     if let Some(gs) = pending.remove(voice) {
                         let mut index = 0;
@@ -567,6 +583,7 @@ fn place(model: &mut Model, bars: &[Bar], order: &[usize]) {
                         name: name.clone(),
                         tie: *tie,
                         trill: trill.clone(),
+                        marks: *marks,
                     });
                 }
                 Event::Grace {
@@ -676,6 +693,31 @@ mod tests {
             i.check,
             i.pieces.iter().map(|p| p.1.as_str()).collect::<String>()
         );
+    }
+
+    #[test]
+    fn articulations_are_written_after_the_notes() {
+        // Staccato, staccatissimo, accent, tenuto; a chord is short only if every
+        // note is; a note tied on drops its staccato.
+        let k = format!(
+            "{HEAD}=1\t=1\t=1\n4C'\t4c` 4e`\t.\n4D^\t4d' 4f\t.\n=2\t=2\t=2\n\
+             4E~\t[4g'\t.\n4F'~\t4g]'\t.\n==\t==\t==\n"
+        );
+        let i = crate::import(&k, "test.krn").unwrap();
+        let text: String = i.pieces.iter().map(|p| p.1.as_str()).collect();
+        assert!(i.check.ok(), "{:?}\n{text}", i.check);
+        for want in [
+            "C3/4'",
+            "{C4 E4}/4''",
+            "D3^",
+            "{D4 F4} ",
+            "E3/4_",
+            "F3'_",
+            "G4/4~",
+            "G4'",
+        ] {
+            assert!(text.contains(want), "{want} in\n{text}");
+        }
     }
 
     #[test]

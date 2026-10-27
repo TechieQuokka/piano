@@ -2,7 +2,46 @@
 
 use piano_core::{Duration, Dynamic, PedalKind, SrcSpan, TimeSig};
 
-use crate::token::NoteName;
+use crate::token::{Mark, NoteName};
+
+/// Marks written after a note or chord: `'` `''` `^` `_`. They are not inherited.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Marks {
+    /// 0: none, 1: staccato `'`, 2: staccatissimo `''`.
+    pub staccato: u8,
+    pub accent: bool,
+    pub tenuto: bool,
+}
+
+impl Marks {
+    pub fn add(&mut self, mark: Mark) {
+        match mark {
+            Mark::Staccato => self.staccato = self.staccato.max(1),
+            Mark::Staccatissimo => self.staccato = 2,
+            Mark::Accent => self.accent = true,
+            Mark::Tenuto => self.tenuto = true,
+        }
+    }
+
+    pub fn is_empty(self) -> bool {
+        self == Marks::default()
+    }
+
+    /// Percent of the written length that sounds: `'` 50, `''` 25, `'_` 75.
+    pub fn gate(self) -> u64 {
+        match (self.staccato, self.tenuto) {
+            (2, _) => 25,
+            (1, true) => 75,
+            (1, false) => 50,
+            _ => 100,
+        }
+    }
+
+    /// Velocity added: `^` 20 (as `accent`), `_` 8.
+    pub fn boost(self) -> i32 {
+        20 * i32::from(self.accent) + 8 * i32::from(self.tenuto)
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Arg {
@@ -16,6 +55,7 @@ pub enum Node {
     Note {
         name: NoteName,
         len: Option<Duration>,
+        marks: Marks,
         tie: bool,
         span: SrcSpan,
     },
@@ -27,6 +67,7 @@ pub enum Node {
         /// (name, span, tied by its own `~`)
         notes: Vec<(NoteName, SrcSpan, bool)>,
         len: Option<Duration>,
+        marks: Marks,
         tie: bool,
         span: SrcSpan,
     },

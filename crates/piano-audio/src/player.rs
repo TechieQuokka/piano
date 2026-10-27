@@ -527,6 +527,7 @@ mod tests {
                 start: 0,
                 len: piano_core::TICKS_PER_QUARTER,
                 velocity: 80,
+                cut: 0,
                 src: Default::default(),
             }],
             end: piano_core::TICKS_PER_QUARTER,

@@ -230,6 +230,27 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     Example  p cresc C4 D E F f G
     See      dynamic
 
+## ARTICULATION {#articulation}
+
+### MARKS {#marks}
+
+    Syntax   <note>'  ''  ^  _              C'  C''  C^  C_
+    '        Staccato: sounds half its length, then silence.
+    ''       Staccatissimo: sounds a quarter of its length.
+    ^        Accent: louder (+20 velocity).
+    _        Tenuto: held full and a little louder (+8).
+    Mix      Marks combine: C'^ short and loud; C'_ (portato)
+             sounds three quarters.
+    Order    After the length and dots, before ~: C/8.'~
+             Another order -> Warning, still read.
+    Chord    After }: {C E G}/2^ marks every note.
+    Inherit  Not inherited: each mark is for its own note.
+    Bars     The written length counts; the bar does not change.
+    Ties     A note tied on is held to the end of the tie; the
+             mark on its last note decides. ' before ~ -> Warning.
+    Example  p C4' D' E' F'' G/2^ C_
+    See      length, tie, fn.accent
+
 ## PEDALS {#pedals}
 
 ### PEDAL {#pedal}
@@ -394,9 +415,9 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
 
 ### GRAMMAR {#grammar}
 
-    note     C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [~]
+    note     C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [' '' ^ _]  [~]
     rest     r [/n [. ..]]
-    chord    { note [~] ... } [/n] [~]
+    chord    { note [~] ... } [/n] [' '' ^ _] [~]
     comment  // ...
     header   tempo <bpm>   time <a>/<b>
     bar      |   %

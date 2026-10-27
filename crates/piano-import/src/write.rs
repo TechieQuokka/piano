@@ -11,7 +11,7 @@
 use std::collections::BTreeMap;
 
 use crate::ImportError;
-use crate::musicxml::{Model, Pedal, StaffId, VoiceId, Wedge};
+use crate::musicxml::{Marks, Model, Pedal, StaffId, VoiceId, Wedge};
 use crate::rational::Q;
 
 const LEVELS: [&str; 8] = ["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff"];
@@ -136,6 +136,7 @@ struct Ev {
     /// MIDI numbers of the notes tied to the next note of their key.
     tied: Vec<i32>,
     staff: StaffId,
+    marks: Marks,
 }
 
 impl Ev {
@@ -262,7 +263,7 @@ fn move_tied(
     if origin.notes.len() < 2 {
         return;
     }
-    let (start, len, staff) = (origin.start, origin.len, origin.staff);
+    let (start, len, staff, marks) = (origin.start, origin.len, origin.staff, origin.marks);
     let list = &out[&(part, voice, lane)];
     let at = list.len() - 1;
     if at > 0 && list[at - 1].end() > start {
@@ -281,6 +282,7 @@ fn move_tied(
                 notes: vec![note.clone()],
                 tied: vec![note.0],
                 staff,
+                marks,
             },
         );
     }
@@ -339,6 +341,7 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
                         }],
                         tied: Vec::new(),
                         staff: n.staff,
+                        marks: Marks::default(),
                     })
                     .collect::<Vec<_>>(),
             )
@@ -350,6 +353,7 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
                 notes: vec![(n.midi, n.name.clone())],
                 tied: if tie { vec![n.midi] } else { Vec::new() },
                 staff: n.staff,
+                marks: n.marks,
             }]
         });
         let single = evs.len() == 1;
@@ -383,6 +387,7 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
                             last.notes.push(ev.notes[0].clone());
                             last.notes.sort();
                         }
+                        last.marks = last.marks.chord(ev.marks);
                         // Some notes of a chord may be tied and others not (`{C~ E}`).
                         for m in ev.tied {
                             if !last.tied.contains(&m) {
@@ -421,6 +426,7 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
             notes: vec![(g.midi, g.name.clone())],
             tied: Vec::new(),
             staff: g.staff,
+            marks: Marks::default(),
         });
     }
     graces.sort_by_key(|e| e.start);
@@ -985,11 +991,16 @@ impl Ctx<'_> {
                     e.len.to_f64()
                 ))
             })?;
+            // A note tied on is held on: its staccato would be ignored.
+            let mut marks = e.marks;
+            if whole {
+                marks.staccato = 0;
+            }
             items.push(Item::Len(
                 w,
                 n,
                 text,
-                if whole { "~".into() } else { String::new() },
+                marks.text() + if whole { "~" } else { "" },
             ));
             cur = e.end();
         }

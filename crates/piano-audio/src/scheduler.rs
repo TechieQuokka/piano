@@ -79,7 +79,7 @@ pub fn schedule(score: &Score, from: Tick, to: Option<Tick>, sample_rate: u32) -
             },
         });
         msgs.push(Msg {
-            at: sample(n.end().min(to)),
+            at: sample(n.release().min(to)),
             kind: MsgKind::Off { key },
         });
     }
@@ -106,6 +106,7 @@ mod tests {
             start,
             len,
             velocity: 80,
+            cut: 0,
             src: SrcSpan::default(),
         };
         let mut s = Score {
@@ -206,5 +207,18 @@ mod tests {
                 .iter()
                 .any(|m| matches!(m.kind, MsgKind::On { key: 60, .. }))
         );
+    }
+
+    #[test]
+    fn a_staccato_lets_the_key_go_early() {
+        let mut s = score();
+        s.notes[1].cut = Q / 2;
+        let (msgs, _) = schedule(&s, 0, None, 100);
+        let off = msgs
+            .iter()
+            .find(|m| m.kind == MsgKind::Off { key: 60 })
+            .map(|m| m.at);
+        // Struck at 1 s, a quarter (1 s) long, half of it cut.
+        assert_eq!(off, Some(150));
     }
 }

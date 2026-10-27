@@ -414,3 +414,50 @@ fn bars_go_on_through_repeats_as_heard() {
     );
     warns("| C4 D E F |: G A B C D :|", "bar has 5 beats");
 }
+
+/// Renders notes as `PITCH:velocity:release` with the release in 32nds of the start.
+fn touch(c: &Compiled) -> String {
+    let t = TICKS_PER_QUARTER / 8;
+    c.score
+        .notes
+        .iter()
+        .map(|n| format!("{}:{}:{}", n.pitch, n.velocity, (n.release() - n.start) / t))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+#[test]
+fn marks_shorten_and_stress_notes() {
+    // A quarter is 8 32nds: `'` sounds 4, `''` 2, `'_` 6; `^` +20, `_` +8.
+    let c = clean("mf C4' D'' E'_ F^ G_ A");
+    assert_eq!(
+        touch(&c),
+        "C4:80:4 D4:80:2 E4:88:6 F4:100:8 G4:88:8 A4:80:8"
+    );
+    // The written lengths, and so the bars, do not change.
+    assert_eq!(notes(&c), "C4@0+2 D4@2+2 E4@4+2 F4@6+2 G4@8+2 A4@10+2");
+    // Not inherited; chords take marks after `}`, with or without a length.
+    let c = clean("{C4 E}/8'^ G {C E}' G");
+    assert_eq!(
+        touch(&c),
+        "C4:100:2 E4:100:2 G3:80:4 C4:80:2 E4:80:2 G3:80:4"
+    );
+}
+
+#[test]
+fn a_tie_holds_on_and_the_last_note_lets_go() {
+    let c = clean("C4/2~ C/4' | {C E}/4~ {C E}/4''");
+    assert_eq!(touch(&c), "C4:80:20 C4:80:10 E4:80:10");
+    let c = compile_piece("C4/4'~ C");
+    assert_eq!(c.alerts.len(), 1, "{:?}", c.alerts);
+    assert_eq!(touch(&c), "C4:80:16");
+}
+
+#[test]
+fn marks_out_of_place_warn() {
+    for src in ["C/4~^ C", "C'/4", "r'", "' C", "{C' E}"] {
+        let c = compile_piece(src);
+        assert_eq!(c.alerts.len(), 1, "{src}: {:?}", c.alerts);
+        assert_eq!(c.alerts[0].severity, Severity::Warning, "{src}");
+    }
+}

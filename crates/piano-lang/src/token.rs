@@ -10,6 +10,19 @@ pub struct NoteName {
     pub octave: Option<i32>,
 }
 
+/// A mark written after a note: how it is played.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Mark {
+    /// `'`
+    Staccato,
+    /// `''`
+    Staccatissimo,
+    /// `^`
+    Accent,
+    /// `_`
+    Tenuto,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Tok {
     Note(NoteName),
@@ -20,6 +33,7 @@ pub enum Tok {
         dots: u8,
     },
     Tie,
+    Mark(Mark),
     Word(String),
     Number(i64),
     Fraction(i64, i64),

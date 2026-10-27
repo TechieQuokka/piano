@@ -3,6 +3,20 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.41.0
+- Language: articulation marks after a note or chord: `'` staccato (sounds half its
+  length), `''` staccatissimo (a quarter), `^` accent (+20 velocity), `_` tenuto (full
+  length, +8). They combine (`'_` portato sounds three quarters), are not inherited,
+  and go after the length and before `~` (`C/8'~`); another order warns. The written
+  length still counts for the bar. A note tied on is held to the end of the tie; the
+  mark on its last note decides.
+- Playback, MIDI and WAV/FLAC export let a staccato key go early.
+- Import: kern `'` `` ` `` `^` `~` and MusicXML staccato, staccatissimo, spiccato,
+  accent, strong-accent, tenuto, detached-legato are written as marks. A chord is
+  short only if every note is. Beethoven sonatas: 103/103 still match, with about
+  22,000 staccato notes that used to sound at full length.
+- Docs: `man marks`, `guide marks`, both languages.
+
 ## 1.40.5
 - Fix: importing a `.mxl` read the score inside it without a size limit, so a broken
   or hostile file could fill the memory. A score over 64 MB unpacked is refused.

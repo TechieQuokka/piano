@@ -115,14 +115,23 @@ impl PedalKind {
 pub struct NoteEvent {
     pub pitch: Pitch,
     pub start: Tick,
+    /// Written length (ties joined).
     pub len: Tick,
     pub velocity: u8,
+    /// How much earlier than the written end the key is let go (staccato).
+    pub cut: Tick,
     pub src: SrcSpan,
 }
 
 impl NoteEvent {
+    /// Written end.
     pub fn end(&self) -> Tick {
         self.start + self.len
+    }
+
+    /// When the key is let go: the written end, earlier for a staccato.
+    pub fn release(&self) -> Tick {
+        self.start + self.len.saturating_sub(self.cut).max(1)
     }
 }
 

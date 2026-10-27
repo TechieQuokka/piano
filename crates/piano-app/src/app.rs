@@ -557,7 +557,7 @@ impl App {
         p.score
             .notes
             .iter()
-            .filter(|n| n.start <= tick && tick < n.end())
+            .filter(|n| n.start <= tick && tick < n.release())
             .map(|n| n.pitch)
             .collect()
     }

@@ -7,7 +7,7 @@ use piano_core::{
     Alert, Duration, Dynamic, PedalKind, Pitch, SrcSpan, Tick, TimeSig, score::DEFAULT_TEMPO,
 };
 
-use crate::ast::Node;
+use crate::ast::{Marks, Node};
 use crate::builtins::Builtin;
 use crate::token::NoteName;
 
@@ -107,6 +107,7 @@ pub struct Sound {
     pub pitches: Vec<Pitch>,
     pub len: Tick,
     pub velocity: u8,
+    pub marks: Marks,
     /// Per pitch: tied to the next sound.
     pub ties: Vec<bool>,
     pub span: SrcSpan,
@@ -220,6 +221,7 @@ impl Resolver<'_> {
             Node::Note {
                 name,
                 len,
+                marks,
                 tie,
                 span,
             } => {
@@ -228,11 +230,12 @@ impl Resolver<'_> {
                 self.state.reference = first;
                 let pitches: Vec<Pitch> = pitch.map(|(p, _)| p).into_iter().collect();
                 let ties = vec![*tie; pitches.len()];
-                Some(self.sound(pitches, *len, ties, *span))
+                Some(self.sound(pitches, *len, *marks, ties, *span))
             }
             Node::Chord {
                 notes,
                 len,
+                marks,
                 tie,
                 span,
             } => {
@@ -255,7 +258,7 @@ impl Resolver<'_> {
                     }
                 }
                 self.state.reference = first.unwrap_or(before);
-                Some(self.sound(pitches, *len, ties, *span))
+                Some(self.sound(pitches, *len, *marks, ties, *span))
             }
             Node::Rest { len, span } => {
                 if let Some(l) = len {
@@ -434,6 +437,7 @@ impl Resolver<'_> {
         &mut self,
         pitches: Vec<Pitch>,
         len: Option<Duration>,
+        marks: Marks,
         ties: Vec<bool>,
         span: SrcSpan,
     ) -> Item {
@@ -445,6 +449,7 @@ impl Resolver<'_> {
             pitches,
             len: self.state.len.ticks(),
             velocity: self.state.dynamic.velocity(),
+            marks,
             ties,
             span,
         });

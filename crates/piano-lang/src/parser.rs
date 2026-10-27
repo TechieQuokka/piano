@@ -3,7 +3,7 @@
 use piano_core::time::{DENOMINATORS, MAX_DOTS};
 use piano_core::{Alert, Duration, Dynamic, PedalKind, SrcSpan, TimeSig};
 
-use crate::ast::{Arg, Node};
+use crate::ast::{Arg, Marks, Node};
 use crate::builtins;
 use crate::token::{Tok, Token};
 
@@ -240,18 +240,25 @@ impl Parser<'_> {
         let span = token.span;
         match token.tok {
             Tok::Note(name) => {
-                let (len, tie) = self.len_tie();
+                let (len, marks, tie) = self.after(span);
+                if tie && marks.staccato > 0 {
+                    self.warning(span, "a tied note is held on, its `'` is ignored");
+                }
                 Some(Node::Note {
                     name,
                     len,
+                    marks,
                     tie,
                     span,
                 })
             }
             Tok::Rest => {
-                let (len, tie) = self.len_tie();
+                let (len, marks, tie) = self.after(span);
                 if tie {
                     self.warning(span, "rests cannot be tied");
+                }
+                if !marks.is_empty() {
+                    self.warning(span, "marks on a rest are ignored");
                 }
                 Some(Node::Rest { len, span })
             }
@@ -271,6 +278,13 @@ impl Parser<'_> {
                 self.warning(span, "`~` must follow a note or chord");
                 None
             }
+            Tok::Mark(_) => {
+                self.warning(
+                    span,
+                    format!("`{}` must follow a note or chord", token.text),
+                );
+                None
+            }
             Tok::Arrow => {
                 self.error(span, "`>` is only used in song files");
                 None
@@ -286,22 +300,43 @@ impl Parser<'_> {
         }
     }
 
-    fn len_tie(&mut self) -> (Option<Duration>, bool) {
-        let mut len = None;
-        if let Some(Token {
-            tok: Tok::Len { denom, dots },
-            span,
-            ..
-        }) = self.peek().cloned()
-        {
-            self.bump();
-            len = self.duration(denom, dots, span);
+    /// What may follow a note or chord, in this order: a length, marks, `~`.
+    /// Another order is read too, with a warning.
+    fn after(&mut self, span: SrcSpan) -> (Option<Duration>, Marks, bool) {
+        let (mut len, mut marks, mut tie) = (None, Marks::default(), false);
+        let (mut seen_len, mut stage, mut in_order) = (false, 0, true);
+        loop {
+            match self.peek().cloned() {
+                Some(Token {
+                    tok: Tok::Len { denom, dots },
+                    span: s,
+                    ..
+                }) if !seen_len => {
+                    self.bump();
+                    in_order &= stage == 0;
+                    seen_len = true;
+                    len = self.duration(denom, dots, s);
+                }
+                Some(Token {
+                    tok: Tok::Mark(m), ..
+                }) => {
+                    self.bump();
+                    in_order &= stage <= 1;
+                    stage = 1;
+                    marks.add(m);
+                }
+                Some(Token { tok: Tok::Tie, .. }) if !tie => {
+                    self.bump();
+                    stage = 2;
+                    tie = true;
+                }
+                _ => break,
+            }
         }
-        let tie = matches!(self.peek_tok(), Some(Tok::Tie));
-        if tie {
-            self.bump();
+        if !in_order {
+            self.warning(span, "write the length, then marks, then `~`, e.g. `C/8'~`");
         }
-        (len, tie)
+        (len, marks, tie)
     }
 
     fn duration(&mut self, denom: u32, dots: u8, span: SrcSpan) -> Option<Duration> {
@@ -323,6 +358,7 @@ impl Parser<'_> {
 
     fn chord(&mut self, span: SrcSpan) -> Node {
         let mut notes = Vec::new();
+        let mut inner = Marks::default();
         loop {
             match self.peek().cloned() {
                 None => {
@@ -345,6 +381,15 @@ impl Parser<'_> {
                         let s = self.bump().map(|t| t.span).unwrap_or(s);
                         self.warning(s, "put the chord length after `}`");
                     }
+                    let mut marked = false;
+                    while let Some(Tok::Mark(m)) = self.peek_tok() {
+                        inner.add(*m);
+                        marked = true;
+                        self.bump();
+                    }
+                    if marked {
+                        self.warning(s, "put marks after `}`, they apply to the whole chord");
+                    }
                     let tie = matches!(self.peek_tok(), Some(Tok::Tie));
                     if tie {
                         self.bump();
@@ -363,7 +408,13 @@ impl Parser<'_> {
         if notes.is_empty() {
             self.warning(span, "empty chord");
         }
-        let (len, tie) = self.len_tie();
+        let (len, mut marks, tie) = self.after(span);
+        marks.staccato = marks.staccato.max(inner.staccato);
+        marks.accent |= inner.accent;
+        marks.tenuto |= inner.tenuto;
+        if tie && marks.staccato > 0 {
+            self.warning(span, "a tied chord is held on, its `'` is ignored");
+        }
         if tie && notes.iter().any(|n| n.2) {
             self.alerts.push(Alert::hint(
                 span,
@@ -373,6 +424,7 @@ impl Parser<'_> {
         Node::Chord {
             notes,
             len,
+            marks,
             tie,
             span,
         }

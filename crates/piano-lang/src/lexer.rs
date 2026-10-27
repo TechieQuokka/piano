@@ -2,7 +2,7 @@
 
 use piano_core::{Accidental, Letter, SrcSpan};
 
-use crate::token::{NoteName, Tok, Token};
+use crate::token::{Mark, NoteName, Tok, Token};
 
 pub fn lex(src: &str) -> Vec<Token> {
     let mut out = Vec::new();
@@ -77,10 +77,23 @@ fn lex_line(line_no: u32, line: &str, out: &mut Vec<Token>) {
                     Tok::Number(num)
                 }
             }
-            c if c.is_alphabetic() || c == '_' => {
-                let word = take_while(&chars, &mut i, |c| {
+            '\'' if at(i + 1) == Some('\'') => {
+                i += 2;
+                Tok::Mark(Mark::Staccatissimo)
+            }
+            // `_` alone is a tenuto mark; `_intro` is a word (a piece name).
+            c if c.is_alphabetic()
+                || (c == '_' && at(i + 1).is_some_and(|d| d.is_alphanumeric())) =>
+            {
+                let mut word = take_while(&chars, &mut i, |c| {
                     c.is_alphanumeric() || c == '_' || c == '#'
                 });
+                // `C_` is a note with a tenuto mark, not a word.
+                let bare = word.trim_end_matches('_');
+                if bare.len() < word.len() && (parse_note(bare).is_some() || bare == "r") {
+                    i -= word.len() - bare.len();
+                    word.truncate(bare.len());
+                }
                 classify(&word)
             }
             _ => {
@@ -94,6 +107,9 @@ fn lex_line(line_no: u32, line: &str, out: &mut Vec<Token>) {
                     ',' => Tok::Comma,
                     '~' => Tok::Tie,
                     '>' => Tok::Arrow,
+                    '\'' => Tok::Mark(Mark::Staccato),
+                    '^' => Tok::Mark(Mark::Accent),
+                    '_' => Tok::Mark(Mark::Tenuto),
                     _ => Tok::Unknown,
                 }
             }
@@ -228,6 +244,32 @@ mod tests {
         let t = lex("  C4\n G");
         assert_eq!(t[0].span, SrcSpan::new(1, 3, 2));
         assert_eq!(t[1].span, SrcSpan::new(2, 2, 1));
+    }
+
+    #[test]
+    fn marks() {
+        let c = note(Letter::C, Accidental::Natural, None);
+        let c4 = note(Letter::C, Accidental::Natural, Some(4));
+        let m = Tok::Mark;
+        assert_eq!(
+            toks("C' C4/8'' C^ C_ C4_ r_ _intro"),
+            vec![
+                c.clone(),
+                m(Mark::Staccato),
+                c4.clone(),
+                Tok::Len { denom: 8, dots: 0 },
+                m(Mark::Staccatissimo),
+                c.clone(),
+                m(Mark::Accent),
+                c,
+                m(Mark::Tenuto),
+                c4,
+                m(Mark::Tenuto),
+                Tok::Rest,
+                m(Mark::Tenuto),
+                Tok::Word("_intro".into()),
+            ]
+        );
     }
 
     #[test]

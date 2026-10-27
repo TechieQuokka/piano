@@ -180,7 +180,10 @@ fn lay_item(
             let sound = &resolved.sounds[*idx];
             let mut pending = std::mem::take(&mut ctx.ties);
             let mut new_ties = Vec::new();
+            // A staccato lets the key go early; a note tied on is held to its end.
+            let cut = sound.len - sound.len * sound.marks.gate() / 100;
             for (&pitch, &tie) in sound.pitches.iter().zip(&sound.ties) {
+                let cut = if tie { 0 } else { cut };
                 let continued = pending
                     .iter()
                     .position(|(i, _)| track.notes[*i].pitch == pitch);
@@ -189,6 +192,7 @@ fn lay_item(
                         let (i, _) = pending.remove(k);
                         let note = &mut track.notes[i];
                         note.len = now + sound.len - note.start;
+                        note.cut = cut;
                         i
                     }
                     None => {
@@ -196,7 +200,10 @@ fn lay_item(
                             pitch,
                             start: now,
                             len: sound.len,
-                            velocity: sound.velocity,
+                            velocity: crate::builtins::clamp_velocity(
+                                i32::from(sound.velocity) + sound.marks.boost(),
+                            ),
+                            cut,
                             src: sound.span,
                         });
                         track.notes.len() - 1

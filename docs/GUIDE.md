@@ -1024,7 +1024,7 @@ voices{ G4/1 }{ C3 {E3 G}/4 G2 {E3 G}/4 }   // bass and chord
 ## 5. Dynamics and expression {#expression}
 
 Dynamics are how loud the music is. This chapter covers the marks from ppp to fff,
-gradual changes, accents, and changing the volume of a whole section.
+gradual changes, staccato and accents, and changing the volume of a whole section.
 
 ### Dynamic marks {#dynamic}
 
@@ -1120,6 +1120,66 @@ f cresc C4 D E p F   // Warning: cresc toward a softer mark
 #### See also
 
 `guide dynamic` · `guide fn.accent`
+
+### Staccato, accent, tenuto {#marks}
+
+#### Concept
+
+Marks after a note say how its key is played. A staccato note is cut short: it is
+struck, then let go early, and the rest of its time is silence. An accent strikes one
+note harder. A tenuto holds the note for its whole length and leans on it a little.
+Classical music is full of short notes: played at full length, a lively passage
+sounds smeared.
+
+#### Syntax
+
+`'` staccato, `''` staccatissimo, `^` accent, `_` tenuto, written right after the
+note's length: `C/8'`, `{C E G}/2^`.
+
+#### Rules
+
+- `'` sounds half of the written length, `''` a quarter; `'_` together (portato)
+  three quarters.
+- `^` adds 20 to the velocity (as `accent`), `_` adds 8. `'^` is short and loud.
+- Marks are not inherited: each one is for its own note or chord.
+- The written length still counts for the bar: `C/4'` takes a quarter, half of it
+  silent.
+- Order: length and dots, then marks, then `~`. Another order still works, with a
+  warning.
+- A chord takes its marks after `}`, for every note.
+- A note tied on is held to the end of the tie, and the mark on the last note of the
+  tie decides how it ends. A `'` before `~` gives a warning.
+
+#### Examples
+
+```piano
+p C4' D' E' F' G/2   // light, separated steps, then a held G
+```
+
+```piano
+time 2/2 | p C4/4' F' Ab' C5' | F5' r r/2 |   // a rocket of short notes
+```
+
+```piano
+{C4 E G}/4^ r G3/8'' G'' {C4 E G}/2_   // a stressed chord, two tiny notes, a full chord
+```
+
+```piano
+C4/2~ C/8' r/8 r/4   // held, then let go short
+```
+
+```piano warning
+C4/4'~ C   // Warning: a tied note is held on, its ' is ignored
+```
+
+#### Common mistakes
+
+- Writing the mark before the length: `C'/8` works but warns; write `C/8'`.
+- Expecting the next notes to stay short: marks are not inherited.
+
+#### See also
+
+`guide length` · `guide tie` · `guide fn.accent` · `man marks`
 
 ### Accents {#fn.accent}
 
@@ -1853,9 +1913,9 @@ music terms used in this guide.
 #### Pieces
 
 ```text
-note      C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [~]
+note      C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [' '' ^ _]  [~]
 rest      r [/n [. ..]]
-chord     { note [~] ... } [/n [. ..]] [~]
+chord     { note [~] ... } [/n [. ..]] [' '' ^ _] [~]
 comment   // ...
 header    tempo <20-400>   time <beats>/<unit>
 bar       |   %
@@ -1936,9 +1996,12 @@ tempo 120 C D E   // the piece's own tempo wins over the default
 - dynamics: loudness, from ppp to fff.
 - octave: twelve semitones; the same note name, higher or lower.
 - pickup (anacrusis): notes before the first full bar.
+- portato: between legato and staccato, `'_`.
 - semitone: the step from one key to the very next.
+- staccato / staccatissimo: short / very short, the key let go early; `'` / `''`.
 - sequence: a motif repeated at a shifted pitch.
 - tempo: speed, in beats per minute.
+- tenuto: held for its full length, slightly stressed; `_`.
 - tie: two notes of the same pitch joined into one.
 - time signature: how many beats of which length make a bar.
 - transpose: move notes up or down by a fixed number of semitones.

@@ -67,7 +67,7 @@ pub fn midi_bytes(score: &Score) -> Vec<u8> {
             }),
         ));
         events.push((
-            n.end(),
+            n.release(),
             1,
             midi(MidiMessage::NoteOff {
                 key,

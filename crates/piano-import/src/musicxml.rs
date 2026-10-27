@@ -28,6 +28,39 @@ pub struct Note {
     pub tie: bool,
     /// Trill: the upper neighbor (name, MIDI).
     pub trill: Option<(String, i32)>,
+    pub marks: Marks,
+}
+
+/// Articulations, as the language writes them after a note: `'` `''` `^` `_`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Marks {
+    /// 0: none, 1: staccato, 2: staccatissimo.
+    pub staccato: u8,
+    pub accent: bool,
+    pub tenuto: bool,
+}
+
+impl Marks {
+    /// The marks of a chord made of notes marked `self` and `other`: short only
+    /// if every note is, stressed if any note is.
+    pub fn chord(self, other: Marks) -> Marks {
+        Marks {
+            staccato: self.staccato.min(other.staccato),
+            accent: self.accent || other.accent,
+            tenuto: self.tenuto || other.tenuto,
+        }
+    }
+
+    pub fn text(self) -> String {
+        let mut s = "'".repeat(usize::from(self.staccato));
+        if self.accent {
+            s.push('^');
+        }
+        if self.tenuto {
+            s.push('_');
+        }
+        s
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -186,6 +219,7 @@ enum Event {
         name: String,
         tie: bool,
         trill: Option<(String, i32)>,
+        marks: Marks,
     },
     Grace {
         voice: u32,
@@ -295,6 +329,7 @@ fn place(model: &mut Model, part: usize, m: &RawMeasure, start: Q) {
                 name,
                 tie,
                 trill,
+                marks,
             } => {
                 if let Some(gs) = pending.remove(voice) {
                     let mut index = 0;
@@ -327,6 +362,7 @@ fn place(model: &mut Model, part: usize, m: &RawMeasure, start: Q) {
                     name: name.clone(),
                     tie: *tie,
                     trill: trill.clone(),
+                    marks: *marks,
                 });
             }
             Event::Grace {
@@ -509,6 +545,10 @@ fn read_part(part: Node, notices: &mut Notices) -> Vec<RawMeasure> {
                     if notations.is_some_and(|n| child(n, "arpeggiate").is_some()) {
                         notices.arpeggios += 1;
                     }
+                    let marks = notations
+                        .and_then(|n| child(n, "articulations"))
+                        .map(articulations)
+                        .unwrap_or_default();
                     let trill = notations
                         .and_then(|n| child(n, "ornaments"))
                         .filter(|orn| child(*orn, "trill-mark").is_some())
@@ -523,6 +563,7 @@ fn read_part(part: Node, notices: &mut Notices) -> Vec<RawMeasure> {
                             name: spell(l, a, o),
                             tie,
                             trill,
+                            marks,
                         },
                     ));
                 }
@@ -533,6 +574,20 @@ fn read_part(part: Node, notices: &mut Notices) -> Vec<RawMeasure> {
         out.push(rm);
     }
     out
+}
+
+/// The marks of `<articulations>`; a detached-legato is a staccato with a tenuto.
+fn articulations(a: Node) -> Marks {
+    let has = |tag: &str| child(a, tag).is_some();
+    Marks {
+        staccato: if has("staccatissimo") || has("spiccato") {
+            2
+        } else {
+            u8::from(has("staccato") || has("detached-legato"))
+        },
+        accent: has("accent") || has("strong-accent"),
+        tenuto: has("tenuto") || has("detached-legato"),
+    }
 }
 
 /// Accidental written for a trill's upper note.
