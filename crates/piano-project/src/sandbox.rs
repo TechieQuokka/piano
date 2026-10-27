@@ -71,8 +71,10 @@ impl Sandbox {
     }
 }
 
-/// Makes `path` absolute and canonical. The longest existing ancestor is
-/// canonicalized (resolving symlinks); the remaining components are normalized.
+/// Makes `path` absolute and canonical. Components are taken one by one, the way
+/// the system walks a path: each existing prefix is canonicalized (resolving
+/// symlinks) before the next `..` applies, so `missing/../link/x` cannot hide a
+/// symlink that leads out of the project.
 pub fn resolve(cwd: &Path, path: &Path) -> PathBuf {
     let joined = if path.is_absolute() {
         path.to_path_buf()
@@ -80,24 +82,22 @@ pub fn resolve(cwd: &Path, path: &Path) -> PathBuf {
         cwd.join(expand_home(path))
     };
     let joined = expand_home(&joined);
-    let mut existing = joined.as_path();
-    let mut rest = Vec::new();
-    while !existing.exists() {
-        match (existing.parent(), existing.file_name()) {
-            (Some(parent), Some(name)) => {
-                rest.push(name.to_os_string());
-                existing = parent;
+    let mut out = PathBuf::new();
+    for c in joined.components() {
+        match c {
+            Component::ParentDir => {
+                out.pop();
             }
-            _ => break,
+            Component::CurDir => {}
+            other => {
+                out.push(other);
+                if let Ok(real) = out.canonicalize() {
+                    out = real;
+                }
+            }
         }
     }
-    let mut out = existing
-        .canonicalize()
-        .unwrap_or_else(|_| existing.to_path_buf());
-    for name in rest.into_iter().rev() {
-        out.push(name);
-    }
-    normalize(&out)
+    out
 }
 
 fn expand_home(path: &Path) -> PathBuf {
@@ -105,20 +105,6 @@ fn expand_home(path: &Path) -> PathBuf {
         Ok(rest) => dirs::home_dir().map_or_else(|| path.to_path_buf(), |h| h.join(rest)),
         Err(_) => path.to_path_buf(),
     }
-}
-
-fn normalize(path: &Path) -> PathBuf {
-    let mut out = PathBuf::new();
-    for c in path.components() {
-        match c {
-            Component::ParentDir => {
-                out.pop();
-            }
-            Component::CurDir => {}
-            other => out.push(other),
-        }
-    }
-    out
 }
 
 #[cfg(test)]
@@ -182,6 +168,15 @@ mod tests {
         assert_eq!(
             sb.check(&project, Path::new("link/file"), Access::Modify),
             Err(Denied::OutsideReadOnly)
+        );
+        // A missing directory and `..` in front of the link do not hide it.
+        assert_eq!(
+            sb.check(&project, Path::new("missing/../link/file"), Access::Modify),
+            Err(Denied::OutsideReadOnly)
+        );
+        assert_eq!(
+            sb.check(&project, Path::new("link/../proj/new"), Access::Modify),
+            Ok(project.join("new"))
         );
     }
 }

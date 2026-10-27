@@ -3,6 +3,11 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.40.4
+- Fix: a path through a missing directory, like `missing/../link/file`, was not
+  resolved through the symlink `link`, so a file could be written outside the project
+  when `link` pointed there. Paths are now resolved one part at a time.
+
 ## 1.40.3
 - Fix: the audio thread waited while playback was being scheduled or a SoundFont
   loaded, which could make the sound drop out on long pieces. Both are now prepared
