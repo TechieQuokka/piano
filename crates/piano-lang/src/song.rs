@@ -298,6 +298,15 @@ mod tests {
     }
 
     #[test]
+    fn fermatas_and_marks_carry_into_the_song() {
+        let c = song("p1 > p1", &[("p1", "C4@ D' E")]);
+        assert!(c.alerts.is_empty(), "{:?}", c.alerts);
+        let q = TICKS_PER_QUARTER;
+        assert_eq!(c.score.holds, [(0, q), (3 * q, 4 * q)]);
+        assert_eq!(c.score.notes[4].release(), 4 * q + q / 2);
+    }
+
+    #[test]
     fn transforms_and_rests() {
         let c = song("p1 > r/2 > up(12){ p1 }", &[("p1", "C")]);
         assert!(c.alerts.is_empty(), "{:?}", c.alerts);

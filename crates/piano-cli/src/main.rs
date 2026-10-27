@@ -700,6 +700,38 @@ mod tests {
     use super::*;
 
     #[test]
+    fn a_folder_of_scores_becomes_projects_and_skips_used_folders() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../target/test-tmp")
+            .join(format!("cli-import-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let (src, out) = (root.join("kern"), root.join("out"));
+        std::fs::create_dir_all(&src).unwrap();
+        let score = |notes: &str| {
+            format!(
+                "**kern\t**kern\n*staff2\t*staff1\n*M2/4\t*M2/4\n=1\t=1\n{notes}\n==\t==\n*-\t*-\n"
+            )
+        };
+        std::fs::write(src.join("a.krn"), score("2C\t4c'\n.\t4d")).unwrap();
+        std::fs::write(src.join("b.krn"), score("2E\t2g;")).unwrap();
+        std::fs::write(src.join("broken.krn"), "**kern\n=1\n4q\n").unwrap();
+        // A used folder is skipped; a broken score fails the command.
+        std::fs::create_dir_all(out.join("b")).unwrap();
+        std::fs::write(out.join("b/keep.txt"), "mine").unwrap();
+        let err = import_folder(&src, &out).unwrap_err();
+        assert!(err.contains("1 of 3 scores"), "{err}");
+        let piece = std::fs::read_to_string(out.join("a/part1.piano")).unwrap();
+        assert!(piece.contains("C4/4' D4"), "{piece}");
+        assert!(out.join("a/song.piano").exists() && out.join("a/piano.toml").exists());
+        assert_eq!(
+            std::fs::read_to_string(out.join("b/keep.txt")).unwrap(),
+            "mine"
+        );
+        assert!(!out.join("b/song.piano").exists());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
     fn folders_with_scores_are_found_below() {
         // Under the workspace `target/`, like the other crates' tests.
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
