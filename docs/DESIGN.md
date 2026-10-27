@@ -270,6 +270,7 @@ A score-like, left-to-right language. Whitespace and case are lenient.
 | `~` | Tie (same pitch only; may cross bars and function bodies; works on chords: after `}` every note, after a note inside `{ }` that note alone) | `G/2~ G/4`, `{C~ E G}/2 C` |
 | `r` | Rest | `r/4` |
 | `{ }` | Chord; length after the brace | `{C E G}/2` |
+| `' '' ^ _ @` | Marks after the length, before `~` (1.41.0, 1.44.0; see 5.10) | `C/8'` `{C E G}/2^` `G/2@` |
 | `//` | Line comment | `C D // intro` |
 
 Flat parsing rule: the first character is the note letter; an attached `b` is a flat.
@@ -313,6 +314,12 @@ C/4. D E F/8 G                // D, E are dotted quarters; G is an eighth
 | `ppp pp p mp mf f ff fff` | Very soft … very loud |
 | `cresc` | Gradually louder until the next dynamic mark |
 | `dim` | Gradually softer until the next dynamic mark |
+| `sf` (`sfz` `sffz` `fz` `rf` `rfz`) | Next note only: two levels above the current one, at least f (1.42.0) |
+| `fp` / `sfp` / `ffp` | Next note f / sf / ff, then p (1.42.0) |
+
+A cresc or dim a voice leaves open at the end of a `voices` block goes on in the same
+voice of the next block (only bar lines between); with no block after it, the first
+voice's goes on after the block (1.46.0).
 
 Keywords are used instead of `<` / `>` to avoid clashing with song connectors.
 
@@ -375,7 +382,7 @@ voices{ p r/2. G#4/8. G#4/16 }                       // melody
 
 | Topic | Rule |
 |---|---|
-| State | Each voice starts from the state before the block; octave, length, dynamic, cresc are its own |
+| State | Each voice starts from the state before the block; octave, length, dynamic, cresc are its own (an open cresc goes on in the same voice of the next block, 1.46.0) |
 | After | The first voice's state continues after the block |
 | Pedals | Shared by the whole piano; a pedal changed in any voice stays changed after the block |
 | Bars | Bar lines inside a voice continue the current bar; bars after the block follow the first voice |
@@ -387,12 +394,33 @@ voices{ p r/2. G#4/8. G#4/16 }                       // melody
 The syntax extends the function form (`name{ ... }`) instead of adding symbols; line
 breaks between the bodies are free.
 
-### 5.9 Example
+### 5.9 Expression (1.41.0 – 1.45.0)
+
+How a note is played, beyond its length and dynamic. Added because imported classical
+scores sounded "not classical": every note rang its full length, and sforzandi, grace
+notes, and fermatas were lost. Each is something a composer writes by hand.
+
+| Syntax | Meaning | Sound |
+|---|---|---|
+| `'` `''` | Staccato, staccatissimo | Key let go after 50 % / 25 % of the written length |
+| `'_` | Portato | 75 % |
+| `^` `_` | Accent, tenuto | +20 / +8 velocity (tenuto also full length) |
+| `@` | Fermata (notes, chords, rests) | Twice as long: the tempo is halved under it, for every voice |
+| `grace{ ... } note` | Grace notes | On the beat, a 32nd each (halved, up to 4 times, to take at most half the note); the note starts after them |
+| `arp{ ... }/n` | Rolled chord | Keys go down from the lowest, 30 ms apart |
+
+Rules shared by the marks: not inherited; written after the length and dots, before
+`~` (another order warns); a chord takes them after `}`. The written length always
+counts for the bar. A note tied on is held to the end of the tie; the mark on its last
+note decides. Only `@` goes on a rest.
+
+### 5.10 Example
 
 ```
 tempo 90  time 4/4            // header
 p cresc
 | C4/8 D E F G/4 A~ | A/2 f {C5 E G}/2 |
+| sf grace{ D5 } C5/4' B4' arp{G3 D4 G4}/2@ |
 ped on
 |: up(12){ accent(1/3){ C/8 D E F G A } } r/4 :| x2
 ped off
@@ -484,7 +512,8 @@ Chapters:
 2. Notes         names, accidentals, octave, length, dots, ties, rests, chords
 3. Inheritance   octave (nearest), length, dynamic, pedals, defaults
 4. Structure     bars, time, tempo
-5. Dynamics      marks, cresc, dim, velocity table
+5. Dynamics      marks, cresc, dim, sf / fp, velocity table
+   Articulation  ' '' ^ _, @ fermata, grace{ }, arp{ } (1.41.0 – 1.45.0)
 6. Pedals        ped, sos, soft
 7. Repeats       |: :|, x n, %, voltas
 8. Functions     syntax, nesting, folding, one section per builtin
@@ -680,14 +709,23 @@ pub struct Pitch(u8);                 // MIDI number 21 (A0) ..= 108 (C8)
 pub enum PedalKind { Damper, Sostenuto, Soft }
 
 pub struct NoteEvent  { pub pitch: Pitch, pub start: Tick, pub len: Tick,
-                        pub velocity: u8, pub src: SrcSpan }
+                        pub velocity: u8,
+                        pub cut: Tick,      // let go this much before the end (staccato)
+                        pub roll_ms: u16,   // key goes down this late (arpeggio)
+                        pub src: SrcSpan }
 pub struct PedalEvent { pub kind: PedalKind, pub on: bool, pub at: Tick, pub src: SrcSpan }
 pub struct TempoEvent { pub at: Tick, pub bpm: u16 }
 
 pub struct Score {
     pub notes: Vec<NoteEvent>, pub pedals: Vec<PedalEvent>,
-    pub tempos: Vec<TempoEvent>, pub end: Tick,
+    pub tempos: Vec<TempoEvent>, pub time_sigs: Vec<TimeSigEvent>,
+    pub holds: Vec<(Tick, Tick)>,   // fermatas
+    pub end: Tick,
 }
+
+/// Tempo in effect from each tick on, halved under a fermata; built once per
+/// playback (`Score::clock`), used for seconds <-> ticks and for MIDI tempo events.
+pub struct Clock { pace: Vec<(Tick, f64)> }
 
 pub enum Severity { Error, Warning, Hint }
 pub struct SrcSpan { pub line: u32, pub col: u32, pub len: u32 }
@@ -911,7 +949,9 @@ autosave_secs = 30
 |---|---|---|---|---|---|---|---|---|
 | Velocity | 16 | 33 | 49 | 64 | 80 | 96 | 112 | 127 |
 
-- `accent`: +20 (capped at 127).
+- `accent` and `^`: +20 (capped at 127); `_` (tenuto): +8.
+- `sf`: the note two levels above the level nearest its velocity, at least f; `fp` f,
+  `ffp` ff (then p).
 - `louder(n)` / `softer(n)`: ±n, clamped to 1–127.
 - `cresc` / `dim`: linear per-note interpolation between the two marks.
 - Soft pedal: uses the synth's support if available; otherwise reduces velocity by
@@ -1250,3 +1290,25 @@ stopped at `voices`. Fixed in order:
   event after the block. Beethoven: multi-bar blocks 1824 → 2, notes unchanged; a
   cresc/dim over such bars now ends on a mark at every bar (it cannot cross `voices`),
   so 1.7 % of the notes have another velocity (at most 24).
+
+### 13.22 Expression (1.41.0 – 1.46.0)
+
+- 1.41.0 marks `'` `''` `^` `_`: `Marks` on `Node::Note` / `Chord` and `Sound`; layout
+  turns them into `NoteEvent.cut` and a velocity boost. `_` is an identifier character,
+  so the lexer splits a trailing `_` off a note (`C_`), but keeps `_intro` a word.
+  The scheduler, MIDI export, and the keyboard view use `release()`.
+- 1.42.0 `sf` and kin: `Node::Sudden` waits in `State` for the next sound and is
+  applied in layout, after cresc interpolation; `fp` kinds set the dynamic to p.
+- 1.43.0 `grace{ }`: grace sounds keep the octave flow but not the length and stay out
+  of a cresc; layout plays them from the beat (`grace_len`) and starts the note after
+  them. A bar line, pedal, tempo, or time may stand between; other items drop them.
+- 1.44.0 `@`: `Track.holds` / `Score.holds` (through append, tuplet, `%`, songs) and
+  `Clock`; the bar check is untouched.
+- 1.45.0 `arp{ }`: a chord with `roll`; layout gives each pitch 30 ms per lower pitch
+  in `roll_ms`; playback and MIDI delay the note-on, never past the release.
+- 1.46.0: `Resolver.carry` hands each voice's open cresc to the same voice of the next
+  `voices` block. Import output is unchanged: the importer closes every ramp in its
+  block, and its per-bar steps were already continuous.
+- Import (1.41.0 – 1.45.2): see 13.13 and 13.15; Beethoven 103/103 match after
+  each version. A slur (`(` `)`) is not in the language: every note already sounds to
+  its end, so it would only matter with a detached default touch.

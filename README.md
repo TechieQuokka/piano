@@ -1,5 +1,7 @@
 # piano
 
+[![CI](https://github.com/TechieQuokka/piano/actions/workflows/ci.yml/badge.svg)](https://github.com/TechieQuokka/piano/actions/workflows/ci.yml)
+
 A piano composition editor for the terminal. Press keys to hear notes, write them
 into a score-like language, edit, and play back with a real piano SoundFont.
 
@@ -23,6 +25,8 @@ piano export my_song --flac            # lossless audio, 24-bit at the SoundFont
 piano import score.mxl my_song   # a MusicXML score (MuseScore, ...) as a new project
 piano import score.krn my_song   # a Humdrum **kern score (kern.humdrum.org, ...)
 piano import scores/ my_songs    # every score in a folder → my_songs/<file name>
+                                 # (notes, dynamics, articulations, ornaments; checked
+                                 #  note by note against the score)
 piano doctor           # check SoundFont, audio device, terminal keys
 ```
 
@@ -38,6 +42,9 @@ A piano `.sf2` SoundFont is needed for sound; set it with `font <path>`.
   `S D G H J` and `Q W E R T Y U` / `2 3 5 6 7`, `←` `→` change the octave.
   Keys only sound; nothing is written.
 - **Code** (left): write the piece in the piano language, e.g. `| C4 C G G | A A G/2 |`.
+  Beyond notes, chords, voices, and dynamics it has the marks of a real score:
+  staccato and accents (`C/8'` `G^`), `sf` / `fp`, grace notes (`grace{ D5 } C5/4`),
+  fermatas (`G/2@`), and rolled chords (`arp{C3 G C4 E}/1`).
 - **Display** (right): shows one view and keeps it until a command changes it
   (`played`, `ref`, `output`, `song`, `help`, `man`, `guide`, `tutorial`; `ls`, `pwd`, `cat`,
   `history`, `project` show their result in `output`).
