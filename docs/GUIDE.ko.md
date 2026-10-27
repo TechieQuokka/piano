@@ -1107,6 +1107,56 @@ f cresc C4 D E p F   // Warning: 더 여린 기호를 향한 cresc
 
 `guide dynamic` · `guide fn.accent`
 
+### Sudden accents: sf and fp {#sf}
+
+#### Concept
+
+스포르찬도(`sf`)는 "힘주어"라는 뜻입니다: 한 음만 갑자기 세게 치고, 그 뒤는 원래
+세기로 갑니다. 포르테피아노(`fp`)는 한 음을 세게 치고 곧바로 여리게 떨어집니다.
+베토벤에는 둘 다 아주 많아서, 없으면 그의 강한 대비가 평평해집니다.
+
+#### Syntax
+
+`sf <음>`, `fp <음>`, `sfp <음>`, `ffp <음>`. 세기 기호처럼 음이나 화음 앞에
+씁니다. `sfz`, `sffz`, `fz`, `rf`, `rfz`는 `sf`로 읽습니다.
+
+#### Rules
+
+- `sf`는 바로 다음 음이나 화음에만 적용됩니다: 현재 세기보다 두 단계 세게, 최소
+  f. `p` 뒤에서는 f, `f` 뒤에서는 fff. 그 뒤의 음은 원래대로 돌아갑니다.
+- `fp`는 다음 음을 f로 치고, 그 뒤의 음은 p입니다. `sfp`는 `sf` 뒤 p, `ffp`는
+  ff 뒤 p입니다.
+- cresc나 dim 안에서는 그 음에서 도달한 세기를 기준으로 합니다.
+- 기호는 그 위에 더해집니다: `sf C^`는 더 셉니다.
+- 뒤에 음이 없는 `sf`는 Warning이 납니다.
+
+#### Examples
+
+```piano
+p C4 D sf E F | G A B C5 |   // 여린 선율 속 힘준 한 음
+```
+
+```piano
+time 3/4 | p sf {C3 E G}/4 G4 G | sf {C3 F A}/4 A4 A |   // 강조된 첫 박
+```
+
+```piano
+f C4/2 fp {C4 E G}/2 | E/4 D C/2 |   // 세게, 그리고 곧바로 여리게
+```
+
+```piano warning
+p C4 D sf   // Warning: 뒤에 음이 없음
+```
+
+#### Common mistakes
+
+- `sf`를 음 뒤에 쓰기: 그다음 음에 적용됩니다. 음 앞에 쓰세요.
+- 한 음만 세게 하려고 `f`를 쓰기: `f`는 다음 기호까지 이어지지만 `sf`는 아닙니다.
+
+#### See also
+
+`guide dynamic` · `guide marks` · `man sf`
+
 ### Staccato, accent, tenuto {#marks}
 
 #### Concept
@@ -1901,7 +1951,7 @@ chord     { note [~] ... } [/n [. ..]] [' '' ^ _] [~]
 comment   // ...
 header    tempo <20-400>   time <beats>/<unit>
 bar       |   %
-dynamic   ppp pp p mp mf f ff fff   cresc   dim
+dynamic   ppp pp p mp mf f ff fff   cresc   dim   sf fp sfp ffp
 pedal     ped|sos|soft on|off
 repeat    |: ... :| [x n]   |: ... [1 ... :| [2 ... |
 voices    voices{ ... }{ ... }
@@ -1980,6 +2030,8 @@ tempo 120 C D E   // 조각에 쓴 템포가 기본값보다 우선
 - pickup, anacrusis (못갖춘마디, 여린내기): 첫 온전한 마디 앞의 음.
 - portato (포르타토): 레가토와 스타카토의 중간, `'_`.
 - semitone (반음): 한 건반에서 바로 옆 건반까지의 걸음.
+- sforzando (sf, 스포르찬도), forte-piano (fp, 포르테피아노): 한 음만 힘주어 세게;
+  한 음을 세게 치고 곧 여리게.
 - staccato / staccatissimo (스타카토 / 스타카티시모): 짧게 / 아주 짧게, 일찍 손을
   뗌. `'` / `''`.
 - sequence (반복진행, 시퀀스): 높이를 옮겨 되풀이하는 동기.

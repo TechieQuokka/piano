@@ -1121,6 +1121,56 @@ f cresc C4 D E p F   // Warning: cresc toward a softer mark
 
 `guide dynamic` · `guide fn.accent`
 
+### Sudden accents: sf and fp {#sf}
+
+#### Concept
+
+Sforzando (`sf`) means "forced": one note struck suddenly hard, then the music goes on
+at its level. Forte-piano (`fp`) strikes a note loud and drops at once to soft. Both
+are everywhere in Beethoven; without them his contrasts go flat.
+
+#### Syntax
+
+`sf <note>`, `fp <note>`, `sfp <note>`, `ffp <note>`, written before the note or chord
+like a dynamic mark. `sfz`, `sffz`, `fz`, `rf`, `rfz` are read as `sf`.
+
+#### Rules
+
+- `sf` acts on the next note or chord only: two levels above the current dynamic, at
+  least f. After `p` it plays f; after `f`, fff. The notes after it go back.
+- `fp` plays the next note f, then the following notes p. `sfp` is `sf` then p;
+  `ffp` is ff then p.
+- In a cresc or dim, the level reached at that note is the starting point.
+- Marks add on top: `sf C^` is louder still.
+- An `sf` with no note after it gives a warning.
+
+#### Examples
+
+```piano
+p C4 D sf E F | G A B C5 |   // one forced note in a soft line
+```
+
+```piano
+time 3/4 | p sf {C3 E G}/4 G4 G | sf {C3 F A}/4 A4 A |   // stressed off-beats
+```
+
+```piano
+f C4/2 fp {C4 E G}/2 | E/4 D C/2 |   // loud, then at once soft
+```
+
+```piano warning
+p C4 D sf   // Warning: no note after it
+```
+
+#### Common mistakes
+
+- Writing `sf` after the note: it acts on the next one. Write it before.
+- Using `f` for a single loud note: `f` stays until the next mark; `sf` does not.
+
+#### See also
+
+`guide dynamic` · `guide marks` · `man sf`
+
 ### Staccato, accent, tenuto {#marks}
 
 #### Concept
@@ -1919,7 +1969,7 @@ chord     { note [~] ... } [/n [. ..]] [' '' ^ _] [~]
 comment   // ...
 header    tempo <20-400>   time <beats>/<unit>
 bar       |   %
-dynamic   ppp pp p mp mf f ff fff   cresc   dim
+dynamic   ppp pp p mp mf f ff fff   cresc   dim   sf fp sfp ffp
 pedal     ped|sos|soft on|off
 repeat    |: ... :| [x n]   |: ... [1 ... :| [2 ... |
 voices    voices{ ... }{ ... }
@@ -1998,6 +2048,7 @@ tempo 120 C D E   // the piece's own tempo wins over the default
 - pickup (anacrusis): notes before the first full bar.
 - portato: between legato and staccato, `'_`.
 - semitone: the step from one key to the very next.
+- sforzando (sf), forte-piano (fp): one note forced loud; one note loud, then soft.
 - staccato / staccatissimo: short / very short, the key let go early; `'` / `''`.
 - sequence: a motif repeated at a shifted pitch.
 - tempo: speed, in beats per minute.

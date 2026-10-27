@@ -3,6 +3,18 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.42.0
+- Language: one-note dynamics before a note or chord. `sf` (also `sfz` `sffz` `fz`
+  `rf` `rfz`) plays the next note two levels above the current dynamic, at least f;
+  the notes after it go back. `fp` plays it f and goes on p; `sfp` is sf then p;
+  `ffp` is ff then p. Inside a cresc the level reached at that note counts. No note
+  after it -> warning.
+- Import: kern `**dynam` sf / sfz / rfz / fp / sfp / ffp and the note signifier `z`,
+  and MusicXML `<sf/>` `<sfz/>` `<fp/>` ... are written before the notes of their
+  staff struck then (or next in the bar). Before, they were dropped. Beethoven
+  sonatas: 103/103 still match.
+- Docs: `man sf`, `guide sf`, both languages.
+
 ## 1.41.0
 - Language: articulation marks after a note or chord: `'` staccato (sounds half its
   length), `''` staccatissimo (a quarter), `^` accent (+20 velocity), `_` tenuto (full

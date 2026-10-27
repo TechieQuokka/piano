@@ -7,6 +7,8 @@ use std::collections::{HashMap, HashSet};
 
 use roxmltree::{Document, Node, ParsingOptions};
 
+pub use piano_lang::ast::Sudden;
+
 use crate::ImportError;
 use crate::rational::Q;
 
@@ -110,6 +112,8 @@ pub struct Model {
     pub graces: Vec<Grace>,
     /// (time, staff, level 0 = ppp .. 7 = fff)
     pub dynamics: Vec<(Q, StaffId, usize)>,
+    /// `sf`, `fp`, ...: for the notes of the staff struck then (or next).
+    pub suddens: Vec<(Q, StaffId, Sudden)>,
     pub wedges: Vec<(Q, StaffId, Wedge)>,
     pub pedals: Vec<(Q, Pedal)>,
     /// (time, quarter notes per minute)
@@ -179,6 +183,8 @@ fn int(n: Node, name: &str) -> Option<i64> {
 }
 
 const LEVELS: [&str; 8] = ["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff"];
+/// The level of `p`, where `fp` and its kin go after their note.
+pub(crate) const SOFT: usize = 2;
 
 pub(crate) fn level(tag: &str) -> Option<usize> {
     if let Some(i) = LEVELS.iter().position(|l| *l == tag) {
@@ -229,6 +235,7 @@ enum Event {
         chord: bool,
     },
     Dynamic(u32, usize),
+    Sudden(u32, Sudden),
     Wedge(u32, Wedge),
     Pedal(Pedal),
     Tempo(f64),
@@ -376,6 +383,7 @@ fn place(model: &mut Model, part: usize, m: &RawMeasure, start: Q) {
                 .or_default()
                 .push((*staff, *midi, name.clone(), *chord)),
             Event::Dynamic(staff, l) => model.dynamics.push((at, (part, *staff), *l)),
+            Event::Sudden(staff, k) => model.suddens.push((at, (part, *staff), *k)),
             Event::Wedge(staff, w) => model.wedges.push((at, (part, *staff), *w)),
             Event::Pedal(p) => model.pedals.push((at, *p)),
             Event::Tempo(t) => model.tempos.push((at, *t)),
@@ -625,8 +633,14 @@ fn direction(el: Node, staff: u32, at: Q, rm: &mut RawMeasure) {
             match e.tag_name().name() {
                 "dynamics" => {
                     for d in e.children().filter(Node::is_element) {
-                        if let Some(l) = level(d.tag_name().name()) {
+                        let tag = d.tag_name().name();
+                        if let Some(l) = level(tag) {
                             rm.events.push((at, Event::Dynamic(staff, l)));
+                        } else if let Some(k) = Sudden::parse(tag) {
+                            rm.events.push((at, Event::Sudden(staff, k)));
+                            if k.then_soft() {
+                                rm.events.push((at, Event::Dynamic(staff, SOFT)));
+                            }
                         }
                     }
                 }

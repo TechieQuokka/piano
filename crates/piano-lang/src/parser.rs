@@ -3,7 +3,7 @@
 use piano_core::time::{DENOMINATORS, MAX_DOTS};
 use piano_core::{Alert, Duration, Dynamic, PedalKind, SrcSpan, TimeSig};
 
-use crate::ast::{Arg, Marks, Node};
+use crate::ast::{Arg, Marks, Node, Sudden};
 use crate::builtins;
 use crate::token::{Tok, Token};
 
@@ -433,6 +433,9 @@ impl Parser<'_> {
     fn word(&mut self, w: &str, span: SrcSpan) -> Option<Node> {
         if let Some(d) = Dynamic::parse(w) {
             return Some(Node::Dynamic(d, span));
+        }
+        if let Some(s) = Sudden::parse(w) {
+            return Some(Node::Sudden(s, span));
         }
         let lower = w.to_ascii_lowercase();
         match lower.as_str() {

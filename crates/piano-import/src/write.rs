@@ -11,7 +11,7 @@
 use std::collections::BTreeMap;
 
 use crate::ImportError;
-use crate::musicxml::{Marks, Model, Pedal, StaffId, VoiceId, Wedge};
+use crate::musicxml::{Marks, Model, Pedal, StaffId, Sudden, VoiceId, Wedge};
 use crate::rational::Q;
 
 const LEVELS: [&str; 8] = ["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff"];
@@ -137,6 +137,8 @@ struct Ev {
     tied: Vec<i32>,
     staff: StaffId,
     marks: Marks,
+    /// `sf`, `fp`, ... written before it.
+    sudden: Option<Sudden>,
 }
 
 impl Ev {
@@ -283,6 +285,7 @@ fn move_tied(
                 tied: vec![note.0],
                 staff,
                 marks,
+                sudden: None,
             },
         );
     }
@@ -342,6 +345,7 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
                         tied: Vec::new(),
                         staff: n.staff,
                         marks: Marks::default(),
+                        sudden: None,
                     })
                     .collect::<Vec<_>>(),
             )
@@ -354,6 +358,7 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
                 tied: if tie { vec![n.midi] } else { Vec::new() },
                 staff: n.staff,
                 marks: n.marks,
+                sudden: None,
             }]
         });
         let single = evs.len() == 1;
@@ -427,6 +432,7 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
             tied: Vec::new(),
             staff: g.staff,
             marks: Marks::default(),
+            sudden: None,
         });
     }
     graces.sort_by_key(|e| e.start);
@@ -443,11 +449,32 @@ fn lanes(model: &Model) -> BTreeMap<Lane, Vec<Ev>> {
             _ => merged.push(g),
         }
     }
+    place_suddens(model, &mut out);
     if !merged.is_empty() {
         out.insert(GRACE_LANE, merged);
     }
     out.retain(|_, v| !v.is_empty());
     out
+}
+
+/// Gives each `sf`, `fp`, ... to the notes of its staff struck then, or the next
+/// ones struck in the same bar.
+fn place_suddens(model: &Model, lanes: &mut BTreeMap<Lane, Vec<Ev>>) {
+    let bar = |t: Q| model.measures.iter().rposition(|m| m.start <= t);
+    for &(at, staff, kind) in &model.suddens {
+        let next = lanes
+            .values()
+            .flatten()
+            .filter(|e| e.staff == staff && e.start >= at && bar(e.start) == bar(at))
+            .map(|e| e.start)
+            .min();
+        let Some(t) = next else { continue };
+        for e in lanes.values_mut().flatten() {
+            if e.staff == staff && e.start == t && e.sudden.is_none() {
+                e.sudden = Some(kind);
+            }
+        }
+    }
 }
 
 pub struct Written {
@@ -948,6 +975,14 @@ impl Ctx<'_> {
                         text += if target > now { "cresc " } else { "dim " };
                         open = Some((seg.at, target));
                     }
+                }
+            }
+            if let Some(k) = e.sudden {
+                text += k.keyword();
+                text.push(' ');
+                // The language goes on soft after `fp`.
+                if k.then_soft() {
+                    lvl = Some(crate::musicxml::SOFT);
                 }
             }
             // Tied notes that go on in the next event: all of them take one `~`

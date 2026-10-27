@@ -461,3 +461,35 @@ fn marks_out_of_place_warn() {
         assert_eq!(c.alerts[0].severity, Severity::Warning, "{src}");
     }
 }
+
+fn velocities(c: &Compiled) -> Vec<u8> {
+    c.score.notes.iter().map(|n| n.velocity).collect()
+}
+
+#[test]
+fn sf_stresses_one_note() {
+    // Two levels above the current one, at least f; only the next note.
+    let c = clean("p C4 sf D E mf sfz F G ff rfz A B");
+    assert_eq!(velocities(&c), [49, 96, 49, 112, 80, 127, 112]);
+    // Before a chord, every note; marks add on top.
+    let c = clean("pp sf {C4 E}/4^ G");
+    assert_eq!(velocities(&c), [116, 116, 33]);
+    // In a cresc, from the level reached there (72: between mp and mf, mp).
+    let c = clean("p cresc C4 D sf E F f G");
+    assert_eq!(velocities(&c), [49, 60, 96, 84, 96]);
+}
+
+#[test]
+fn fp_is_loud_then_soft() {
+    let c = clean("f C4 fp D E F ff sfp G A ffp B C");
+    assert_eq!(velocities(&c), [96, 96, 49, 49, 127, 49, 112, 49]);
+}
+
+#[test]
+fn sf_without_a_note_warns() {
+    for src in ["C4 sf", "voices{ C sf }{ E }", "sf sf C"] {
+        let c = compile_piece(src);
+        assert_eq!(c.alerts.len(), 1, "{src}: {:?}", c.alerts);
+        assert_eq!(c.alerts[0].severity, Severity::Warning, "{src}");
+    }
+}

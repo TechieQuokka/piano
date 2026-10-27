@@ -227,6 +227,20 @@ only descriptions are Korean.
     Example  p cresc C4 D E F f G
     See      dynamic
 
+### SF {#sf}
+
+    Syntax   sf  fp  sfp  ffp  <note>       p C D sf E F
+    sf       바로 다음 음(또는 화음)에만: 현재 세기보다 두 단계
+             세게, 최소 f. p -> f, f -> fff.
+    Same     sfz sffz fz rf rfz 는 sf로 읽음.
+    fp       포르테피아노: 다음 음은 f, 그 뒤의 음은 p.
+    sfp      sf처럼 치고 그 뒤 p. ffp: ff로 치고 그 뒤 p.
+    Cresc    cresc 안에서는 그 음에서 도달한 세기를 기준으로.
+    Marks    ^ 와 _ 는 그 위에 더해짐: sf C^.
+    Missing  뒤에 음이 없으면 Warning.
+    Example  p C4 D sf E F f G fp A B
+    See      dynamic, marks
+
 ## ARTICULATION {#articulation}
 
 ### MARKS {#marks}
@@ -417,7 +431,7 @@ only descriptions are Korean.
     comment  // ...
     header   tempo <bpm>   time <a>/<b>
     bar      |   %
-    dynamic  ppp pp p mp mf f ff fff   cresc   dim
+    dynamic  ppp pp p mp mf f ff fff   cresc   dim   sf fp sfp ffp
     pedal    ped|sos|soft on|off
     repeat   |: ... :| [x n]   [1 ... :| [2 ...
     function up down accent louder softer tuplet seq  (name(args){ ... })

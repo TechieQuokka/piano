@@ -230,6 +230,20 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     Example  p cresc C4 D E F f G
     See      dynamic
 
+### SF {#sf}
+
+    Syntax   sf  fp  sfp  ffp  <note>       p C D sf E F
+    sf       The next note (or chord) only: two levels above the
+             current dynamic, at least f. p -> f, f -> fff.
+    Same     sfz sffz fz rf rfz are read as sf.
+    fp       Forte-piano: the next note f, then the notes after it p.
+    sfp      As sf, then p. ffp: ff, then p.
+    Cresc    Inside a cresc, from the level reached at that note.
+    Marks    ^ and _ add on top: sf C^.
+    Missing  No note after it -> Warning.
+    Example  p C4 D sf E F f G fp A B
+    See      dynamic, marks
+
 ## ARTICULATION {#articulation}
 
 ### MARKS {#marks}
@@ -421,7 +435,7 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     comment  // ...
     header   tempo <bpm>   time <a>/<b>
     bar      |   %
-    dynamic  ppp pp p mp mf f ff fff   cresc   dim
+    dynamic  ppp pp p mp mf f ff fff   cresc   dim   sf fp sfp ffp
     pedal    ped|sos|soft on|off
     repeat   |: ... :| [x n]   [1 ... :| [2 ...
     function up down accent louder softer tuplet seq  (name(args){ ... })

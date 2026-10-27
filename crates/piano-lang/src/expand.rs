@@ -201,7 +201,11 @@ fn lay_item(
                             start: now,
                             len: sound.len,
                             velocity: crate::builtins::clamp_velocity(
-                                i32::from(sound.velocity) + sound.marks.boost(),
+                                i32::from(
+                                    sound
+                                        .sudden
+                                        .map_or(sound.velocity, |s| s.velocity(sound.velocity)),
+                                ) + sound.marks.boost(),
                             ),
                             cut,
                             src: sound.span,

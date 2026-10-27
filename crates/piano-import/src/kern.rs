@@ -9,7 +9,8 @@ use std::collections::HashMap;
 
 use crate::ImportError;
 use crate::musicxml::{
-    self, Grace, LETTERS, Marks, Measure, Model, Note, Pedal, Wedge, level, midi_of, spell,
+    self, Grace, LETTERS, Marks, Measure, Model, Note, Pedal, SOFT, Sudden, Wedge, level, midi_of,
+    spell,
 };
 use crate::rational::Q;
 
@@ -49,6 +50,7 @@ enum Event {
         chord: bool,
     },
     Dynamic(u32, usize),
+    Sudden(u32, Sudden),
     Wedge(u32, Wedge),
     Pedal(Pedal),
     Tempo(f64),
@@ -92,6 +94,8 @@ struct Token {
     /// Semitones to the trill's upper note.
     trill: Option<i32>,
     marks: Marks,
+    /// `z`: sforzando.
+    sf: bool,
 }
 
 fn token(s: &str) -> Option<Token> {
@@ -125,6 +129,7 @@ fn token(s: &str) -> Option<Token> {
             tie: false,
             trill: None,
             marks: Marks::default(),
+            sf: false,
         });
     }
     let letter = s
@@ -162,6 +167,7 @@ fn token(s: &str) -> Option<Token> {
         tie,
         trill,
         marks,
+        sf: s.contains('z'),
     })
 }
 
@@ -292,6 +298,9 @@ pub fn parse(text: &str) -> Result<Model, ImportError> {
                         let Some((l, a, o)) = n.pitch else { continue };
                         let midi = midi_of(l, a, o);
                         let name = spell(l, a, o);
+                        if n.sf && !n.grace {
+                            bar.events.push((t, Event::Sudden(staff, Sudden::Sf)));
+                        }
                         let ev = if n.grace {
                             Event::Grace {
                                 voice: v,
@@ -445,6 +454,11 @@ fn dynamics(tok: &str, staves: &[u32], t: Q, bar: &mut Bar) {
             _ => {
                 if let Some(l) = level(mark) {
                     push(&|s| Event::Dynamic(s, l));
+                } else if let Some(k) = Sudden::parse(mark) {
+                    push(&|s| Event::Sudden(s, k));
+                    if k.then_soft() {
+                        push(&|s| Event::Dynamic(s, SOFT));
+                    }
                 }
             }
         }
@@ -597,6 +611,7 @@ fn place(model: &mut Model, bars: &[Bar], order: &[usize]) {
                     .or_default()
                     .push((*staff, *midi, name.clone(), *chord)),
                 Event::Dynamic(s, l) => model.dynamics.push((at, (0, *s), *l)),
+                Event::Sudden(s, k) => model.suddens.push((at, (0, *s), *k)),
                 Event::Wedge(s, w) => model.wedges.push((at, (0, *s), *w)),
                 Event::Pedal(p) => model.pedals.push((at, *p)),
                 Event::Tempo(m) => model.tempos.push((at, *m)),
@@ -715,6 +730,26 @@ mod tests {
             "F3'_",
             "G4/4~",
             "G4'",
+        ] {
+            assert!(text.contains(want), "{want} in\n{text}");
+        }
+    }
+
+    #[test]
+    fn sforzandos_are_written_before_their_notes() {
+        // `z` on a note; `sf` and `fp` in the dynamics, `fp` going on soft.
+        let k = format!(
+            "{HEAD}=1\t=1\t=1\n4C\t4cz\t.\n4D\t4d\tsf\n=2\t=2\t=2\n\
+             4E\t4e\tfp\n4F\t4f\t.\n==\t==\t==\n"
+        );
+        let i = crate::import(&k, "test.krn").unwrap();
+        let text: String = i.pieces.iter().map(|p| p.1.as_str()).collect();
+        assert!(i.check.ok(), "{:?}\n{text}", i.check);
+        for want in [
+            "mf sf C4/4 sf D4",
+            "mf C3/4 sf D3",
+            "p fp E4/4 F4",
+            "p fp E3/4 F3",
         ] {
             assert!(text.contains(want), "{want} in\n{text}");
         }

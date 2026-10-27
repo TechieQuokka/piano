@@ -7,7 +7,7 @@ use piano_core::{
     Alert, Duration, Dynamic, PedalKind, Pitch, SrcSpan, Tick, TimeSig, score::DEFAULT_TEMPO,
 };
 
-use crate::ast::{Marks, Node};
+use crate::ast::{Marks, Node, Sudden};
 use crate::builtins::Builtin;
 use crate::token::NoteName;
 
@@ -44,6 +44,8 @@ pub struct State {
     pub pedals: [bool; 3],
     pub tempo: u16,
     pub time: TimeSig,
+    /// `sf`, `fp`, ... waiting for its note.
+    pub sudden: Option<(Sudden, SrcSpan)>,
 }
 
 impl State {
@@ -55,6 +57,7 @@ impl State {
             pedals: [false; 3],
             tempo: opts.tempo,
             time: opts.time,
+            sudden: None,
         }
     }
 
@@ -108,6 +111,8 @@ pub struct Sound {
     pub len: Tick,
     pub velocity: u8,
     pub marks: Marks,
+    /// `sf`, `fp`, ... written just before it.
+    pub sudden: Option<Sudden>,
     /// Per pitch: tied to the next sound.
     pub ties: Vec<bool>,
     pub span: SrcSpan,
@@ -174,6 +179,7 @@ pub fn resolve(
     };
     let items = r.seq(nodes);
     r.end_cresc();
+    r.unused_sudden();
     let state = r.probed.unwrap_or(r.state);
     (
         Resolved {
@@ -273,6 +279,11 @@ impl Resolver<'_> {
                 self.dynamic(*d, *span);
                 None
             }
+            Node::Sudden(s, span) => {
+                self.unused_sudden();
+                self.state.sudden = Some((*s, *span));
+                None
+            }
             Node::Cresc(span) | Node::Dim(span) => {
                 self.cresc = Some(Cresc {
                     start: self.state.dynamic.velocity(),
@@ -369,6 +380,7 @@ impl Resolver<'_> {
                 self.state = before;
                 let items = self.seq(v);
                 self.end_cresc();
+                self.unused_sudden();
                 for (p, (now, was)) in pedals
                     .iter_mut()
                     .zip(self.state.pedals.iter().zip(before.pedals))
@@ -393,6 +405,14 @@ impl Resolver<'_> {
         self.state.time = time.unwrap_or(before.time);
         self.cresc = outer;
         Item::Voices { voices, span }
+    }
+
+    /// Warns about an `sf` (or its kin) with no note after it.
+    fn unused_sudden(&mut self) {
+        if let Some((_, span)) = self.state.sudden.take() {
+            self.alerts
+                .push(Alert::warning(span, "no note after it to stress"));
+        }
     }
 
     /// Warns about a cresc/dim that never reached its target.
@@ -445,14 +465,20 @@ impl Resolver<'_> {
             self.state.len = l;
         }
         let idx = self.sounds.len();
+        let sudden = self.state.sudden.take().map(|(s, _)| s);
         self.sounds.push(Sound {
             pitches,
             len: self.state.len.ticks(),
             velocity: self.state.dynamic.velocity(),
             marks,
+            sudden,
             ties,
             span,
         });
+        // `fp`: the notes after it are soft.
+        if sudden.is_some_and(Sudden::then_soft) {
+            self.state.dynamic = Dynamic::P;
+        }
         if let Some(c) = &mut self.cresc {
             c.sounds.push(idx);
         }

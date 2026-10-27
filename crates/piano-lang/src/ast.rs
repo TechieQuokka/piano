@@ -43,6 +43,66 @@ impl Marks {
     }
 }
 
+/// A mark for the next note only: `sf` and its kin stress it; `fp` and its kin
+/// also make the notes after it soft.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Sudden {
+    /// `sf` `sfz` `sffz` `fz` `rf` `rfz`: two levels above the current one, at least f.
+    Sf,
+    /// `fp`: f, then p.
+    Fp,
+    /// `sfp` `sfzp`: as `sf`, then p.
+    Sfp,
+    /// `ffp`: ff, then p.
+    Ffp,
+}
+
+impl Sudden {
+    pub fn parse(word: &str) -> Option<Sudden> {
+        Some(match word.to_ascii_lowercase().as_str() {
+            "sf" | "sfz" | "sffz" | "fz" | "rf" | "rfz" => Sudden::Sf,
+            "fp" => Sudden::Fp,
+            "sfp" | "sfzp" => Sudden::Sfp,
+            "ffp" => Sudden::Ffp,
+            _ => return None,
+        })
+    }
+
+    /// Velocity of the marked note, from the velocity it would have had.
+    pub fn velocity(self, current: u8) -> u8 {
+        let level = |d: Dynamic| Dynamic::ALL.iter().position(|x| *x == d).unwrap_or(0);
+        let sf = || {
+            let now = Dynamic::ALL
+                .iter()
+                .enumerate()
+                .min_by_key(|(_, d)| d.velocity().abs_diff(current))
+                .map_or(0, |(i, _)| i);
+            Dynamic::ALL[(now + 2).max(level(Dynamic::F)).min(Dynamic::ALL.len() - 1)]
+        };
+        match self {
+            Sudden::Sf | Sudden::Sfp => sf(),
+            Sudden::Fp => Dynamic::F,
+            Sudden::Ffp => Dynamic::Ff,
+        }
+        .velocity()
+    }
+
+    /// The word written for it.
+    pub fn keyword(self) -> &'static str {
+        match self {
+            Sudden::Sf => "sf",
+            Sudden::Fp => "fp",
+            Sudden::Sfp => "sfp",
+            Sudden::Ffp => "ffp",
+        }
+    }
+
+    /// Whether the notes after it are soft (`p`).
+    pub fn then_soft(self) -> bool {
+        !matches!(self, Sudden::Sf)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Arg {
     Int(i64),
@@ -72,6 +132,7 @@ pub enum Node {
         span: SrcSpan,
     },
     Dynamic(Dynamic, SrcSpan),
+    Sudden(Sudden, SrcSpan),
     Cresc(SrcSpan),
     Dim(SrcSpan),
     Pedal {
@@ -117,6 +178,7 @@ impl Node {
             | Node::Rest { span, .. }
             | Node::Chord { span, .. }
             | Node::Dynamic(_, span)
+            | Node::Sudden(_, span)
             | Node::Cresc(span)
             | Node::Dim(span)
             | Node::Pedal { span, .. }
