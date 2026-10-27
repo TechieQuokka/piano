@@ -3,6 +3,10 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.40.5
+- Fix: importing a `.mxl` read the score inside it without a size limit, so a broken
+  or hostile file could fill the memory. A score over 64 MB unpacked is refused.
+
 ## 1.40.4
 - Fix: a path through a missing directory, like `missing/../link/file`, was not
   resolved through the symlink `link`, so a file could be written outside the project

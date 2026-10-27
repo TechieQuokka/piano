@@ -67,15 +67,27 @@ pub fn read_file(path: &Path) -> Result<String, ImportError> {
     String::from_utf8(bytes).map_err(|e| ImportError::Xml(e.to_string()))
 }
 
+/// Largest score file read out of a `.mxl`; real scores are a few MB.
+const MXL_ENTRY_MAX: u64 = 64 << 20;
+
+/// Reads one `.mxl` entry, refusing one that unpacks beyond [`MXL_ENTRY_MAX`].
+fn unpack(f: impl Read) -> Result<String, ImportError> {
+    let mut s = String::new();
+    f.take(MXL_ENTRY_MAX + 1).read_to_string(&mut s)?;
+    if s.len() as u64 > MXL_ENTRY_MAX {
+        return Err(ImportError::Format(format!(
+            "the score in the .mxl is larger than {} MB",
+            MXL_ENTRY_MAX >> 20
+        )));
+    }
+    Ok(s)
+}
+
 /// The score inside a `.mxl`: the rootfile named in `META-INF/container.xml`, or
 /// the first `.xml` / `.musicxml` file outside `META-INF`.
 fn read_mxl(bytes: &[u8]) -> Result<String, ImportError> {
     let mut zip = zip::ZipArchive::new(std::io::Cursor::new(bytes))?;
-    let mut entry = |name: &str| -> Result<String, ImportError> {
-        let mut s = String::new();
-        zip.by_name(name)?.read_to_string(&mut s)?;
-        Ok(s)
-    };
+    let mut entry = |name: &str| -> Result<String, ImportError> { unpack(zip.by_name(name)?) };
     let root = entry("META-INF/container.xml").ok().and_then(|c| {
         let start = c.find("full-path=\"")? + "full-path=\"".len();
         let end = c[start..].find('"')? + start;
@@ -85,13 +97,11 @@ fn read_mxl(bytes: &[u8]) -> Result<String, ImportError> {
         return entry(&r);
     }
     for i in 0..zip.len() {
-        let mut f = zip.by_index(i)?;
+        let f = zip.by_index(i)?;
         let name = f.name()?.to_string();
         if !name.starts_with("META-INF") && (name.ends_with(".xml") || name.ends_with(".musicxml"))
         {
-            let mut s = String::new();
-            f.read_to_string(&mut s)?;
-            return Ok(s);
+            return unpack(f);
         }
     }
     Err(ImportError::Format("no score in the .mxl".into()))
@@ -271,6 +281,14 @@ mod tests {
         );
         // C C | D F A d | e (F) f | C c: D and A held over the bar, F struck again
         assert_eq!(i.check.expected, 2 + 4 + 3 + 2);
+    }
+
+    #[test]
+    fn mxl_entries_have_a_size_limit() {
+        let fits = std::io::repeat(b'x').take(MXL_ENTRY_MAX);
+        assert_eq!(unpack(fits).unwrap().len() as u64, MXL_ENTRY_MAX);
+        let bomb = std::io::repeat(b'x');
+        assert!(matches!(unpack(bomb), Err(ImportError::Format(_))));
     }
 
     #[test]
