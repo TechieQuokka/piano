@@ -257,10 +257,16 @@ impl Parser<'_> {
                 if tie {
                     self.warning(span, "rests cannot be tied");
                 }
-                if !marks.is_empty() {
-                    self.warning(span, "marks on a rest are ignored");
+                let hold = marks.fermata;
+                if !(Marks {
+                    fermata: false,
+                    ..marks
+                })
+                .is_empty()
+                {
+                    self.warning(span, "only `@` goes on a rest, other marks are ignored");
                 }
-                Some(Node::Rest { len, span })
+                Some(Node::Rest { len, hold, span })
             }
             Tok::LBrace => Some(self.chord(span)),
             Tok::Word(w) => self.word(&w, span),

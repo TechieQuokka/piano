@@ -938,8 +938,17 @@ impl Ctx<'_> {
                     (next - t).to_f64()
                 ))
             })?;
+            let mut at = t;
             for (w, n) in lens {
-                items.push(Item::Len(w, n, "r".into(), String::new()));
+                // A fermata over a rest goes on the part of it that starts then.
+                let held = self.model.rest_holds.iter().any(|h| h.0 == at);
+                items.push(Item::Len(
+                    w,
+                    n,
+                    "r".into(),
+                    if held { "@" } else { "" }.into(),
+                ));
+                at = at + n.map_or(w, |k| w * scale(k));
             }
             t = next;
             if t < until {

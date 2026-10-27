@@ -262,6 +262,18 @@ only descriptions are Korean.
     Example  p C4' D' E' F'' G/2^ C_
     See      length, tie, fn.accent
 
+### FERMATA {#fermata}
+
+    Syntax   <note>@   <chord>@   r@        G/2@  r/4@
+    Meaning  늘임표: 그 음이나 쉼표가 두 배로 길어짐. 모든 성부가
+             기다리고, 그 구간은 템포가 절반이 됨.
+    Bars     적힌 길이로 셈: 마디 길이는 그대로.
+    Order    다른 기호와 함께, ~ 앞에: C/2'@ 는 짧게 치지만 시간은
+             늘어남.
+    Export   MIDI에는 그 구간이 느린 템포로 들어감.
+    Example  | C4 D E/2@ | {C E G}/4 r@ C/2 |
+    See      marks, tempo
+
 ### GRACE {#grace}
 
     Syntax   grace{ <notes> } <note>        grace{ D5 } C5/4
@@ -440,9 +452,9 @@ only descriptions are Korean.
 
 ### GRAMMAR {#grammar}
 
-    note     C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [' '' ^ _]  [~]
-    rest     r [/n [. ..]]
-    chord    { note [~] ... } [/n] [' '' ^ _] [~]
+    note     C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [' '' ^ _ @]  [~]
+    rest     r [/n [. ..]] [@]
+    chord    { note [~] ... } [/n] [' '' ^ _ @] [~]
     comment  // ...
     header   tempo <bpm>   time <a>/<b>
     bar      |   %

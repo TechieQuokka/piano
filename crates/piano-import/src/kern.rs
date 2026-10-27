@@ -51,6 +51,8 @@ enum Event {
     },
     Dynamic(u32, usize),
     Sudden(u32, Sudden),
+    /// A fermata over a rest of this length.
+    RestHold(Q),
     Wedge(u32, Wedge),
     Pedal(Pedal),
     Tempo(f64),
@@ -128,7 +130,10 @@ fn token(s: &str) -> Option<Token> {
             grace,
             tie: false,
             trill: None,
-            marks: Marks::default(),
+            marks: Marks {
+                fermata: s.contains(';'),
+                ..Marks::default()
+            },
             sf: false,
         });
     }
@@ -159,6 +164,7 @@ fn token(s: &str) -> Option<Token> {
         },
         accent: s.contains('^'),
         tenuto: s.contains('~'),
+        fermata: s.contains(';'),
     };
     Some(Token {
         len,
@@ -295,7 +301,12 @@ pub fn parse(text: &str) -> Result<Model, ImportError> {
                     for (i, sub) in tok.split(' ').enumerate() {
                         let Some(n) = token(sub) else { continue };
                         len = len.max(n.len);
-                        let Some((l, a, o)) = n.pitch else { continue };
+                        let Some((l, a, o)) = n.pitch else {
+                            if n.marks.fermata && !n.grace {
+                                bar.events.push((t, Event::RestHold(n.len)));
+                            }
+                            continue;
+                        };
                         let midi = midi_of(l, a, o);
                         let name = spell(l, a, o);
                         if n.sf && !n.grace {
@@ -612,6 +623,7 @@ fn place(model: &mut Model, bars: &[Bar], order: &[usize]) {
                     .push((*staff, *midi, name.clone(), *chord)),
                 Event::Dynamic(s, l) => model.dynamics.push((at, (0, *s), *l)),
                 Event::Sudden(s, k) => model.suddens.push((at, (0, *s), *k)),
+                Event::RestHold(len) => model.rest_holds.push((at, *len)),
                 Event::Wedge(s, w) => model.wedges.push((at, (0, *s), *w)),
                 Event::Pedal(p) => model.pedals.push((at, *p)),
                 Event::Tempo(m) => model.tempos.push((at, *m)),
@@ -751,6 +763,20 @@ mod tests {
             "p fp E4/4 F4",
             "p fp E3/4 F3",
         ] {
+            assert!(text.contains(want), "{want} in\n{text}");
+        }
+    }
+
+    #[test]
+    fn fermatas_on_notes_and_rests() {
+        let k = format!(
+            "{HEAD}=1\t=1\t=1\n2C;\t2c;\t.\n=2\t=2\t=2\n2r\t4d\t.\n.\t4r;\t.\n\
+             =3\t=3\t=3\n2r;\t2r;\t.\n==\t==\t==\n"
+        );
+        let i = crate::import(&k, "test.krn").unwrap();
+        let text: String = i.pieces.iter().map(|p| p.1.as_str()).collect();
+        assert!(i.check.ok(), "{:?}\n{text}", i.check);
+        for want in ["C4/2@", "C3/2@", "D4/4 r@", "| r/2@ |"] {
             assert!(text.contains(want), "{want} in\n{text}");
         }
     }

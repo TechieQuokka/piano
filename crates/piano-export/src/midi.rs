@@ -40,10 +40,11 @@ pub fn midi_bytes(score: &Score) -> Vec<u8> {
             program: u7::new(0),
         }),
     ));
-    for t in &score.tempos {
-        let micros = 60_000_000 / u32::from(t.bpm.max(1));
+    // The written tempos, slowed under fermatas.
+    for &(at, bpm) in score.clock().pace() {
+        let micros = (60_000_000.0 / bpm).round() as u32;
         events.push((
-            t.at,
+            at,
             0,
             TrackEventKind::Meta(MetaMessage::Tempo(u24::new(micros))),
         ));

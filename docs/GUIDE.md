@@ -1232,6 +1232,48 @@ C4/4'~ C   // Warning: a tied note is held on, its ' is ignored
 
 `guide length` · `guide tie` · `guide fn.accent` · `man marks`
 
+### Fermata {#fermata}
+
+#### Concept
+
+A fermata (the "bird's eye" over a note) means: hold it longer than written, as long
+as feels right, before going on. Every hand waits. Pieces often pause like this at the
+end of a phrase or before a return.
+
+#### Syntax
+
+`@` after a note, chord, or rest, with the other marks: `G/2@`, `{C E G}/1@`, `r/4@`.
+
+#### Rules
+
+- The note or rest lasts twice as long: the tempo is halved while it sounds, for
+  every voice.
+- The bar still counts the written length.
+- `@` is the only mark a rest takes.
+- Exported MIDI files carry the slower tempo there.
+
+#### Examples
+
+```piano
+| C4 D E/2@ | {C E G}/4 r@ C/2 |   // a held note, then a held breath
+```
+
+```piano
+time 3/4 voices{ G4/2.@ }{ {C3 E3}/2.@ } | C4/2. |   // both hands wait
+```
+
+```piano
+| E5/8 D C B4 A G F E | D/2@ r/2 |   // a run that stops on a held note
+```
+
+#### Common mistakes
+
+- Writing a longer length instead: that changes the bar; `@` only stretches the time.
+
+#### See also
+
+`guide marks` · `guide tempo` · `man fermata`
+
 ### Grace notes {#grace}
 
 #### Concept
@@ -2017,9 +2059,9 @@ music terms used in this guide.
 #### Pieces
 
 ```text
-note      C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [' '' ^ _]  [~]
-rest      r [/n [. ..]]
-chord     { note [~] ... } [/n [. ..]] [' '' ^ _] [~]
+note      C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [' '' ^ _ @]  [~]
+rest      r [/n [. ..]] [@]
+chord     { note [~] ... } [/n [. ..]] [' '' ^ _ @] [~]
 comment   // ...
 header    tempo <20-400>   time <beats>/<unit>
 bar       |   %
@@ -2099,6 +2141,7 @@ tempo 120 C D E   // the piece's own tempo wins over the default
 - chord: several keys struck together.
 - crescendo / diminuendo: gradually louder / softer.
 - dynamics: loudness, from ppp to fff.
+- fermata: a hold, longer than written; `@`.
 - grace note: a quick ornament note leading into a main note; `grace{ }`.
 - octave: twelve semitones; the same note name, higher or lower.
 - pickup (anacrusis): notes before the first full bar.

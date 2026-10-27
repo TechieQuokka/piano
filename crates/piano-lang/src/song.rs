@@ -269,6 +269,7 @@ fn piece_track(score: piano_core::Score) -> Track {
         }
     }
     track.notes = score.notes;
+    track.holds = score.holds;
     track
 }
 

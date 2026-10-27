@@ -1217,6 +1217,47 @@ C4/4'~ C   // Warning: 이어지는 음은 계속 눌리므로 '가 무시됨
 
 `guide length` · `guide tie` · `guide fn.accent` · `man marks`
 
+### Fermata {#fermata}
+
+#### Concept
+
+페르마타(음 위의 "새의 눈" 모양)는 적힌 것보다 길게, 알맞다고 느낄 만큼 늘인 뒤에
+나아가라는 뜻입니다. 양손이 모두 기다립니다. 악구 끝이나 주제가 돌아오기 전에 이렇게
+멈추는 일이 많습니다.
+
+#### Syntax
+
+음, 화음, 쉼표 뒤에 다른 기호와 함께 `@`: `G/2@`, `{C E G}/1@`, `r/4@`.
+
+#### Rules
+
+- 그 음이나 쉼표가 두 배로 길어집니다: 울리는 동안 모든 성부의 템포가 절반이 됩니다.
+- 마디는 여전히 적힌 길이로 셉니다.
+- 쉼표에 붙일 수 있는 기호는 `@`뿐입니다.
+- 내보낸 MIDI 파일에도 그 구간이 느린 템포로 들어갑니다.
+
+#### Examples
+
+```piano
+| C4 D E/2@ | {C E G}/4 r@ C/2 |   // 늘인 음, 그리고 늘인 숨
+```
+
+```piano
+time 3/4 voices{ G4/2.@ }{ {C3 E3}/2.@ } | C4/2. |   // 양손이 기다림
+```
+
+```piano
+| E5/8 D C B4 A G F E | D/2@ r/2 |   // 늘인 음에서 멈추는 흐름
+```
+
+#### Common mistakes
+
+- 대신 더 긴 길이를 쓰기: 그러면 마디가 바뀝니다. `@`는 시간만 늘립니다.
+
+#### See also
+
+`guide marks` · `guide tempo` · `man fermata`
+
 ### Grace notes {#grace}
 
 #### Concept
@@ -1998,9 +2039,9 @@ voices{ C4 D E F }   // Hint: 성부가 하나뿐
 #### Pieces
 
 ```text
-note      C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [' '' ^ _]  [~]
-rest      r [/n [. ..]]
-chord     { note [~] ... } [/n [. ..]] [' '' ^ _] [~]
+note      C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [' '' ^ _ @]  [~]
+rest      r [/n [. ..]] [@]
+chord     { note [~] ... } [/n [. ..]] [' '' ^ _ @] [~]
 comment   // ...
 header    tempo <20-400>   time <beats>/<unit>
 bar       |   %
@@ -2080,6 +2121,7 @@ tempo 120 C D E   // 조각에 쓴 템포가 기본값보다 우선
 - chord (화음): 함께 치는 여러 건반.
 - crescendo / diminuendo (크레셴도 / 디미누엔도): 점점 세게 / 점점 여리게.
 - dynamics (셈여림): 소리의 세기, ppp부터 fff까지.
+- fermata (페르마타, 늘임표): 적힌 것보다 길게 늘임. `@`.
 - grace note (꾸밈음): 본음으로 이끄는 빠른 장식음. `grace{ }`.
 - octave (옥타브): 반음 12개. 이름이 같은 음의 위아래.
 - pickup, anacrusis (못갖춘마디, 여린내기): 첫 온전한 마디 앞의 음.

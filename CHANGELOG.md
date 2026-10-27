@@ -3,6 +3,16 @@
 Versioning: +0.1.0 for each feature added or changed, +0.0.1 for each bug fix.
 Earlier changes are described in `docs/DESIGN.md` §13.
 
+## 1.44.0
+- Language: `@` fermata after a note, chord, or rest (`G/2@`, `r/4@`): it lasts twice
+  as long; every voice waits, the tempo is halved while it sounds. The bar still
+  counts the written length. `@` is the only mark a rest takes.
+- Playback, the play clock, and WAV/FLAC follow it; MIDI export writes the slower
+  tempo there.
+- Import: kern `;` and MusicXML `<fermata/>` on notes and rests (a rest's fermata goes
+  on the part of the rest that starts then). Beethoven sonatas: 103/103 still match.
+- Docs: `man fermata`, `guide fermata`, both languages.
+
 ## 1.43.0
 - Language: `grace{ <notes> } <note>`. Grace notes are played on the beat of the
   note after them and take their time from it: each a 32nd, halved (up to 4 times)

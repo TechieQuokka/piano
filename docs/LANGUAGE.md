@@ -265,6 +265,18 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
     Example  p C4' D' E' F'' G/2^ C_
     See      length, tie, fn.accent
 
+### FERMATA {#fermata}
+
+    Syntax   <note>@   <chord>@   r@        G/2@  r/4@
+    Meaning  Hold: the note or rest lasts twice as long. All voices
+             wait; the tempo slows to half under it.
+    Bars     The written length counts; the bar does not change.
+    Order    With the other marks, before ~: C/2'@ is short but
+             holds its time.
+    Export   MIDI gets the slower tempo there.
+    Example  | C4 D E/2@ | {C E G}/4 r@ C/2 |
+    See      marks, tempo
+
 ### GRACE {#grace}
 
     Syntax   grace{ <notes> } <note>        grace{ D5 } C5/4
@@ -444,9 +456,9 @@ the test suite. `docs/LANGUAGE.ko.md` must have the same IDs.
 
 ### GRAMMAR {#grammar}
 
-    note     C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [' '' ^ _]  [~]
-    rest     r [/n [. ..]]
-    chord    { note [~] ... } [/n] [' '' ^ _] [~]
+    note     C D E F G A B  [# b]  [0-8]  [/n [. ..]]  [' '' ^ _ @]  [~]
+    rest     r [/n [. ..]] [@]
+    chord    { note [~] ... } [/n] [' '' ^ _ @] [~]
     comment  // ...
     header   tempo <bpm>   time <a>/<b>
     bar      |   %

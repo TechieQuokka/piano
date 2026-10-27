@@ -536,3 +536,25 @@ fn grace_notes_out_of_place_warn() {
     // A bar line or a pedal may stand between them and their note.
     clean("| C4/1 | grace{ D } | ped on C/1 ped off |");
 }
+
+#[test]
+fn a_fermata_holds_twice_as_long() {
+    // tempo 60: a quarter is 1 s; the held half note takes 4 s, the held rest 2 s.
+    let c = clean("tempo 60 | C4 D E/2@ | {C E G}/4 r@ C/2 |");
+    let q = TICKS_PER_QUARTER;
+    assert_eq!(c.score.holds, [(2 * q, 4 * q), (5 * q, 6 * q)]);
+    let secs: Vec<f64> = c
+        .score
+        .notes
+        .iter()
+        .map(|n| c.score.seconds_at(n.start))
+        .collect();
+    assert_eq!(secs, [0.0, 1.0, 2.0, 6.0, 6.0, 6.0, 9.0]);
+    // The bars still count the written lengths.
+    assert_eq!(
+        notes(&c),
+        "C4@0+2 D4@2+2 E4@4+4 C4@8+2 E4@8+2 G4@8+2 C4@12+4"
+    );
+    // Other marks on a rest warn.
+    assert_eq!(compile_piece("r'@").alerts.len(), 1);
+}

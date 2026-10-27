@@ -110,6 +110,7 @@ fn lex_line(line_no: u32, line: &str, out: &mut Vec<Token>) {
                     '\'' => Tok::Mark(Mark::Staccato),
                     '^' => Tok::Mark(Mark::Accent),
                     '_' => Tok::Mark(Mark::Tenuto),
+                    '@' => Tok::Mark(Mark::Fermata),
                     _ => Tok::Unknown,
                 }
             }

@@ -40,8 +40,9 @@ impl MsgKind {
 /// notes still sounding at `from` are struck, and pedals down at `from` are pressed.
 pub fn schedule(score: &Score, from: Tick, to: Option<Tick>, sample_rate: u32) -> (Vec<Msg>, u64) {
     let to = to.unwrap_or(score.end).min(score.end).max(from);
-    let origin = score.seconds_at(from);
-    let sample = |t: Tick| ((score.seconds_at(t) - origin) * f64::from(sample_rate)).round() as u64;
+    let clock = score.clock();
+    let origin = clock.seconds_at(from);
+    let sample = |t: Tick| ((clock.seconds_at(t) - origin) * f64::from(sample_rate)).round() as u64;
     let mut msgs = Vec::new();
 
     let mut pedal_state = [false; 3];

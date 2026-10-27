@@ -21,6 +21,8 @@ pub enum Mark {
     Accent,
     /// `_`
     Tenuto,
+    /// `@`
+    Fermata,
 }
 
 #[derive(Debug, Clone, PartialEq)]

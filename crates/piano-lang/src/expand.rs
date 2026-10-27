@@ -13,6 +13,8 @@ pub struct Track {
     pub pedals: Vec<PedalEvent>,
     pub tempos: Vec<TempoEvent>,
     pub time_sigs: Vec<TimeSigEvent>,
+    /// Fermatas: (from, to).
+    pub holds: Vec<(Tick, Tick)>,
     pub len: Tick,
 }
 
@@ -36,6 +38,8 @@ impl Track {
                 t.at += at;
                 t
             }));
+        self.holds
+            .extend(other.holds.into_iter().map(|(a, b)| (a + at, b + at)));
         self.len = self.len.max(at + other.len);
     }
 }
@@ -274,10 +278,16 @@ fn lay_item(
             ctx.ties = pending;
             ctx.flush_ties(alerts);
             ctx.ties = new_ties;
+            if sound.marks.fermata {
+                track.holds.push((now, now + sound.len));
+            }
             track.len = now + sound.len;
         }
-        Item::Rest { len, .. } => {
+        Item::Rest { len, hold, .. } => {
             ctx.flush_ties(alerts);
+            if *hold {
+                track.holds.push((now, now + len));
+            }
             track.len = now + len;
         }
         Item::Pedal { kind, on, span } => track.pedals.push(PedalEvent {
@@ -353,6 +363,12 @@ fn lay_item(
                         src: *span,
                         ..p.clone()
                     })
+                    .collect(),
+                holds: track
+                    .holds
+                    .iter()
+                    .filter(|h| (from..to).contains(&h.0))
+                    .map(|&(a, b)| (a - from, b.min(to) - from))
                     .collect(),
                 len: to - from,
                 ..Track::default()

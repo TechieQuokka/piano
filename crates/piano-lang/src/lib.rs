@@ -62,6 +62,7 @@ fn finish(track: Track, opts: &CompileOptions, mut alerts: Vec<Alert>) -> Compil
         pedals: track.pedals,
         tempos: track.tempos,
         time_sigs: track.time_sigs,
+        holds: track.holds,
         end: track.len,
     };
     if !score.tempos.iter().any(|t| t.at == 0) {

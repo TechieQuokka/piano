@@ -124,6 +124,7 @@ pub enum Item {
     Sound(usize),
     Rest {
         len: Tick,
+        hold: bool,
         span: SrcSpan,
     },
     Pedal {
@@ -271,12 +272,13 @@ impl Resolver<'_> {
                 self.state.reference = first.unwrap_or(before);
                 Some(self.sound(pitches, *len, *marks, ties, *span))
             }
-            Node::Rest { len, span } => {
+            Node::Rest { len, hold, span } => {
                 if let Some(l) = len {
                     self.state.len = *l;
                 }
                 Some(Item::Rest {
                     len: self.state.len.ticks(),
+                    hold: *hold,
                     span: *span,
                 })
             }

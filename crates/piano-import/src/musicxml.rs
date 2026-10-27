@@ -40,6 +40,7 @@ pub struct Marks {
     pub staccato: u8,
     pub accent: bool,
     pub tenuto: bool,
+    pub fermata: bool,
 }
 
 impl Marks {
@@ -50,6 +51,7 @@ impl Marks {
             staccato: self.staccato.min(other.staccato),
             accent: self.accent || other.accent,
             tenuto: self.tenuto || other.tenuto,
+            fermata: self.fermata || other.fermata,
         }
     }
 
@@ -60,6 +62,9 @@ impl Marks {
         }
         if self.tenuto {
             s.push('_');
+        }
+        if self.fermata {
+            s.push('@');
         }
         s
     }
@@ -114,6 +119,8 @@ pub struct Model {
     pub dynamics: Vec<(Q, StaffId, usize)>,
     /// `sf`, `fp`, ...: for the notes of the staff struck then (or next).
     pub suddens: Vec<(Q, StaffId, Sudden)>,
+    /// Fermatas over rests: (start, length).
+    pub rest_holds: Vec<(Q, Q)>,
     pub wedges: Vec<(Q, StaffId, Wedge)>,
     pub pedals: Vec<(Q, Pedal)>,
     /// (time, quarter notes per minute)
@@ -236,6 +243,8 @@ enum Event {
     },
     Dynamic(u32, usize),
     Sudden(u32, Sudden),
+    /// A fermata over a rest of this length.
+    RestHold(Q),
     Wedge(u32, Wedge),
     Pedal(Pedal),
     Tempo(f64),
@@ -384,6 +393,7 @@ fn place(model: &mut Model, part: usize, m: &RawMeasure, start: Q) {
                 .push((*staff, *midi, name.clone(), *chord)),
             Event::Dynamic(staff, l) => model.dynamics.push((at, (part, *staff), *l)),
             Event::Sudden(staff, k) => model.suddens.push((at, (part, *staff), *k)),
+            Event::RestHold(len) => model.rest_holds.push((at, *len)),
             Event::Wedge(staff, w) => model.wedges.push((at, (part, *staff), *w)),
             Event::Pedal(p) => model.pedals.push((at, *p)),
             Event::Tempo(t) => model.tempos.push((at, *t)),
@@ -545,18 +555,27 @@ fn read_part(part: Node, notices: &mut Notices) -> Vec<RawMeasure> {
                         notices.unpitched += 1;
                         continue;
                     }
-                    let Some((l, a, o)) = spelled else { continue };
+                    let notations = child(el, "notations");
+                    let fermata = notations.is_some_and(|n| child(n, "fermata").is_some());
+                    let Some((l, a, o)) = spelled else {
+                        if fermata && child(el, "rest").is_some() {
+                            rm.events.push((onset, Event::RestHold(len)));
+                        }
+                        continue;
+                    };
                     let tie = el
                         .children()
                         .any(|t| t.has_tag_name("tie") && t.attribute("type") == Some("start"));
-                    let notations = child(el, "notations");
                     if notations.is_some_and(|n| child(n, "arpeggiate").is_some()) {
                         notices.arpeggios += 1;
                     }
-                    let marks = notations
-                        .and_then(|n| child(n, "articulations"))
-                        .map(articulations)
-                        .unwrap_or_default();
+                    let marks = Marks {
+                        fermata,
+                        ..notations
+                            .and_then(|n| child(n, "articulations"))
+                            .map(articulations)
+                            .unwrap_or_default()
+                    };
                     let trill = notations
                         .and_then(|n| child(n, "ornaments"))
                         .filter(|orn| child(*orn, "trill-mark").is_some())
@@ -595,6 +614,7 @@ fn articulations(a: Node) -> Marks {
         },
         accent: has("accent") || has("strong-accent"),
         tenuto: has("tenuto") || has("detached-legato"),
+        fermata: false,
     }
 }
 

@@ -4,13 +4,14 @@ use piano_core::{Duration, Dynamic, PedalKind, SrcSpan, TimeSig};
 
 use crate::token::{Mark, NoteName};
 
-/// Marks written after a note or chord: `'` `''` `^` `_`. They are not inherited.
+/// Marks written after a note or chord: `'` `''` `^` `_` `@`. They are not inherited.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Marks {
     /// 0: none, 1: staccato `'`, 2: staccatissimo `''`.
     pub staccato: u8,
     pub accent: bool,
     pub tenuto: bool,
+    pub fermata: bool,
 }
 
 impl Marks {
@@ -20,6 +21,7 @@ impl Marks {
             Mark::Staccatissimo => self.staccato = 2,
             Mark::Accent => self.accent = true,
             Mark::Tenuto => self.tenuto = true,
+            Mark::Fermata => self.fermata = true,
         }
     }
 
@@ -121,6 +123,8 @@ pub enum Node {
     },
     Rest {
         len: Option<Duration>,
+        /// `@`: a fermata over the rest.
+        hold: bool,
         span: SrcSpan,
     },
     Chord {

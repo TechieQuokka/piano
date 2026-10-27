@@ -7,5 +7,7 @@ pub mod time;
 
 pub use alert::{Alert, Severity, SrcSpan};
 pub use pitch::{Accidental, Letter, Pitch};
-pub use score::{Dynamic, NoteEvent, PedalEvent, PedalKind, Score, TempoEvent, TimeSigEvent};
+pub use score::{
+    Clock, Dynamic, NoteEvent, PedalEvent, PedalKind, Score, TempoEvent, TimeSigEvent,
+};
 pub use time::{Duration, TICKS_PER_QUARTER, TICKS_PER_WHOLE, Tick, TimeSig};

@@ -162,10 +162,80 @@ pub struct Score {
     pub pedals: Vec<PedalEvent>,
     pub tempos: Vec<TempoEvent>,
     pub time_sigs: Vec<TimeSigEvent>,
+    /// Fermatas: (from, to) stretches played at half speed.
+    pub holds: Vec<(Tick, Tick)>,
     pub end: Tick,
 }
 
+/// How long a fermata holds, against the written time.
+pub const HOLD: f64 = 2.0;
+
+/// Wall-clock time of a score: the tempo in effect from each tick on, slowed under
+/// a fermata.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Clock {
+    /// (from tick, quarter notes per minute), in order, starting at tick 0.
+    pace: Vec<(Tick, f64)>,
+}
+
+impl Clock {
+    pub fn pace(&self) -> &[(Tick, f64)] {
+        &self.pace
+    }
+
+    /// Seconds from tick 0 to `tick`.
+    pub fn seconds_at(&self, tick: Tick) -> f64 {
+        let mut secs = 0.0;
+        for (i, &(at, bpm)) in self.pace.iter().enumerate() {
+            if at >= tick {
+                break;
+            }
+            let end = self.pace.get(i + 1).map_or(tick, |n| n.0.min(tick));
+            secs += ticks_to_secs(end - at, bpm);
+        }
+        secs
+    }
+
+    /// Inverse of [`Clock::seconds_at`].
+    pub fn tick_at_seconds(&self, secs: f64) -> Tick {
+        let mut elapsed = 0.0;
+        for (i, &(at, bpm)) in self.pace.iter().enumerate() {
+            match self.pace.get(i + 1) {
+                Some(&(next, _)) if elapsed + ticks_to_secs(next - at, bpm) <= secs => {
+                    elapsed += ticks_to_secs(next - at, bpm);
+                }
+                _ => return at + secs_to_ticks(secs - elapsed, bpm),
+            }
+        }
+        0
+    }
+}
+
 impl Score {
+    /// The score's clock; build it once to time many events.
+    pub fn clock(&self) -> Clock {
+        let mut cuts: Vec<Tick> = std::iter::once(0)
+            .chain(self.tempos.iter().map(|t| t.at))
+            .chain(self.holds.iter().flat_map(|&(a, b)| [a, b]))
+            .collect();
+        cuts.sort_unstable();
+        cuts.dedup();
+        let mut pace: Vec<(Tick, f64)> = Vec::new();
+        let mut tempos = self.tempos.iter().peekable();
+        let mut bpm = DEFAULT_TEMPO;
+        for t in cuts {
+            while let Some(e) = tempos.next_if(|e| e.at <= t) {
+                bpm = e.bpm;
+            }
+            let held = self.holds.iter().any(|&(a, b)| a <= t && t < b);
+            let v = f64::from(bpm.max(1)) / if held { HOLD } else { 1.0 };
+            if pace.last().is_none_or(|l| l.1 != v) {
+                pace.push((t, v));
+            }
+        }
+        Clock { pace }
+    }
+
     /// Sorts events by time and recomputes `end`.
     pub fn finish(&mut self) {
         self.notes.sort_by_key(|n| (n.start, n.pitch));
@@ -186,34 +256,14 @@ impl Score {
             .map_or(DEFAULT_TEMPO, |t| t.bpm)
     }
 
-    /// Wall-clock seconds from tick 0 to `tick`, honoring tempo changes.
+    /// Wall-clock seconds from tick 0 to `tick`, honoring tempo changes and fermatas.
     pub fn seconds_at(&self, tick: Tick) -> f64 {
-        let mut secs = 0.0;
-        let mut pos = 0;
-        let mut bpm = DEFAULT_TEMPO;
-        for t in self.tempos.iter().take_while(|t| t.at <= tick) {
-            secs += ticks_to_secs(t.at - pos, bpm);
-            pos = t.at;
-            bpm = t.bpm;
-        }
-        secs + ticks_to_secs(tick - pos, bpm)
+        self.clock().seconds_at(tick)
     }
 
     /// Inverse of [`Score::seconds_at`].
     pub fn tick_at_seconds(&self, secs: f64) -> Tick {
-        let mut elapsed = 0.0;
-        let mut pos = 0;
-        let mut bpm = DEFAULT_TEMPO;
-        for t in &self.tempos {
-            let seg = ticks_to_secs(t.at - pos, bpm);
-            if elapsed + seg > secs {
-                break;
-            }
-            elapsed += seg;
-            pos = t.at;
-            bpm = t.bpm;
-        }
-        pos + secs_to_ticks(secs - elapsed, bpm)
+        self.clock().tick_at_seconds(secs)
     }
 
     /// Total length in seconds.
@@ -222,12 +272,12 @@ impl Score {
     }
 }
 
-fn ticks_to_secs(ticks: Tick, bpm: u16) -> f64 {
-    ticks as f64 / TICKS_PER_QUARTER as f64 * 60.0 / f64::from(bpm.max(1))
+fn ticks_to_secs(ticks: Tick, bpm: f64) -> f64 {
+    ticks as f64 / TICKS_PER_QUARTER as f64 * 60.0 / bpm
 }
 
-fn secs_to_ticks(secs: f64, bpm: u16) -> Tick {
-    (secs.max(0.0) * f64::from(bpm.max(1)) / 60.0 * TICKS_PER_QUARTER as f64).round() as Tick
+fn secs_to_ticks(secs: f64, bpm: f64) -> Tick {
+    (secs.max(0.0) * bpm / 60.0 * TICKS_PER_QUARTER as f64).round() as Tick
 }
 
 #[cfg(test)]
@@ -256,6 +306,18 @@ mod tests {
         assert_eq!(s.tick_at_seconds(3.0), t);
         assert_eq!(s.tick_at_seconds(1.0), TICKS_PER_QUARTER);
         assert_eq!(s.tempo_at(t), 120);
+    }
+
+    #[test]
+    fn a_fermata_holds_twice_as_long() {
+        let mut s = Score::default();
+        s.tempos.push(TempoEvent { at: 0, bpm: 60 });
+        s.holds.push((TICKS_PER_QUARTER, TICKS_PER_QUARTER * 2));
+        // 1 s, then the held quarter 2 s, then 1 s.
+        let t = TICKS_PER_QUARTER * 3;
+        assert!((s.seconds_at(t) - 4.0).abs() < 1e-9);
+        assert_eq!(s.tick_at_seconds(2.0), TICKS_PER_QUARTER * 3 / 2);
+        assert_eq!(s.tick_at_seconds(4.0), t);
     }
 
     #[test]

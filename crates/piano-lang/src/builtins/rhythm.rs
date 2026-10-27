@@ -22,6 +22,9 @@ pub fn tuplet(mut track: Track, n: u32) -> Track {
     for t in &mut track.time_sigs {
         t.at = scale(t.at);
     }
+    for h in &mut track.holds {
+        *h = (scale(h.0), scale(h.1));
+    }
     track.len = scale(track.len);
     track
 }
