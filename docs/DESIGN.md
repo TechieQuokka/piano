@@ -843,6 +843,9 @@ piano import <folder> <dir>                    # every score in folder → dir/<
 piano doctor                                  # check SoundFont, audio device, terminal keys
 ```
 
+`piano <command> help` is `piano <command> --help` (1.48.1): `help` as a command's
+first argument always asks for help; a folder or file named help is `./help`.
+
 ### 9.11 Example flow: pressing `C` in Keys focus
 
 ```

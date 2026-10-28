@@ -1,5 +1,6 @@
 //! Binary `piano`: entry point for the `edit`, `play`, `export`, `new`, `import`, and `doctor` subcommands.
 
+use std::ffi::OsString;
 use std::io::{IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -25,9 +26,19 @@ struct Cli {
 #[derive(Subcommand)]
 enum Cmd {
     /// Open the editor (default; DIR defaults to the current directory)
-    Edit { dir: Option<PathBuf> },
+    #[command(after_help = "Examples:\n  \
+        piano edit my_song\n  \
+        piano                      # the project in the current directory")]
+    Edit {
+        /// A project folder
+        dir: Option<PathBuf>,
+    },
     /// Play a project's song, or a .piano file, without the editor
+    #[command(after_help = "Examples:\n  \
+        piano play my_song\n  \
+        piano play my_song/p1.piano --lines 2-4")]
     Play {
+        /// A project folder (its song) or a .piano file
         target: PathBuf,
         /// Line range, e.g. 2-4
         #[arg(long)]
@@ -43,8 +54,10 @@ enum Cmd {
     Export {
         /// A project folder, a .piano file, or a folder of projects (not deeper)
         target: PathBuf,
+        /// MIDI (the default): notes, pedals, and tempo, for other music software
         #[arg(long, conflicts_with_all = ["wav", "flac"])]
         midi: bool,
+        /// Audio rendered with the SoundFont
         #[arg(long, conflicts_with = "flac")]
         wav: bool,
         /// Lossless FLAC (same sound as WAV, about half the size)
@@ -63,7 +76,12 @@ enum Cmd {
         out: Option<PathBuf>,
     },
     /// Create a project in any folder (existing files are kept)
-    New { dir: PathBuf },
+    #[command(after_help = "Example:\n  \
+        piano new my_song          # my_song/piano.toml, song.piano, p1.piano")]
+    New {
+        /// The project's folder (created if missing)
+        dir: PathBuf,
+    },
     /// Import a score (MusicXML or Humdrum kern), or every score in a folder, as new projects
     #[command(after_help = "Examples:\n  \
         piano import score.mxl my_song\n  \
@@ -82,8 +100,23 @@ enum Cmd {
     Doctor,
 }
 
+/// Subcommands whose first argument is a path.
+const PATH_COMMANDS: [&str; 5] = ["edit", "play", "export", "new", "import"];
+
+/// `piano export help` → `piano export --help`: `help` as a command's first argument
+/// always asks for help; a folder or file named help is `./help`.
+fn help_word(mut args: Vec<OsString>) -> Vec<OsString> {
+    if args.len() >= 3
+        && args[2] == "help"
+        && args[1].to_str().is_some_and(|c| PATH_COMMANDS.contains(&c))
+    {
+        args[2] = "--help".into();
+    }
+    args
+}
+
 fn main() -> ExitCode {
-    let cli = Cli::parse();
+    let cli = Cli::parse_from(help_word(std::env::args_os().collect()));
     let result = match cli.cmd.unwrap_or(Cmd::Edit { dir: None }) {
         Cmd::Edit { dir } => edit(&dir.unwrap_or_else(|| PathBuf::from("."))),
         Cmd::Play { target, lines } => play(&target, lines.as_deref()),
@@ -970,6 +1003,26 @@ mod tests {
                 "missing: MIDI 60 at quarter 2.5"
             ]
         );
+    }
+
+    #[test]
+    fn help_as_the_first_argument_asks_for_help() {
+        let args = |a: &[&str]| a.iter().map(OsString::from).collect::<Vec<_>>();
+        for cmd in PATH_COMMANDS {
+            assert_eq!(
+                help_word(args(&["piano", cmd, "help"])),
+                args(&["piano", cmd, "--help"])
+            );
+        }
+        // A folder named help, or help elsewhere, is a path.
+        for kept in [
+            &["piano", "export", "./help"][..],
+            &["piano", "import", "a.krn", "help"],
+            &["piano", "help", "export"],
+            &["piano", "doctor"],
+        ] {
+            assert_eq!(help_word(args(kept)), args(kept));
+        }
     }
 
     #[test]
