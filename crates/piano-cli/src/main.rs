@@ -33,8 +33,15 @@ enum Cmd {
         #[arg(long)]
         lines: Option<String>,
     },
-    /// Export a project's song, or a .piano file, to MIDI, WAV, or FLAC
+    /// Export a project's song, a .piano file, or every project in a folder, to MIDI,
+    /// WAV, or FLAC
+    #[command(after_help = "Examples:\n  \
+        piano export my_song --midi\n  \
+        piano export my_song/p1.piano --flac -o intro.flac\n  \
+        piano export beethoven --flac -o beethoven-flac     \
+        # beethoven-flac/sonata01-1.flac, ...")]
     Export {
+        /// A project folder, a .piano file, or a folder of projects (not deeper)
         target: PathBuf,
         #[arg(long, conflicts_with_all = ["wav", "flac"])]
         midi: bool,
@@ -50,7 +57,8 @@ enum Cmd {
         #[arg(long)]
         bits: Option<u16>,
         /// Output file (default: <name>.mid / .wav / .flac in the current directory;
-        /// the song is named after the project folder)
+        /// the song is named after the project folder). For a folder of projects: the
+        /// folder that gets one file per project (default: the current directory)
         #[arg(short, long)]
         out: Option<PathBuf>,
     },
@@ -160,6 +168,11 @@ fn scores_in(dir: &Path) -> std::io::Result<Vec<PathBuf>> {
 /// Folders below `dir` (a few levels, not hidden ones) that hold scores, with their
 /// number of scores.
 fn score_folders(dir: &Path, depth: usize) -> Vec<(PathBuf, usize)> {
+    folders_with(dir, depth, &|d| scores_in(d).map_or(0, |f| f.len()))
+}
+
+/// Folders below `dir` (a few levels, not hidden ones) where `n` is not 0, with `n`.
+fn folders_with(dir: &Path, depth: usize, n: &dyn Fn(&Path) -> usize) -> Vec<(PathBuf, usize)> {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return Vec::new();
     };
@@ -175,12 +188,12 @@ fn score_folders(dir: &Path, depth: usize) -> Vec<(PathBuf, usize)> {
     subs.sort();
     let mut out = Vec::new();
     for sub in subs {
-        let n = scores_in(&sub).map_or(0, |f| f.len());
-        if n > 0 {
-            out.push((sub.clone(), n));
+        let found = n(&sub);
+        if found > 0 {
+            out.push((sub.clone(), found));
         }
         if depth > 1 {
-            out.extend(score_folders(&sub, depth - 1));
+            out.extend(folders_with(&sub, depth - 1, n));
         }
     }
     out
@@ -516,47 +529,191 @@ fn export(
     bits: Option<u16>,
     out: Option<&Path>,
 ) -> Result<(), String> {
+    if target.is_dir() && !target.join(CONFIG_FILE).exists() {
+        return export_folder(target, audio, rate, bits, out);
+    }
     let (app, name) = load(target)?;
     let score = compiled(&app, &name)?;
-    let ext = audio.unwrap_or("mid");
     let out = out.map_or_else(
-        || PathBuf::from(format!("{}.{ext}", app.project.export_stem(&name))),
+        || {
+            PathBuf::from(format!(
+                "{}.{}",
+                app.project.export_stem(&name),
+                audio.unwrap_or("mid")
+            ))
+        },
         Path::to_path_buf,
     );
-    let mut detail = String::new();
-    let bytes = match audio {
-        Some(kind) => {
-            let sf = app.player.sound_font().ok_or(
-                "audio export needs a SoundFont (piano.toml or ~/.config/piano/config.toml [sound])",
-            )?;
-            let native = piano_export::AudioFormat::native(sf);
-            let format = piano_export::AudioFormat {
-                rate: rate.unwrap_or(native.rate),
-                bits: bits.unwrap_or(native.bits),
-            };
-            detail = format!(", {} Hz / {}-bit", format.rate, format.bits);
-            let bytes = if kind == "flac" {
-                piano_export::flac_bytes(&score, sf, format)
-            } else {
-                piano_export::wav_bytes(&score, sf, format)
-            };
-            bytes.map_err(|e| e.to_string())?
-        }
-        None => piano_export::midi_bytes(&score),
-    };
-    // Never overwrite: the same rule as outside the project in the editor.
-    let mut f = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&out)
-        .map_err(|e| format!("{}: {e}", out.display()))?;
-    f.write_all(&bytes).map_err(|e| e.to_string())?;
+    let (bytes, detail) = render(&app, &score, audio, rate, bits)?;
+    write_new(&out, &bytes)?;
     println!(
         "exported {} ({} KB{detail})",
         out.display(),
         bytes.len().div_ceil(1024)
     );
     Ok(())
+}
+
+/// The file's bytes, and the audio format for the report (`, 48000 Hz / 24-bit`).
+fn render(
+    app: &App,
+    score: &Score,
+    audio: Option<&str>,
+    rate: Option<u32>,
+    bits: Option<u16>,
+) -> Result<(Vec<u8>, String), String> {
+    let Some(kind) = audio else {
+        return Ok((piano_export::midi_bytes(score), String::new()));
+    };
+    let sf = app.player.sound_font().ok_or(
+        "audio export needs a SoundFont (piano.toml or ~/.config/piano/config.toml [sound])",
+    )?;
+    let native = piano_export::AudioFormat::native(sf);
+    let format = piano_export::AudioFormat {
+        rate: rate.unwrap_or(native.rate),
+        bits: bits.unwrap_or(native.bits),
+    };
+    let bytes = if kind == "flac" {
+        piano_export::flac_bytes(score, sf, format)
+    } else {
+        piano_export::wav_bytes(score, sf, format)
+    };
+    let detail = format!(", {} Hz / {}-bit", format.rate, format.bits);
+    Ok((bytes.map_err(|e| e.to_string())?, detail))
+}
+
+/// Never overwrite: the same rule as outside the project in the editor.
+fn write_new(out: &Path, bytes: &[u8]) -> Result<(), String> {
+    let mut f = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(out)
+        .map_err(|e| format!("{}: {e}", out.display()))?;
+    f.write_all(bytes).map_err(|e| e.to_string())
+}
+
+/// Projects directly in `dir`, sorted.
+fn projects_in(dir: &Path) -> std::io::Result<Vec<PathBuf>> {
+    let mut dirs: Vec<PathBuf> = std::fs::read_dir(dir)?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.is_dir() && p.join(CONFIG_FILE).exists())
+        .collect();
+    dirs.sort();
+    Ok(dirs)
+}
+
+/// Exports the song of each project directly in `src` into `out/<project>.<ext>`.
+/// Existing files are skipped; a failed project does not stop the rest.
+fn export_folder(
+    src: &Path,
+    audio: Option<&str>,
+    rate: Option<u32>,
+    bits: Option<u16>,
+    out: Option<&Path>,
+) -> Result<(), String> {
+    let dirs = projects_in(src).map_err(|e| format!("{}: {e}", src.display()))?;
+    if dirs.is_empty() {
+        let mut msg = format!(
+            "{}: no projects (folders with {CONFIG_FILE})",
+            src.display()
+        );
+        let found = folders_with(src, 3, &|d| projects_in(d).map_or(0, |p| p.len()));
+        for (dir, n) in found.iter().take(MAX_HINTS) {
+            let rel = dir.strip_prefix(src).unwrap_or(dir);
+            msg += &format!(
+                "\n  {}/ has {}: piano export {}",
+                rel.display(),
+                count(*n, "project"),
+                dir.display()
+            );
+        }
+        if found.len() > MAX_HINTS {
+            msg += &format!(
+                "\n  ... and {} more",
+                count(found.len() - MAX_HINTS, "folder")
+            );
+        }
+        return Err(msg);
+    }
+    let out = out.unwrap_or(Path::new("."));
+    std::fs::create_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
+    let ext = audio.unwrap_or("mid");
+    let (mut ok, mut failed, mut skipped) = (0, 0, 0);
+    for dir in &dirs {
+        let name = dir
+            .file_name()
+            .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+        let file = out.join(format!("{name}.{ext}"));
+        if file.exists() {
+            println!("  skip  {name}: {} exists", file.display());
+            skipped += 1;
+            continue;
+        }
+        match export_project(dir, &file, audio, rate, bits) {
+            Ok((size, errors)) => {
+                ok += 1;
+                let note = if errors.is_empty() {
+                    String::new()
+                } else {
+                    format!(" · {} skipped", count(errors.len(), "error"))
+                };
+                println!(
+                    "  ok    {name}: {} ({} KB){note}",
+                    file.display(),
+                    size.div_ceil(1024)
+                );
+                for e in errors.iter().take(MAX_PROBLEMS) {
+                    println!("          {e}");
+                }
+                if errors.len() > MAX_PROBLEMS {
+                    println!(
+                        "          ... {} more: piano export {} lists all",
+                        errors.len() - MAX_PROBLEMS,
+                        dir.display()
+                    );
+                }
+            }
+            Err(e) => {
+                failed += 1;
+                println!("  fail  {name}: {e}");
+            }
+        }
+    }
+    println!(
+        "{} → {}: {ok} exported, {failed} failed, {skipped} skipped",
+        count(dirs.len(), "project"),
+        out.display()
+    );
+    if failed > 0 {
+        return Err(format!(
+            "{failed} of {} did not export (see above)",
+            count(dirs.len(), "project")
+        ));
+    }
+    Ok(())
+}
+
+/// Writes a project's song to `file`: its size and the errors that were skipped.
+fn export_project(
+    dir: &Path,
+    file: &Path,
+    audio: Option<&str>,
+    rate: Option<u32>,
+    bits: Option<u16>,
+) -> Result<(usize, Vec<String>), String> {
+    let (app, name) = load(dir)?;
+    let (score, compiled) = app
+        .score_of(&name)
+        .ok_or_else(|| format!("no piece `{name}`"))?;
+    let errors = compiled
+        .alerts
+        .iter()
+        .filter(|a| a.severity == Severity::Error)
+        .map(|a| a.located(&name))
+        .collect();
+    let (bytes, _) = render(&app, &score, audio, rate, bits)?;
+    write_new(file, &bytes)?;
+    Ok((bytes.len(), errors))
 }
 
 fn doctor() -> Result<(), String> {
@@ -765,6 +922,37 @@ mod tests {
         );
         let err = import_folder(&root, Path::new("out")).unwrap_err();
         assert!(err.contains("kern/ has 2 scores: piano import"), "{err}");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_folder_of_projects_exports_each_song_and_skips_existing_files() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../target/test-tmp")
+            .join(format!("cli-export-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let (src, out) = (root.join("songs"), root.join("out"));
+        for (name, song) in [("a", "p1\n"), ("b", "p1\n"), ("c", "p1 nope\n")] {
+            let p = Project::create(&src.join(name)).unwrap();
+            std::fs::write(p.piece_path("p1"), "C4/4 D E F\n").unwrap();
+            std::fs::write(p.piece_path(SONG), song).unwrap();
+        }
+        std::fs::create_dir_all(src.join("notes")).unwrap();
+        // An existing file is kept; a song with an error still exports.
+        std::fs::create_dir_all(&out).unwrap();
+        std::fs::write(out.join("b.mid"), "mine").unwrap();
+        export_folder(&src, None, None, None, Some(&out)).unwrap();
+        let midi = std::fs::read(out.join("a.mid")).unwrap();
+        assert!(midi.starts_with(b"MThd"));
+        assert!(out.join("c.mid").exists());
+        let (_, errors) =
+            export_project(&src.join("c"), &root.join("c2.mid"), None, None, None).unwrap();
+        assert!(errors[0].contains("nope"), "{errors:?}");
+        assert_eq!(std::fs::read_to_string(out.join("b.mid")).unwrap(), "mine");
+        assert!(!out.join("notes.mid").exists());
+        // No projects here, but below.
+        let err = export_folder(&root, None, None, None, Some(&out)).unwrap_err();
+        assert!(err.contains("songs/ has 3 projects: piano export"), "{err}");
         let _ = std::fs::remove_dir_all(&root);
     }
 

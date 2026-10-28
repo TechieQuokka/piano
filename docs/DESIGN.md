@@ -835,6 +835,8 @@ piano edit [dir]                              # open TUI (default: current dir)
 piano play <dir|file> [--lines 2-4]
 piano export <dir|file> --midi|--wav|--flac [--rate 48000] [--bits 24] [-o out]
                                               # default out: <piece>.<ext>; a project dir → <folder>.<ext>
+piano export <folder> --midi|--wav|--flac [-o outdir]
+                                              # every project in folder → outdir/<project>.<ext> (§13.23)
 piano new <dir>                               # create project
 piano import <score.mxl|.krn> <dir>           # MusicXML / **kern → new project (§13.13, §13.15)
 piano import <folder> <dir>                    # every score in folder → dir/<file name> (§13.16)
@@ -1327,3 +1329,16 @@ stopped at `voices`. Fixed in order:
   it). Import: slurs per voice in written order (kern `(` `)`, MusicXML `<slur>`), a
   run of slurred notes per block in one `slur{ }` (closed and reopened around
   `free{ }`), and `touch 90` at the start of every piece.
+
+### 13.23 Exporting a folder (1.48.0)
+
+`piano export <folder>`, when the folder is not itself a project, exports the song of
+each project directly in it (folders with `piano.toml`; not deeper), the counterpart
+of 13.16: `piano import kern beethoven` then `piano export beethoven --flac -o
+beethoven-flac`. `-o` is then the output folder (default: the current directory;
+created if missing), and each file is `<project folder>.<ext>`, as in a single
+export. Existing files are skipped, never overwritten. A project that fails keeps the
+rest going; a song with errors is still exported with them skipped, as in a single
+export, and its line shows the first errors. Each project prints one line (`ok`,
+`fail`, `skip`), then a total; the command fails if any project failed. A folder
+with no projects names the folders below that have some.
